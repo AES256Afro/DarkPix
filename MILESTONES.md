@@ -64,6 +64,7 @@ Status: Complete
 - No inbound router ports or public origin address
 - Content security, framing, MIME, referrer, permissions, opener, resource, and transport headers
 - Immutable hashed assets with non-cacheable release identity and service worker
+- Release-isolated worker caches recover old hashed chunks from real asset 404s instead of accepting the HTML shell
 - CI-enforced compressed JavaScript, CSS, and entry-HTML performance budgets
 - CI rejects high or critical dependency advisories before building the release image
 - Every deploy verifies non-cacheable live health and the exact commit through both `ne-gro.com` and `www.ne-gro.com`

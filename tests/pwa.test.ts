@@ -16,6 +16,7 @@ describe("installable offline shell", () => {
     expect(worker).toContain('event.data?.type === "SKIP_WAITING"');
     expect(worker).toContain("cacheBuildAssets");
     expect(worker).toContain("visited.size < 24");
+    expect(worker).toContain("return cached ?? response");
     const installHandler = worker.slice(worker.indexOf('addEventListener("install"'), worker.indexOf('addEventListener("activate"'));
     expect(installHandler).not.toContain("skipWaiting");
   });
