@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HAUL_CAPACITY, canAddToHaul, dropLeastValuable, haulCount, treasureGold } from "../src/game/haul";
+import { HAUL_CAPACITY, RIVAL_HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGold } from "../src/game/haul";
 import type { Item } from "../src/game/types";
 
 const item = (id: string, value: number, kind: Item["kind"] = "treasure", power = 1): Item => ({
@@ -20,6 +20,13 @@ describe("unsecured haul", () => {
     expect(result.dropped?.id).toBe("weaker");
     expect(result.kept.map((entry) => entry.id)).toEqual(["sigil", "weak", "rich"]);
     expect(haul).toHaveLength(4);
+  });
+
+  it("lets the rival steal a bounded ordinary haul but never contract sigils", () => {
+    const treasure = item("idol", 20);
+    expect(canRivalScavenge([], treasure)).toBe(true);
+    expect(canRivalScavenge([], item("sigil", 45, "sigil"))).toBe(false);
+    expect(canRivalScavenge(Array.from({ length: RIVAL_HAUL_CAPACITY }, () => treasure), treasure)).toBe(false);
   });
 
   it("reverses treasure coin credit when that treasure leaves the haul", () => {

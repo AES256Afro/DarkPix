@@ -1,6 +1,7 @@
 import type { Item } from "./types";
 
 export const HAUL_CAPACITY = 8;
+export const RIVAL_HAUL_CAPACITY = 2;
 
 export function haulCount(items: readonly Item[]): number {
   return items.reduce((count, item) => count + (item.kind === "sigil" ? 0 : 1), 0);
@@ -10,6 +11,10 @@ export function canAddToHaul(items: readonly Item[], item: Item, capacity = HAUL
   if (item.kind === "sigil") return true;
   const safeCapacity = Number.isFinite(capacity) ? Math.max(0, Math.floor(capacity)) : HAUL_CAPACITY;
   return haulCount(items) < safeCapacity;
+}
+
+export function canRivalScavenge(items: readonly Item[], item: Item): boolean {
+  return item.kind !== "sigil" && items.length < RIVAL_HAUL_CAPACITY;
 }
 
 export function treasureGold(item: Item): number {

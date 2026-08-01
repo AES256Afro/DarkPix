@@ -48,7 +48,7 @@ Mouse sensitivity, 60 to 95 degree field of view, crypt brightness, audio, reduc
 - Follow the contract wayfinder toward the nearest living Warden, loose sigil, or unlocked blue passage.
 - Search four coffers across an interconnected dungeon while fighting monsters and one AI rival delver. One deep coffer carries subtle teeth and wakes as a mimic instead of surrendering loot; killing it produces a depth-weighted drop.
 - Carry up to eight ordinary haul items. Contract sigils stay in a separate pouch; when the haul is full, `G` drops the least valuable unsecured item so a better find can take its place.
-- Break the AI rival's sightline or react to its telegraphed throwing knife; a fresh guard can parry the projectile.
+- Break the AI rival's sightline or react to its telegraphed throwing knife; a fresh guard can parry the projectile. While unaware of you, the rival can scavenge up to two loose non-sigil items. Its visible satchel and every stolen relic spill back into the dungeon if it is killed.
 - Find the unmarked blood reliquary in the southwest dead chamber, if the extra loot is worth 18 vigor and the noise it makes.
 - Survive the Tollkeeper in the extraction chamber. Its heavy attacks cannot be parried, it enrages below half vigor, and it always drops a named Rare-or-better chain trophy.
 - Killing the first Tollkeeper awakens a red breach in the extraction arch. Hold `E` to bank the run or hold `R` to abandon the safe exit and enter the Ashen Depth: a 135-second second floor with no resource reset, fresh wardens, stronger threats, a new closing darkness, +0.16 loot depth, and extra class XP even if the deeper run fails.

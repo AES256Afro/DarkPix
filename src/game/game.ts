@@ -4,7 +4,7 @@ import { attackDamage, classAbilityDamageMultiplier, enemyAttackPattern, guardDr
 import { CLASSES, CLASS_ABILITIES, RARITY_COLOR, classPerkBonuses, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, type ClassPerkBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { depthRules } from "./depth";
-import { HAUL_CAPACITY, canAddToHaul, dropLeastValuable, haulCount, treasureGold } from "./haul";
+import { HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGold } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, type LoadoutStats } from "./loadout";
 import { cardinalDirection, circlesOverlap } from "./navigation";
 import { raidRules, type RaidRules } from "./raid";
@@ -43,6 +43,7 @@ interface Enemy {
   pathTimer: number;
   attackStyle: "melee" | "ranged";
   crippled: boolean;
+  carriedLoot: Item[];
 }
 
 interface Pickup {
@@ -623,6 +624,14 @@ export class DarkPixGame {
       weapon.position.set(0.5, 1.0, 0.16);
       weapon.rotation.z = -0.5;
       group.add(weapon);
+      if (isRival) {
+        const satchel = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.42, 0.2), material(0x5e3825));
+        satchel.name = "rivalSatchel";
+        satchel.position.set(-0.38, 1.0, 0.14);
+        satchel.rotation.z = 0.16;
+        satchel.visible = false;
+        group.add(satchel);
+      }
     } else {
       for (let index = 0; index < 6; index += 1) {
         const leg = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.07, 0.07), bone);
@@ -680,6 +689,7 @@ export class DarkPixGame {
       pathTimer: 0,
       attackStyle: "melee",
       crippled: false,
+      carriedLoot: [],
     });
   }
 
@@ -1166,6 +1176,15 @@ export class DarkPixGame {
     enemy.group.rotation.z = 1.2;
     enemy.group.position.y = -0.55;
     this.feed(`${enemy.name} falls.`, enemy.kind === "rival" ? "rival" : "loot");
+    if (enemy.kind === "rival" && enemy.carriedLoot.length) {
+      enemy.carriedLoot.forEach((item, index) => {
+        const angle = (index / enemy.carriedLoot.length) * Math.PI * 2;
+        const position = enemy.group.position.clone().add(new THREE.Vector3(Math.cos(angle) * 0.5, 0, Math.sin(angle) * 0.5));
+        this.spawnPickup(item, position);
+      });
+      this.feed(`RIVAL FELLED · ${enemy.carriedLoot.length} stolen relic${enemy.carriedLoot.length === 1 ? "" : "s"} recovered`, "rival");
+      enemy.carriedLoot = [];
+    }
     const drop = enemy.kind === "warden"
       ? createSigil()
       : enemy.kind === "boss"
@@ -1215,6 +1234,7 @@ export class DarkPixGame {
         { x: player.x, z: player.z },
         { x: enemy.group.position.x, z: enemy.group.position.z },
       )) enemy.alerted = true;
+      if (!enemy.alerted && enemy.kind === "rival" && this.updateRivalScavenging(enemy, delta)) continue;
       if (!enemy.alerted) {
         enemy.group.rotation.y += Math.sin(this.elapsed * 0.35 + enemy.phase) * delta * 0.15;
         continue;
@@ -1326,6 +1346,48 @@ export class DarkPixGame {
         this.audio.tone(enemy.kind === "boss" ? 58 : 110, 0.08, "square", 0.04);
       }
     }
+  }
+
+  private updateRivalScavenging(enemy: Enemy, delta: number): boolean {
+    let target: Pickup | undefined;
+    let nearest = 8.5;
+    for (const pickup of this.pickups) {
+      if (pickup.collected || !canRivalScavenge(enemy.carriedLoot, pickup.item)) continue;
+      const distance = Math.hypot(
+        pickup.group.position.x - enemy.group.position.x,
+        pickup.group.position.z - enemy.group.position.z,
+      );
+      if (distance >= nearest || !dungeonLineOfSight(
+        { x: enemy.group.position.x, z: enemy.group.position.z },
+        { x: pickup.group.position.x, z: pickup.group.position.z },
+        0.12,
+      )) continue;
+      nearest = distance;
+      target = pickup;
+    }
+    if (!target) return false;
+    if (nearest <= 0.72) {
+      target.collected = true;
+      target.group.visible = false;
+      enemy.carriedLoot.push(target.item);
+      const satchel = enemy.group.getObjectByName("rivalSatchel");
+      if (satchel) satchel.visible = true;
+      this.feed(`RIVAL SCAVENGER · ${target.item.name} taken`, "rival");
+      this.audio.tone(155, 0.12, "square", 0.06);
+      return true;
+    }
+    const movementX = target.group.position.x - enemy.group.position.x;
+    const movementZ = target.group.position.z - enemy.group.position.z;
+    const movementLength = Math.hypot(movementX, movementZ);
+    if (movementLength <= 0.001) return true;
+    enemy.group.lookAt(target.group.position.x, enemy.group.position.y, target.group.position.z);
+    const stepScale = (enemy.speed * 0.72 * delta) / movementLength;
+    const nextX = enemy.group.position.x + movementX * stepScale;
+    if (!this.collidesEnemy(enemy, nextX, enemy.group.position.z)) enemy.group.position.x = nextX;
+    const nextZ = enemy.group.position.z + movementZ * stepScale;
+    if (!this.collidesEnemy(enemy, enemy.group.position.x, nextZ)) enemy.group.position.z = nextZ;
+    enemy.group.position.y = Math.sin(this.elapsed * 7 + enemy.phase) * 0.025;
+    return true;
   }
 
   private collidesEnemy(movingEnemy: Enemy, x: number, z: number): boolean {
