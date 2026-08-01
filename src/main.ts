@@ -15,11 +15,23 @@ let selectedClass: ClassId = profile.preferredClass;
 let equippedIds = new Set<string>();
 let activeGame: DarkPixGame | undefined;
 let merchantNotice = "";
+let persistenceWarning = "";
 let gameModulePromise: Promise<typeof import("./game/game")> | undefined;
 
 function loadGameModule(): Promise<typeof import("./game/game")> {
   gameModulePromise ??= import("./game/game");
   return gameModulePromise;
+}
+
+function persistProfile(): void {
+  if (!saveProfile(profile)) persistenceWarning = "This browser refused local storage. Progress will last only until the page closes.";
+}
+
+function persistPreferences(): void {
+  if (savePreferences(preferences)) return;
+  persistenceWarning = "This browser refused local storage. Settings will last only until the page closes.";
+  const notice = app.querySelector<HTMLElement>(".merchant-notice");
+  if (notice) notice.textContent = persistenceWarning;
 }
 
 function itemMarkup(item: Item, riskable = false): string {
@@ -58,6 +70,7 @@ function renderLobby(): void {
           <strong>${profile.gold}<i>g</i></strong>
         </div>
       </header>
+      ${persistenceWarning ? `<p class="persistence-warning" role="alert">${persistenceWarning}</p>` : ""}
 
       <section class="hero">
         <div class="hero-scrim"></div>
@@ -152,7 +165,7 @@ function renderLobby(): void {
     button.addEventListener("click", () => {
       selectedClass = button.dataset.classId as ClassId;
       profile.preferredClass = selectedClass;
-      saveProfile(profile);
+      persistProfile();
       renderLobby();
     });
   });
@@ -177,7 +190,7 @@ function renderLobby(): void {
       profile.stash = profile.stash.filter((candidate) => candidate.id !== id);
       equippedIds.delete(item.id);
       merchantNotice = `${item.name} sold for ${item.value}g.`;
-      saveProfile(profile);
+      persistProfile();
       renderLobby();
     });
   });
@@ -185,9 +198,10 @@ function renderLobby(): void {
     button.addEventListener("click", () => {
       const offer = MERCHANT_OFFERS.find((candidate) => candidate.sku === button.dataset.merchantSku);
       if (!offer) return;
+      const purchaseId = globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.floor(Math.random() * 1_000_000).toString(36)}`;
       const item: Item = {
         ...offer.item,
-        id: `merchant-${offer.sku}-${crypto.randomUUID()}`,
+        id: `merchant-${offer.sku}-${purchaseId}`,
       };
       const purchase = purchaseItem(profile, item, offer.price);
       profile = purchase.profile;
@@ -196,7 +210,7 @@ function renderLobby(): void {
         : purchase.outcome === "stash_full"
           ? "The stash is full. Sell something before buying."
           : `You need ${offer.price - profile.gold}g more for ${offer.item.name}.`;
-      if (purchase.outcome === "purchased") saveProfile(profile);
+      if (purchase.outcome === "purchased") persistProfile();
       renderLobby();
     });
   });
@@ -205,7 +219,7 @@ function renderLobby(): void {
       const key = input.dataset.preference as keyof GamePreferences;
       if (key === "muted" || key === "reducedMotion") preferences = { ...preferences, [key]: input.checked };
       else preferences = { ...preferences, [key]: Number(input.value) };
-      savePreferences(preferences);
+      persistPreferences();
       const output = app.querySelector<HTMLOutputElement>(`[data-output="${key}"]`);
       if (output) output.textContent = key === "brightness" ? `${Math.round(Number(input.value) * 100)}%` : `${Number(input.value).toFixed(1)}x`;
     });
@@ -249,7 +263,7 @@ function finishRaid(result: RaidResult): void {
   const overflowGold = overflow.reduce((sum, item) => sum + Math.max(1, Math.floor(item.value * 0.5)), 0);
   const settlementGold = result.goldFound + (firstContractPaid ? 100 : 0) + overflowGold;
   profile = applyRaidResult(profile, result);
-  saveProfile(profile);
+  persistProfile();
   const lost = extracted ? [] : oldStash.filter((item) => result.equippedIds.includes(item.id));
   const headline = extracted ? "YOU RETURNED" : result.reason === "darkness" ? "THE DARK TOOK YOU" : "YOUR TORCH WENT OUT";
   const detail = extracted

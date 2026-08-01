@@ -73,6 +73,15 @@ describe("persistent raid consequences", () => {
     expect(result.preferredClass).toBe("vanguard");
   });
 
+  it("rejects non-finite items and deduplicates persisted stash IDs", () => {
+    const valid = createProfile().stash[0]!;
+    const result = normalizeProfile({
+      stash: [valid, { ...valid }, { ...valid, id: "infinite", value: Number.POSITIVE_INFINITY }, { ...valid, id: "negative", power: -1 }],
+    });
+    expect(result.stash).toHaveLength(1);
+    expect(result.stash[0]?.id).toBe(valid.id);
+  });
+
   it("pays the first extraction contract once", () => {
     const result = {
       reason: "extracted" as const,
@@ -106,6 +115,23 @@ describe("persistent raid consequences", () => {
     expect(result.stash).toHaveLength(24);
     expect(result.stash.every((item) => item.id.startsWith("kept-"))).toBe(true);
     expect(result.gold).toBe(190);
+  });
+
+  it("does not duplicate loot IDs or accept negative result rewards", () => {
+    const profile = createProfile();
+    const duplicate = { ...profile.stash[0]! };
+    const result = applyRaidResult(profile, {
+      reason: "extracted",
+      classId: "vanguard",
+      loot: [duplicate],
+      equippedIds: [],
+      kills: -20,
+      elapsed: 0,
+      goldFound: -50,
+    });
+    expect(result.stash.filter((item) => item.id === duplicate.id)).toHaveLength(1);
+    expect(result.gold).toBe(175);
+    expect(result.xp.vanguard).toBe(170);
   });
 
   it("buys merchant stock only when gold and stash space permit", () => {

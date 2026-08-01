@@ -41,10 +41,11 @@ function validItem(value: unknown): value is Item {
   if (!value || typeof value !== "object") return false;
   const item = value as Partial<Item>;
   return (
-    typeof item.id === "string" &&
-    typeof item.name === "string" &&
-    typeof item.power === "number" &&
-    typeof item.value === "number" &&
+    typeof item.id === "string" && item.id.length > 0 && item.id.length <= 160 &&
+    typeof item.name === "string" && item.name.length > 0 && item.name.length <= 120 &&
+    typeof item.power === "number" && Number.isFinite(item.power) && item.power >= 0 &&
+    typeof item.value === "number" && Number.isFinite(item.value) && item.value >= 0 &&
+    (item.modifier === undefined || typeof item.modifier === "string") &&
     ["weapon", "armor", "treasure", "consumable", "sigil"].includes(item.kind ?? "") &&
     ["Worn", "Common", "Uncommon", "Rare", "Epic", "Legendary"].includes(item.rarity ?? "")
   );
@@ -55,6 +56,15 @@ export function normalizeProfile(value: unknown): Profile {
   if (!value || typeof value !== "object") return fallback;
   const candidate = value as Partial<Profile>;
   const xp = candidate.xp && typeof candidate.xp === "object" ? candidate.xp : fallback.xp;
+  const stash: Item[] = [];
+  const itemIds = new Set<string>();
+  if (Array.isArray(candidate.stash)) {
+    for (const item of candidate.stash) {
+      if (!validItem(item) || itemIds.has(item.id) || stash.length >= 24) continue;
+      itemIds.add(item.id);
+      stash.push({ ...item });
+    }
+  }
   return {
     version: 1,
     gold: Math.max(0, Math.floor(Number(candidate.gold) || 0)),
@@ -63,7 +73,7 @@ export function normalizeProfile(value: unknown): Profile {
       cutpurse: Math.max(0, Math.floor(Number(xp.cutpurse) || 0)),
       hexbound: Math.max(0, Math.floor(Number(xp.hexbound) || 0)),
     },
-    stash: Array.isArray(candidate.stash) ? candidate.stash.filter(validItem).slice(0, 24) : fallback.stash,
+    stash: Array.isArray(candidate.stash) ? stash : fallback.stash,
     extracts: Math.max(0, Math.floor(Number(candidate.extracts) || 0)),
     deaths: Math.max(0, Math.floor(Number(candidate.deaths) || 0)),
     preferredClass: validClass(candidate.preferredClass) ? candidate.preferredClass : fallback.preferredClass,
@@ -78,23 +88,33 @@ export function loadProfile(): Profile {
   }
 }
 
-export function saveProfile(profile: Profile): void {
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(normalizeProfile(profile)));
+export function saveProfile(profile: Profile): boolean {
+  try {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(normalizeProfile(profile)));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function applyRaidResult(profile: Profile, result: RaidResult): Profile {
   const next = normalizeProfile(profile);
   const consumed = new Set(result.consumedIds ?? []);
   if (consumed.size) next.stash = next.stash.filter((item) => !consumed.has(item.id));
-  const xpGain = 30 + result.kills * 35 + (result.reason === "extracted" ? 140 : 0);
+  const xpGain = 30 + Math.max(0, Math.floor(result.kills)) * 35 + (result.reason === "extracted" ? 140 : 0);
   next.xp[result.classId] += xpGain;
   next.preferredClass = result.classId;
 
   if (result.reason === "extracted") {
     const firstContractReward = next.extracts === 0 ? 100 : 0;
     next.extracts += 1;
-    next.gold += result.goldFound + firstContractReward;
-    const transferable = result.loot.filter((item) => item.kind !== "sigil");
+    next.gold += Math.max(0, Math.floor(result.goldFound)) + firstContractReward;
+    const knownIds = new Set(next.stash.map((item) => item.id));
+    const transferable = result.loot.filter((item) => {
+      if (item.kind === "sigil" || knownIds.has(item.id) || !validItem(item)) return false;
+      knownIds.add(item.id);
+      return true;
+    });
     const availableSlots = Math.max(0, 24 - next.stash.length);
     const banked = transferable.slice(0, availableSlots);
     const overflow = transferable.slice(availableSlots);

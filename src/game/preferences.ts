@@ -34,6 +34,11 @@ export function loadPreferences(): GamePreferences {
   }
 }
 
-export function savePreferences(preferences: GamePreferences): void {
-  localStorage.setItem(PREFERENCES_KEY, JSON.stringify(normalizePreferences(preferences)));
+export function savePreferences(preferences: GamePreferences): boolean {
+  try {
+    localStorage.setItem(PREFERENCES_KEY, JSON.stringify(normalizePreferences(preferences)));
+    return true;
+  } catch {
+    return false;
+  }
 }

@@ -55,6 +55,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .account-strip { justify-self: end; display: flex; align-items: center; gap: 18px; color: #9b958a; font: 700 10px ui-monospace, monospace; letter-spacing: .12em; }
 .account-strip strong { color: #e7c37c; font-size: 14px; }
 .account-strip i { margin-left: 2px; color: #8e774d; font-style: normal; }
+.persistence-warning { position: absolute; inset: 78px 18px auto; z-index: 7; margin: 0 auto; padding: 10px 14px; border: 1px solid #824e39; background: rgba(49,21,15,.94); color: #dcaa91; font: 9px/1.4 ui-monospace, monospace; text-align: center; }
 
 .hero {
   position: relative;
