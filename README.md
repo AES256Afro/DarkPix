@@ -58,6 +58,7 @@ The repository includes a hardened Docker and Nginx deployment for BigBox. It bi
 
 - Three.js for the low-resolution 3D dungeon and first-person runtime
 - TypeScript and Vite for the browser application
+- Lazy-loaded, separately cached 3D runtime so the lobby arrives before the dungeon engine
 - Canvas-generated nearest-neighbor dungeon textures
 - Web Audio synthesis for the dungeon drone and action feedback
 - Local storage for class progression, gold, and stash persistence

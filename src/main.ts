@@ -1,8 +1,8 @@
 import "./style.css";
 import { CLASSES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, progressionBonuses } from "./game/data";
-import { DarkPixGame } from "./game/game";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { applyRaidResult, loadProfile, purchaseItem, saveProfile } from "./game/profile";
+import type { DarkPixGame } from "./game/game";
 import type { ClassId, GamePreferences, Item, Profile, RaidResult } from "./game/types";
 
 const foundApp = document.querySelector<HTMLDivElement>("#app");
@@ -15,6 +15,12 @@ let selectedClass: ClassId = profile.preferredClass;
 let equippedIds = new Set<string>();
 let activeGame: DarkPixGame | undefined;
 let merchantNotice = "";
+let gameModulePromise: Promise<typeof import("./game/game")> | undefined;
+
+function loadGameModule(): Promise<typeof import("./game/game")> {
+  gameModulePromise ??= import("./game/game");
+  return gameModulePromise;
+}
 
 function itemMarkup(item: Item, riskable = false): string {
   const selected = equippedIds.has(item.id);
@@ -204,22 +210,32 @@ function renderLobby(): void {
       if (output) output.textContent = key === "brightness" ? `${Math.round(Number(input.value) * 100)}%` : `${Number(input.value).toFixed(1)}x`;
     });
   });
-  app.querySelector<HTMLButtonElement>(".descend-button")?.addEventListener("click", startRaid);
+  const descendButton = app.querySelector<HTMLButtonElement>(".descend-button");
+  descendButton?.addEventListener("pointerenter", () => void loadGameModule());
+  descendButton?.addEventListener("focus", () => void loadGameModule());
+  descendButton?.addEventListener("click", () => void startRaid());
   app.querySelector<HTMLAnchorElement>(".brand")?.addEventListener("click", (event) => event.preventDefault());
 }
 
-function startRaid(): void {
+async function startRaid(): Promise<void> {
   const equipped = profile.stash.filter((item) => equippedIds.has(item.id));
-  app.innerHTML = `<main class="game-mount" aria-label="DarkPix dungeon raid"></main>`;
+  app.innerHTML = `<main class="game-mount" aria-label="DarkPix dungeon raid"><div class="crypt-loading" role="status"><span>DP</span><strong>OPENING THE PALE TOLL</strong><small>Kindling the dungeon renderer</small></div></main>`;
   const mount = app.querySelector<HTMLElement>(".game-mount");
   if (!mount) return;
-  activeGame = new DarkPixGame(mount, {
-    classId: selectedClass,
-    classLevel: levelForXp(profile.xp[selectedClass]),
-    equipped,
-    preferences,
-    onFinish: finishRaid,
-  });
+  try {
+    const { DarkPixGame: GameRuntime } = await loadGameModule();
+    activeGame = new GameRuntime(mount, {
+      classId: selectedClass,
+      classLevel: levelForXp(profile.xp[selectedClass]),
+      equipped,
+      preferences,
+      onFinish: finishRaid,
+    });
+  } catch (error) {
+    console.error("DarkPix could not start the 3D raid", error);
+    mount.innerHTML = `<section class="runtime-error"><span>†</span><h1>THE PASSAGE FAILED</h1><p>The 3D renderer could not start. Update the browser, enable WebGL, or try the raid again.</p><button type="button">RETURN TO THE LAST LANTERN</button></section>`;
+    mount.querySelector<HTMLButtonElement>("button")?.addEventListener("click", renderLobby);
+  }
 }
 
 function finishRaid(result: RaidResult): void {
