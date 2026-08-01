@@ -3007,13 +3007,18 @@ export class DarkPixGame {
       : "No throwing weapon · B cycle";
     this.torchHud.textContent = `${this.torchLit ? "Hood" : "Unhood"} torch · ${Math.ceil(this.torchFuel)}s`;
     this.updateWayfinder();
+    const strikeStamina = attackStaminaCost(this.options.classId, this.attackDirection);
+    const combatOverride = this.guardBreakTimer > 0 || Boolean(this.remedyItemId) || this.riposteTimer > 0;
+    const strikeExhausted = !combatOverride && this.stamina < strikeStamina;
     this.directionHud.textContent = this.guardBreakTimer > 0
       ? `GUARD BROKEN · ${this.guardBreakTimer.toFixed(1)}s`
       : this.remedyItemId
         ? `TREATING · ${this.remedyTimer.toFixed(1)}s`
-      : this.riposteTimer > 0 ? `RIPOSTE · ${this.riposteTimer.toFixed(1)}s` : this.attackDirection;
-    this.directionHud.classList.toggle("active", this.guardBreakTimer > 0 || Boolean(this.remedyItemId) || this.riposteTimer > 0 || this.mouseAccumulator.x !== 0 || this.mouseAccumulator.y !== 0);
-    this.directionHud.classList.toggle("danger", this.guardBreakTimer > 0);
+      : this.riposteTimer > 0
+        ? `RIPOSTE · ${this.riposteTimer.toFixed(1)}s`
+        : `${this.attackDirection} · ${strikeExhausted ? "NEED" : "COST"} ${strikeStamina} STA`;
+    this.directionHud.classList.toggle("active", combatOverride || strikeExhausted || this.mouseAccumulator.x !== 0 || this.mouseAccumulator.y !== 0);
+    this.directionHud.classList.toggle("danger", this.guardBreakTimer > 0 || strikeExhausted);
     this.damageDirectionHud.classList.toggle("visible", this.damageDirectionTimer > 0);
     this.threatHud.classList.toggle("visible", this.threatTimer > 0);
     if (!this.portalAnnounced && this.phaseElapsed() > floorRules.duration * 0.43 && this.sigils < 2) {
