@@ -17,7 +17,7 @@ import { rarityShape } from "./rarity";
 import { raidReadinessSummary } from "./readiness";
 import { MAX_TORCH_FUEL_SECONDS, addTorchFuel, spendTorchFuel } from "./light";
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
-import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike } from "./stealth";
+import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
 import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
 import { directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "./zone";
@@ -212,6 +212,7 @@ export class DarkPixGame {
   private raidClock!: HTMLElement;
   private journalHud!: HTMLElement;
   private stealthHud!: HTMLElement;
+  private stealthCueHud!: HTMLElement;
   private lootHud!: HTMLElement;
   private objectiveHud!: HTMLElement;
   private promptHud!: HTMLElement;
@@ -361,6 +362,7 @@ export class DarkPixGame {
           <div class="event-feed" role="status"></div>
           <div class="threat-vitals" aria-live="polite"><strong></strong><div><i></i></div><small></small></div>
           <div class="crosshair" aria-hidden="true"><i></i><b></b><em></em><span></span></div>
+          <div class="stealth-cue" aria-hidden="true"></div>
           <div class="attack-direction">THRUST</div>
           <div class="interaction-prompt"></div>
           <div class="extract-meter"><i></i></div>
@@ -410,6 +412,7 @@ export class DarkPixGame {
     this.raidClock = this.mount.querySelector<HTMLElement>(".raid-clock")!;
     this.journalHud = this.mount.querySelector<HTMLElement>(".journal-copy")!;
     this.stealthHud = this.mount.querySelector<HTMLElement>(".stealth-copy")!;
+    this.stealthCueHud = this.mount.querySelector<HTMLElement>(".stealth-cue")!;
     this.lootHud = this.mount.querySelector<HTMLElement>(".loot-count")!;
     this.objectiveHud = this.mount.querySelector<HTMLElement>(".objective-copy")!;
     this.promptHud = this.mount.querySelector<HTMLElement>(".interaction-prompt")!;
@@ -3044,6 +3047,7 @@ export class DarkPixGame {
       ? `${selectedThrowable.name} · ${throwableDamage(selectedThrowable)} dmg · ${throwables.length} left · B cycle`
       : "No throwing weapon · B cycle";
     this.torchHud.textContent = `${this.torchLit ? "Hood" : "Unhood"} torch · ${Math.ceil(this.torchFuel)}s`;
+    this.updateStealthCue(Math.max(this.definition.reach, selectedThrowable ? 10 : 0));
     this.updateWayfinder();
     const strikeStamina = attackStaminaCost(this.options.classId, this.attackDirection);
     const combatOverride = this.guardBreakTimer > 0 || Boolean(this.remedyItemId) || this.riposteTimer > 0;
@@ -3063,6 +3067,36 @@ export class DarkPixGame {
       this.portalAnnounced = true;
       this.feed("The dark advances. Wardens carry what the passage needs.", "danger");
     }
+  }
+
+  private updateStealthCue(maxReach: number): void {
+    const cameraPosition = this.camera.position;
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).normalize();
+    let target: Enemy | undefined;
+    let closest = Number.POSITIVE_INFINITY;
+    for (const enemy of this.enemies) {
+      if (!enemy.alive) continue;
+      const targetHeight = enemy.kind === "crawler" || enemy.kind === "mimic" ? 0.72 : enemy.kind === "boss" ? 1.55 : 1.12;
+      const toEnemy = enemy.group.position.clone().add(new THREE.Vector3(0, targetHeight, 0)).sub(cameraPosition);
+      const distance = toEnemy.length();
+      if (distance > maxReach || distance >= closest || toEnemy.normalize().dot(forward) <= 0.985) continue;
+      if (!dungeonLineOfSight(
+        { x: cameraPosition.x, z: cameraPosition.z },
+        { x: enemy.group.position.x, z: enemy.group.position.z },
+      )) continue;
+      target = enemy;
+      closest = distance;
+    }
+    if (!target) {
+      this.stealthCueHud.classList.remove("visible");
+      delete this.stealthCueHud.dataset.state;
+      this.stealthCueHud.textContent = "";
+      return;
+    }
+    const cue = unseenStrikeCue(this.markedUnseenThreats, target);
+    this.stealthCueHud.textContent = cue.label;
+    this.stealthCueHud.dataset.state = cue.state;
+    this.stealthCueHud.classList.add("visible");
   }
 
   private updateWayfinder(): void {

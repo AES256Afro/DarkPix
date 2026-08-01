@@ -47,7 +47,7 @@ Status: Complete for the current map
 
 - Encounter mirroring, extraction-site selection, trap formations, rival archetypes, and campfire placement produce 32 bounded raid configurations with stable `PT-00` through `PT-1F` contract seals
 - Contract-critical locations remain reachable in topology tests
-- Threat windups, directional pre-hit and impact markers, guard cone, pre-action strike stamina cost, unique unseen marks, chain telegraphs, safe annulus, darkness bearing, channel interruption reasons, crosshair scaling, rarity rank marks, and loose-loot silhouettes expose actionable state
+- Threat windups, directional pre-hit and impact markers, guard cone, pre-action strike stamina cost, crosshair awareness and unique unseen marks, chain telegraphs, safe annulus, darkness bearing, channel interruption reasons, crosshair scaling, rarity rank marks, and loose-loot silhouettes expose actionable state
 - Critical vigor, stamina, spell memory, and torch fuel can redirect the wayfinder to an unused campfire
 - Reduced motion suppresses decorative loading, camera, enemy-step, loot, flame, and portal loops while retaining functional combat telegraphs
 - High contrast strengthens darkness and checkpoint state, navigation, combat warnings, threat vitals, resources, and interaction panels

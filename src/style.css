@@ -269,7 +269,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .raid-shell.reduced-motion .damage-flash.pulse, .raid-shell.reduced-motion .raid-clock.urgent, .raid-shell.reduced-flashes .damage-flash.pulse, .raid-shell.reduced-flashes .raid-clock.urgent { animation: none; }
 .raid-shell.reduced-flashes .damage-flash.pulse { opacity: .18; }
 .raid-shell.high-contrast-hud .contract-panel, .raid-shell.high-contrast-hud .objective-panel, .raid-shell.high-contrast-hud .interaction-prompt, .raid-shell.high-contrast-hud .quick-slots > div, .raid-shell.high-contrast-hud .bar { border-color: rgba(232,221,202,.72); background-color: rgba(2,2,2,.94); }
-.raid-shell.high-contrast-hud .contract-panel > .zone-copy, .raid-shell.high-contrast-hud .contract-panel > .journal-copy, .raid-shell.high-contrast-hud .objective-panel > span:last-child, .raid-shell.high-contrast-hud .quick-slots small, .raid-shell.high-contrast-hud .attack-direction, .raid-shell.high-contrast-hud .bar span { color: #f0e8dc; opacity: 1; }
+.raid-shell.high-contrast-hud .contract-panel > .zone-copy, .raid-shell.high-contrast-hud .contract-panel > .journal-copy, .raid-shell.high-contrast-hud .objective-panel > span:last-child, .raid-shell.high-contrast-hud .quick-slots small, .raid-shell.high-contrast-hud .attack-direction, .raid-shell.high-contrast-hud .stealth-cue, .raid-shell.high-contrast-hud .bar span { color: #f0e8dc; opacity: 1; }
 .raid-shell.high-contrast-hud .contract-panel > .zone-copy.outside { color: #ffad8c; }
 .raid-shell.high-contrast-hud .contract-panel > .journal-copy.failed { color: #ff9b86; }
 .raid-shell.high-contrast-hud .compass { border-color: #d8c8ad; color: #f0e1c9; }
@@ -324,6 +324,11 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .crosshair { position: absolute; top: 50%; left: 50%; width: 22px; height: 22px; transform: translate(-50%, -50%) scale(var(--crosshair-scale, 1)); filter: drop-shadow(0 1px 2px #000); }
 .crosshair i, .crosshair b, .crosshair em, .crosshair span { position: absolute; display: block; background: rgba(228,218,199,.8); }
 .crosshair i { top: 0; left: 10px; width: 2px; height: 6px; }.crosshair b { right: 0; top: 10px; width: 6px; height: 2px; }.crosshair em { bottom: 0; left: 10px; width: 2px; height: 6px; }.crosshair span { left: 0; top: 10px; width: 6px; height: 2px; }
+.stealth-cue { position: absolute; top: calc(50% - 38px); left: 50%; padding: 3px 6px; transform: translateX(-50%); border: 1px solid transparent; background: rgba(4,4,4,.74); color: #847c70; font: 800 7px ui-monospace, monospace; letter-spacing: .11em; opacity: 0; text-shadow: 0 1px 2px #000; }
+.stealth-cue.visible { opacity: .88; }
+.stealth-cue[data-state="eligible"] { border-color: rgba(97,170,157,.5); color: #81cbbf; }
+.stealth-cue[data-state="marked"] { color: #b69a74; }
+.stealth-cue[data-state="aware"] { border-color: rgba(187,81,61,.42); color: #dc806a; }
 .attack-direction { position: absolute; top: calc(50% + 22px); left: 50%; transform: translateX(-50%); color: rgba(196,183,162,.55); font: 700 7px ui-monospace, monospace; letter-spacing: .14em; opacity: .35; transition: opacity .12s; }
 .attack-direction.active { opacity: .9; }
 .attack-direction.danger { color: #dc765d; text-shadow: 0 0 8px rgba(207,72,47,.5); }
