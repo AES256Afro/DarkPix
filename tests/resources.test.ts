@@ -1,0 +1,22 @@
+import * as THREE from "three";
+import { describe, expect, it, vi } from "vitest";
+import { disposeSceneResources } from "../src/game/resources";
+
+describe("raid resource cleanup", () => {
+  it("disposes shared GPU resources exactly once", () => {
+    const scene = new THREE.Scene();
+    const texture = new THREE.Texture();
+    const material = new THREE.MeshBasicMaterial({ map: texture });
+    const geometry = new THREE.BoxGeometry();
+    scene.add(new THREE.Mesh(geometry, material), new THREE.Mesh(geometry, material));
+    const textureDispose = vi.spyOn(texture, "dispose");
+    const materialDispose = vi.spyOn(material, "dispose");
+    const geometryDispose = vi.spyOn(geometry, "dispose");
+
+    disposeSceneResources(scene);
+
+    expect(textureDispose).toHaveBeenCalledOnce();
+    expect(materialDispose).toHaveBeenCalledOnce();
+    expect(geometryDispose).toHaveBeenCalledOnce();
+  });
+});

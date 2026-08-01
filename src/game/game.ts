@@ -4,6 +4,7 @@ import { attackDamage } from "./combat";
 import { CLASSES, RARITY_COLOR, createLoot, createSigil, formatTime, progressionBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { cardinalDirection } from "./navigation";
+import { disposeSceneResources } from "./resources";
 import { extractionHold, targetDistanceInView } from "./targeting";
 import type { ClassId, GamePreferences, Item, RaidEndReason, RaidResult, Vec2 } from "./types";
 import { distanceFromZoneCenter, zoneState } from "./zone";
@@ -1224,7 +1225,10 @@ export class DarkPixGame {
     this.renderer.domElement.removeEventListener("click", this.requestPointerLock);
     this.lockOverlay.removeEventListener("click", this.requestPointerLock);
     this.audio.stop();
+    disposeSceneResources(this.scene);
+    this.renderer.renderLists.dispose();
     this.renderer.dispose();
+    this.renderer.forceContextLoss();
     this.mount.innerHTML = "";
   }
 }
