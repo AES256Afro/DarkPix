@@ -41,6 +41,7 @@ interface Enemy {
   path: Vec2[];
   pathTimer: number;
   attackStyle: "melee" | "ranged";
+  crippled: boolean;
 }
 
 interface Pickup {
@@ -644,6 +645,7 @@ export class DarkPixGame {
       path: [],
       pathTimer: 0,
       attackStyle: "melee",
+      crippled: false,
     });
   }
 
@@ -985,6 +987,7 @@ export class DarkPixGame {
     const headHeight = best.kind === "crawler" || best.kind === "mimic" ? 0.72 : best.kind === "boss" ? 2.35 : 1.82;
     const toHead = best.group.position.clone().add(new THREE.Vector3(0, headHeight, 0)).sub(cameraPosition).normalize();
     const headshot = toHead.dot(forward) > (this.options.classId === "hexbound" ? 0.992 : 0.975);
+    const limbHit = !headshot && this.attackDirection === "SWEEP" && this.options.classId !== "hexbound";
     const weaponPower = equippedPower(this.options.equipped, "weapon");
     const baseDamage = attackDamage({
       baseDamage: this.definition.damage,
@@ -993,9 +996,10 @@ export class DarkPixGame {
       direction: this.attackDirection,
       ambush: this.options.classId === "cutpurse" && !best.alerted,
       headshot,
+      limb: limbHit,
     });
     const damage = Math.round(baseDamage * (best.kind === "rival" ? 1 : this.loadoutBonuses.undeadDamageMultiplier));
-    this.damageEnemy(best, damage, headshot);
+    this.damageEnemy(best, damage, headshot, limbHit);
     if (this.options.classId === "hexbound") this.spawnSpellTrail(cameraPosition, forward, bestDistance);
     this.mouseAccumulator.x = 0;
     this.mouseAccumulator.y = 0;
@@ -1030,7 +1034,7 @@ export class DarkPixGame {
     }, 95);
   }
 
-  private damageEnemy(enemy: Enemy, amount: number, headshot: boolean): void {
+  private damageEnemy(enemy: Enemy, amount: number, headshot: boolean, limbHit: boolean): void {
     enemy.hp -= amount;
     enemy.alerted = true;
     enemy.stagger = 0.18;
@@ -1039,7 +1043,12 @@ export class DarkPixGame {
       enemy.cooldown = Math.max(enemy.cooldown, 0.45);
     }
     this.audio.hit();
-    this.feed(`${headshot ? "HEADSHOT · " : ""}${enemy.name} takes ${amount}.`, enemy.kind === "rival" ? "rival" : "combat");
+    const crippledNow = limbHit && enemy.kind !== "boss" && !enemy.crippled;
+    if (crippledNow) {
+      enemy.crippled = true;
+      enemy.speed *= 0.72;
+    }
+    this.feed(`${headshot ? "HEADSHOT · " : limbHit ? "LIMB HIT · " : ""}${enemy.name} takes ${amount}.${crippledNow ? " Its stride breaks." : ""}`, enemy.kind === "rival" ? "rival" : "combat");
     enemy.group.scale.set(enemy.baseScale * 1.14, enemy.baseScale * 0.9, enemy.baseScale * 1.14);
     if (enemy.kind === "boss" && enemy.hp > 0 && enemy.hp <= enemy.maxHp / 2 && !enemy.group.userData.enraged) {
       enemy.group.userData.enraged = true;
@@ -1077,8 +1086,8 @@ export class DarkPixGame {
       : enemy.kind === "boss"
         ? enemy.group.userData.enraged ? "KEEPER · ENRAGED" : "KEEPER"
         : enemy.kind === "rival"
-          ? "HOSTILE DELVER"
-          : "CRYPT THREAT";
+          ? enemy.crippled ? "HOSTILE DELVER · CRIPPLED" : "HOSTILE DELVER"
+          : enemy.crippled ? "CRYPT THREAT · CRIPPLED" : "CRYPT THREAT";
     this.threatHud.dataset.kind = enemy.kind;
     this.threatHud.classList.add("visible");
   }

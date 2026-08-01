@@ -18,6 +18,7 @@ export interface DamageInput {
   direction: AttackDirection;
   ambush: boolean;
   headshot: boolean;
+  limb?: boolean;
 }
 
 export function attackDamage(input: DamageInput): number {
@@ -26,6 +27,7 @@ export function attackDamage(input: DamageInput): number {
   if (input.direction === "THRUST") damage *= 1.08;
   if (input.ambush) damage *= 2;
   if (input.headshot) damage *= 1.35;
+  else if (input.limb) damage *= 0.82;
   return Math.round(damage);
 }
 

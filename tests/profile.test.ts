@@ -262,6 +262,15 @@ describe("directional combat damage", () => {
     expect(attackDamage({ baseDamage: 20, weaponPower: 5, progressionBonus: 2, direction: "THRUST", ambush: true, headshot: true })).toBe(79);
   });
 
+  it("makes limb strikes weaker than body hits without overriding headshots", () => {
+    const body = attackDamage({ baseDamage: 20, weaponPower: 0, progressionBonus: 0, direction: "SWEEP", ambush: false, headshot: false });
+    const limb = attackDamage({ baseDamage: 20, weaponPower: 0, progressionBonus: 0, direction: "SWEEP", ambush: false, headshot: false, limb: true });
+    const head = attackDamage({ baseDamage: 20, weaponPower: 0, progressionBonus: 0, direction: "SWEEP", ambush: false, headshot: true, limb: true });
+    expect(body).toBe(20);
+    expect(limb).toBe(16);
+    expect(head).toBe(27);
+  });
+
   it("gives every enemy strike a readable windup and recovery", () => {
     expect(enemyAttackPattern("crawler").windup).toBeGreaterThan(0.2);
     expect(enemyAttackPattern("mimic")).toEqual({ windup: 0.32, recovery: 1.4 });
