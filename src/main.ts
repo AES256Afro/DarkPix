@@ -1,6 +1,7 @@
 import "./style.css";
 import { escapeHtml } from "./html";
 import { createSaveBackup, parseSaveBackup } from "./game/backup";
+import { merchantCommission } from "./game/commission";
 import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses } from "./game/data";
 import { itemValueTotal, raidValueSummary } from "./game/economy";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
@@ -144,6 +145,8 @@ function renderLobby(): void {
   const boneKills = boneKillCount(profile);
   const contractRecord = contractRecordSummary(profile);
   const ironmongerStanding = merchantStanding(profile.extracts);
+  const todaysCommission = merchantCommission(Date.now());
+  const commissionClaimed = profile.lastCommissionDay === todaysCommission.day;
   app.innerHTML = `
     <main class="lobby">
       <header class="lobby-header">
@@ -299,6 +302,11 @@ function renderLobby(): void {
               <span class="wax-seal">VII</span>
               <div><small>THREE RETURNS WITHOUT FUNERAL</small><strong>${profile.streakBountyPaid ? "Lantern oath honored" : "Extract three times in a row"}</strong><p>${profile.streakBountyPaid ? "The Ironmonger paid 300g for the completed survival oath." : "Any failed or abandoned contract breaks the chain. Reward: 300g on the third consecutive extraction."}</p></div>
               <b>${profile.streakBountyPaid ? "PAID" : `${Math.min(3, contractRecord.currentExtractStreak)} / 3`}</b>
+            </section>
+            <section class="contract-card daily">
+              <span class="wax-seal">VIII</span>
+              <div><small>DAILY IRONMONGER COMMISSION · ${todaysCommission.day}</small><strong>${commissionClaimed ? "Commission settled" : todaysCommission.title}</strong><p>${commissionClaimed ? `${todaysCommission.reward}g paid for today's live return.` : `Defeat ${todaysCommission.target} ${todaysCommission.kind}${todaysCommission.target === 1 ? "" : "s"} in one raid and extract. Reward: ${todaysCommission.reward}g. Resets at 00:00 UTC.`}</p></div>
+              <b>${commissionClaimed ? "PAID TODAY" : `0 / ${todaysCommission.target}`}</b>
             </section>
             <section class="journal-panel" aria-labelledby="journal-heading">
               <div class="panel-heading"><span><small>PERSISTENT LEDGER</small><strong id="journal-heading">Recent contracts</strong></span><b>${profile.raidHistory.length} / 10</b></div>
@@ -641,7 +649,7 @@ function finishRaid(result: RaidResult): void {
       ? "THE IRON SOUL WAS EXTINGUISHED"
       : result.reason === "abandoned" ? "THE CONTRACT WAS FORFEIT" : "YOUR TORCH WENT OUT";
   const detail = extracted
-    ? `${result.depthReached === 2 ? "The Ashen Depth's passage" : "The blue passage"} seals behind you. ${settlement.overflow.length ? `${settlement.overflow.length} overflow item${settlement.overflow.length === 1 ? " was" : "s were"} sold by the porter for ${settlement.overflowGold}g.` : "Everything in your haul fits safely in the stash."}${result.depthReached === 2 ? " The red-depth veterancy bonus is recorded." : ""}${settlement.firstContractPaid ? " The Taverner's 100g bounty is paid." : ""}${settlement.bossContractPaid ? " The 150g Tollkeeper bounty is paid." : ""}${settlement.highTollContractPaid ? " The 200g Deeper Wager bounty is paid." : result.raidMode === "high_toll" ? " The High Toll veterancy bonus is recorded." : ""}${settlement.ashenContractPaid ? " The 250g Ash Below Ash bounty is paid." : ""}${settlement.boneBountyPaid ? " The 175g Ossuary Ledger bounty is paid." : ""}${settlement.rivalBountyPaid ? " The 225g Guildless Knives bounty is paid." : ""}${settlement.streakBountyPaid ? " The 300g Three Returns bounty is paid." : ""}`
+    ? `${result.depthReached === 2 ? "The Ashen Depth's passage" : "The blue passage"} seals behind you. ${settlement.overflow.length ? `${settlement.overflow.length} overflow item${settlement.overflow.length === 1 ? " was" : "s were"} sold by the porter for ${settlement.overflowGold}g.` : "Everything in your haul fits safely in the stash."}${result.depthReached === 2 ? " The red-depth veterancy bonus is recorded." : ""}${settlement.firstContractPaid ? " The Taverner's 100g bounty is paid." : ""}${settlement.bossContractPaid ? " The 150g Tollkeeper bounty is paid." : ""}${settlement.highTollContractPaid ? " The 200g Deeper Wager bounty is paid." : result.raidMode === "high_toll" ? " The High Toll veterancy bonus is recorded." : ""}${settlement.ashenContractPaid ? " The 250g Ash Below Ash bounty is paid." : ""}${settlement.boneBountyPaid ? " The 175g Ossuary Ledger bounty is paid." : ""}${settlement.rivalBountyPaid ? " The 225g Guildless Knives bounty is paid." : ""}${settlement.streakBountyPaid ? " The 300g Three Returns bounty is paid." : ""}${settlement.commissionPaid ? ` The daily Ironmonger commission pays ${settlement.commissionReward}g.` : ""}`
     : `${settlement.classXpLost > 0 ? `${settlement.classXpLost} ${CLASSES[result.classId].name} XP is erased by the Iron Soul oath.` : result.raidMode === "iron_soul" ? "The Iron Soul oath finds no veterancy left to erase." : "Your class remembers."} Your carried gear and every unsecured find remain ${result.depthReached === 2 ? "in the Ashen Depth" : "below"}.${result.depthReached === 2 && result.raidMode !== "iron_soul" ? " Some red-depth veterancy survives." : ""}${rules.entryFee ? ` The ${rules.entryFee}g entry fee is gone.` : ""}`;
   const nextStep = extracted
     ? settlement.overflow.length

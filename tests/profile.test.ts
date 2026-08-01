@@ -159,7 +159,7 @@ describe("persistent raid consequences", () => {
     expect(result.extracts).toBe(0);
     expect(result.highTollExtracts).toBe(0);
     expect(result.ashenExtracts).toBe(0);
-    expect(result.version).toBe(12);
+    expect(result.version).toBe(13);
     expect(result.xp.reaver).toBe(0);
     expect(result.xp.ranger).toBe(0);
     expect(result.xp.cleric).toBe(0);
@@ -169,6 +169,7 @@ describe("persistent raid consequences", () => {
     expect(result.boneBountyPaid).toBe(false);
     expect(result.rivalBountyPaid).toBe(false);
     expect(result.streakBountyPaid).toBe(false);
+    expect(result.lastCommissionDay).toBe("");
     expect(result.preferredClass).toBe("vanguard");
     expect(result.raidHistory).toEqual([]);
   });
@@ -178,7 +179,7 @@ describe("persistent raid consequences", () => {
     legacy.version = 7;
     legacy.xp = { vanguard: 700, cutpurse: 350, hexbound: 0, reaver: 0, ranger: 0, cleric: 0 };
     const migrated = normalizeProfile(legacy);
-    expect(migrated.version).toBe(12);
+    expect(migrated.version).toBe(13);
     expect(migrated.xp.vanguard).toBe(700);
     expect(migrated.xp.cutpurse).toBe(350);
     expect(migrated.xp.shapeshifter).toBe(0);
@@ -188,7 +189,7 @@ describe("persistent raid consequences", () => {
   it("migrates pre-bestiary profiles with empty bounded ledgers", () => {
     const legacy = { ...createProfile(), version: 8, threatKills: undefined, boneBountyPaid: undefined, rivalBountyPaid: undefined };
     const migrated = normalizeProfile(legacy);
-    expect(migrated.version).toBe(12);
+    expect(migrated.version).toBe(13);
     expect(migrated.threatKills).toEqual({ skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 });
     expect(migrated.boneBountyPaid).toBe(false);
     expect(migrated.rivalBountyPaid).toBe(false);
@@ -200,9 +201,16 @@ describe("persistent raid consequences", () => {
     const legacy = { ...createProfile(), version: 11, streakBountyPaid: undefined };
     legacy.raidHistory = [{ completedAt: 1, classId: "vanguard", raidMode: "standard", reason: "extracted", depthReached: 1, kills: 0, elapsed: 40, goldDelta: 10, xpDelta: 170, gearLost: 0, bossKilled: false }];
     const migrated = normalizeProfile(legacy);
-    expect(migrated.version).toBe(12);
+    expect(migrated.version).toBe(13);
     expect(migrated.streakBountyPaid).toBe(false);
     expect(migrated.raidHistory).toHaveLength(1);
+  });
+
+  it("migrates version 12 profiles into an unclaimed daily commission", () => {
+    const legacy = { ...createProfile(), version: 12, lastCommissionDay: undefined };
+    const migrated = normalizeProfile(legacy);
+    expect(migrated.version).toBe(13);
+    expect(migrated.lastCommissionDay).toBe("");
   });
 
   it("records a bounded newest-first contract journal", () => {

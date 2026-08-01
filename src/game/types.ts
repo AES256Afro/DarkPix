@@ -39,7 +39,7 @@ export interface ClassDefinition {
 }
 
 export interface Profile {
-  version: 12;
+  version: 13;
   gold: number;
   xp: Record<ClassId, number>;
   stash: Item[];
@@ -52,6 +52,7 @@ export interface Profile {
   boneBountyPaid: boolean;
   rivalBountyPaid: boolean;
   streakBountyPaid: boolean;
+  lastCommissionDay: string;
   preferredClass: ClassId;
   raidHistory: RaidJournalEntry[];
 }

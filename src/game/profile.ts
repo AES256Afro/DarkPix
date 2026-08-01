@@ -2,6 +2,7 @@ import type { ClassId, Item, Profile, RaidJournalEntry, RaidResult, ThreatKind }
 import type { CraftingRecipe } from "./data";
 import { raidRules } from "./raid";
 import { depthXpBonus } from "./depth";
+import { merchantCommission, validUtcDayKey } from "./commission";
 
 const PROFILE_KEY = "darkpix-profile-v1";
 const RAID_ESCROW_KEY = "darkpix-active-raid-v1";
@@ -36,7 +37,7 @@ const STARTER_STASH: Item[] = [
 
 export function createProfile(): Profile {
   return {
-    version: 12,
+    version: 13,
     gold: 75,
     xp: { vanguard: 0, cutpurse: 0, hexbound: 0, reaver: 0, ranger: 0, cleric: 0, shapeshifter: 0, minstrel: 0 },
     stash: STARTER_STASH.map((item) => ({ ...item })),
@@ -49,6 +50,7 @@ export function createProfile(): Profile {
     boneBountyPaid: false,
     rivalBountyPaid: false,
     streakBountyPaid: false,
+    lastCommissionDay: "",
     preferredClass: "vanguard",
     raidHistory: [],
   };
@@ -140,7 +142,7 @@ export function normalizeProfile(value: unknown): Profile {
     ? candidate.raidHistory.map(normalizeRaidJournalEntry).filter((entry): entry is RaidJournalEntry => Boolean(entry)).slice(0, RAID_HISTORY_LIMIT)
     : [];
   return {
-    version: 12,
+    version: 13,
     gold: nonnegativeInteger(candidate.gold, MAX_GOLD),
     xp: {
       vanguard: nonnegativeInteger(xp.vanguard, MAX_CLASS_XP),
@@ -169,6 +171,7 @@ export function normalizeProfile(value: unknown): Profile {
     boneBountyPaid: typeof candidate.boneBountyPaid === "boolean" ? candidate.boneBountyPaid : false,
     rivalBountyPaid: typeof candidate.rivalBountyPaid === "boolean" ? candidate.rivalBountyPaid : false,
     streakBountyPaid: typeof candidate.streakBountyPaid === "boolean" ? candidate.streakBountyPaid : false,
+    lastCommissionDay: validUtcDayKey(candidate.lastCommissionDay) ? candidate.lastCommissionDay : "",
     preferredClass: validClass(candidate.preferredClass) ? candidate.preferredClass : fallback.preferredClass,
     raidHistory,
   };
@@ -331,6 +334,8 @@ export interface RaidSettlement {
   boneBountyPaid: boolean;
   rivalBountyPaid: boolean;
   streakBountyPaid: boolean;
+  commissionPaid: boolean;
+  commissionReward: number;
   overflowGold: number;
   goldGained: number;
   xpGained: number;
@@ -390,6 +395,8 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     boneBountyPaid: false,
     rivalBountyPaid: false,
     streakBountyPaid: false,
+    commissionPaid: false,
+    commissionReward: 0,
     overflowGold: 0,
     goldGained: 0,
     xpGained: xpGain,
@@ -404,6 +411,9 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     const boneBountyReward = !next.boneBountyPaid && boneKillCount(next) >= BONE_BOUNTY_TARGET ? 175 : 0;
     const rivalBountyReward = !next.rivalBountyPaid && next.threatKills.rival >= RIVAL_BOUNTY_TARGET ? 225 : 0;
     const streakBountyReward = !next.streakBountyPaid && contractRecordSummary(next).currentExtractStreak >= 2 ? 300 : 0;
+    const commissionTimestamp = Number.isFinite(result.finishedAt) && Number(result.finishedAt) > 0 ? Number(result.finishedAt) : Date.now();
+    const commission = merchantCommission(commissionTimestamp);
+    const commissionReward = next.lastCommissionDay !== commission.day && raidThreatKills[commission.kind] >= commission.target ? commission.reward : 0;
     settlement.firstContractPaid = firstContractReward > 0;
     settlement.bossContractPaid = bossContractReward > 0;
     settlement.highTollContractPaid = highTollContractReward > 0;
@@ -411,9 +421,12 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     settlement.boneBountyPaid = boneBountyReward > 0;
     settlement.rivalBountyPaid = rivalBountyReward > 0;
     settlement.streakBountyPaid = streakBountyReward > 0;
+    settlement.commissionPaid = commissionReward > 0;
+    settlement.commissionReward = commissionReward;
     if (boneBountyReward) next.boneBountyPaid = true;
     if (rivalBountyReward) next.rivalBountyPaid = true;
     if (streakBountyReward) next.streakBountyPaid = true;
+    if (commissionReward) next.lastCommissionDay = commission.day;
     next.extracts = Math.min(MAX_OUTCOME_COUNT, next.extracts + 1);
     if (result.bossKilled) next.bossVictories = Math.min(MAX_OUTCOME_COUNT, next.bossVictories + 1);
     if (result.raidMode === "high_toll") next.highTollExtracts = Math.min(MAX_OUTCOME_COUNT, next.highTollExtracts + 1);
@@ -436,7 +449,7 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     const availableGoldCapacity = Math.max(0, MAX_GOLD - next.gold);
     settlement.goldGained = Math.min(
       availableGoldCapacity,
-      nonnegativeInteger(result.goldFound, MAX_GOLD) + firstContractReward + bossContractReward + highTollContractReward + ashenContractReward + boneBountyReward + rivalBountyReward + streakBountyReward + settlement.overflowGold,
+      nonnegativeInteger(result.goldFound, MAX_GOLD) + firstContractReward + bossContractReward + highTollContractReward + ashenContractReward + boneBountyReward + rivalBountyReward + streakBountyReward + commissionReward + settlement.overflowGold,
     );
     next.stash = [...next.stash, ...settlement.banked];
     next.gold += settlement.goldGained;

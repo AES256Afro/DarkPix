@@ -14,7 +14,7 @@ Status: Complete
 
 - First-person movement, pixel-scaled 3D rendering, stamina-costed directional melee, ranged weapons, magic, guards, parries, ripostes, sidesteps, and class abilities
 - Eight persistent disciplines with levels, perks, equipment, remedies, throwing weapons, and local preferences
-- Loot capacity, item rarity, randomized modifiers, stash risk, merchants, crafting, save backup, and authoritative local raid settlement
+- Loot capacity, item rarity, randomized modifiers, stash risk, merchants, rotating daily commissions, crafting, save backup, and authoritative local raid settlement
 - Closing darkness, two extraction sites, red descent, two floors, traps, second-floor ash vents, mimics, hidden room, campfire, blood reliquary, bosses, and AI rival delvers
 - Standard, High Toll, and Iron Soul contracts with distinct loss and reward rules
 
@@ -29,6 +29,7 @@ Status: Complete for local-first play
 - Consumed packed items remain consumed after extraction or failure
 - Treasure coin credit is derived from current haul contents instead of a separate mutable raid counter
 - Verdict value ledgers derive loadout risk and net wealth change from the actual settlement, entry fee, and consumed supplies
+- Version 13 migrates older profiles into a bounded single-day commission claim without changing prior progress
 - Class XP, contracts, bestiary ledgers, survival streaks, raid history, settings, and backup import/export survive compatible profile migrations
 - Iron Soul failure clears the selected discipline's XP while preserving the rest of the profile
 
