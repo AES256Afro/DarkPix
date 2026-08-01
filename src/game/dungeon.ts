@@ -105,30 +105,112 @@ function snap(value: number, step: number): number {
   return Math.round(value / step) * step;
 }
 
-export function dungeonPathExists(start: Vec2, target: Vec2, radius = 0.38, step = 0.5): boolean {
-  const origin = { x: snap(start.x, step), z: snap(start.z, step) };
-  const destination = { x: snap(target.x, step), z: snap(target.z, step) };
-  const key = (point: Vec2) => `${point.x.toFixed(2)}:${point.z.toFixed(2)}`;
-  const destinationKey = key(destination);
-  const queue: Vec2[] = [origin];
-  const visited = new Set([key(origin)]);
+function nearestOpenGridPoint(point: Vec2, radius: number, step: number): Vec2 | undefined {
   const half = DUNGEON.size / 2;
-  let cursor = 0;
+  const snapped = { x: snap(point.x, step), z: snap(point.z, step) };
+  for (let ring = 0; ring <= 4; ring += 1) {
+    for (let xOffset = -ring; xOffset <= ring; xOffset += 1) {
+      for (let zOffset = -ring; zOffset <= ring; zOffset += 1) {
+        if (ring > 0 && Math.max(Math.abs(xOffset), Math.abs(zOffset)) !== ring) continue;
+        const candidate = {
+          x: snapped.x + xOffset * step,
+          z: snapped.z + zOffset * step,
+        };
+        if (Math.abs(candidate.x) > half || Math.abs(candidate.z) > half || dungeonCollides(candidate, radius)) continue;
+        return candidate;
+      }
+    }
+  }
+  return undefined;
+}
 
-  while (cursor < queue.length) {
-    const current = queue[cursor++];
+function simplifyPath(start: Vec2, path: Vec2[], radius: number): Vec2[] {
+  const simplified: Vec2[] = [];
+  let anchor = start;
+  let cursor = 0;
+  while (cursor < path.length) {
+    let farthest = cursor;
+    for (let candidate = path.length - 1; candidate > cursor; candidate -= 1) {
+      const target = path[candidate];
+      if (target && dungeonLineOfSight(anchor, target, radius)) {
+        farthest = candidate;
+        break;
+      }
+    }
+    const waypoint = path[farthest];
+    if (!waypoint) break;
+    simplified.push(waypoint);
+    anchor = waypoint;
+    cursor = farthest + 1;
+  }
+  return simplified;
+}
+
+export function dungeonPath(start: Vec2, target: Vec2, radius = 0.3, step = 0.5): Vec2[] {
+  const origin = nearestOpenGridPoint(start, radius, step);
+  const destination = nearestOpenGridPoint(target, radius, step);
+  if (!origin || !destination) return [];
+
+  const key = (point: Vec2) => `${point.x.toFixed(2)}:${point.z.toFixed(2)}`;
+  const originKey = key(origin);
+  const destinationKey = key(destination);
+  if (originKey === destinationKey) return [{ ...target }];
+
+  const half = DUNGEON.size / 2;
+  const open = new Map<string, Vec2>([[originKey, origin]]);
+  const cameFrom = new Map<string, string>();
+  const points = new Map<string, Vec2>([[originKey, origin]]);
+  const cost = new Map<string, number>([[originKey, 0]]);
+
+  while (open.size > 0) {
+    let currentKey = "";
+    let current: Vec2 | undefined;
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (const [candidateKey, candidate] of open) {
+      const candidateScore = (cost.get(candidateKey) ?? Number.POSITIVE_INFINITY)
+        + Math.abs(destination.x - candidate.x)
+        + Math.abs(destination.z - candidate.z);
+      if (candidateScore < bestScore) {
+        currentKey = candidateKey;
+        current = candidate;
+        bestScore = candidateScore;
+      }
+    }
     if (!current) break;
-    if (key(current) === destinationKey) return true;
+    if (currentKey === destinationKey) {
+      const path: Vec2[] = [destination];
+      let backtrackKey = destinationKey;
+      while (backtrackKey !== originKey) {
+        const parentKey = cameFrom.get(backtrackKey);
+        if (!parentKey) return [];
+        backtrackKey = parentKey;
+        const point = points.get(backtrackKey);
+        if (point && backtrackKey !== originKey) path.push(point);
+      }
+      path.reverse();
+      if (!dungeonCollides(target, radius)) path[path.length - 1] = { ...target };
+      return simplifyPath(start, path, radius);
+    }
+
+    open.delete(currentKey);
+    const currentCost = cost.get(currentKey) ?? Number.POSITIVE_INFINITY;
     for (const [dx, dz] of [[step, 0], [-step, 0], [0, step], [0, -step]] as const) {
       const next = { x: current.x + dx, z: current.z + dz };
       if (Math.abs(next.x) > half || Math.abs(next.z) > half || dungeonCollides(next, radius)) continue;
       const nextKey = key(next);
-      if (visited.has(nextKey)) continue;
-      visited.add(nextKey);
-      queue.push(next);
+      const nextCost = currentCost + step;
+      if (nextCost >= (cost.get(nextKey) ?? Number.POSITIVE_INFINITY)) continue;
+      cameFrom.set(nextKey, currentKey);
+      points.set(nextKey, next);
+      cost.set(nextKey, nextCost);
+      open.set(nextKey, next);
     }
   }
-  return false;
+  return [];
+}
+
+export function dungeonPathExists(start: Vec2, target: Vec2, radius = 0.38, step = 0.5): boolean {
+  return dungeonPath(start, target, radius, step).length > 0;
 }
 
 export function dungeonLineOfSight(start: Vec2, target: Vec2, radius = 0.06): boolean {

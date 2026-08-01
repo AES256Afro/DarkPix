@@ -2,10 +2,10 @@ import * as THREE from "three";
 import { AudioDirector } from "./audio";
 import { attackDamage } from "./combat";
 import { CLASSES, RARITY_COLOR, createLoot, createSigil, formatTime, progressionBonuses } from "./data";
-import { DUNGEON, dungeonLineOfSight } from "./dungeon";
+import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { cardinalDirection } from "./navigation";
 import { targetDistanceInView } from "./targeting";
-import type { ClassId, GamePreferences, Item, RaidEndReason, RaidResult } from "./types";
+import type { ClassId, GamePreferences, Item, RaidEndReason, RaidResult, Vec2 } from "./types";
 import { distanceFromZoneCenter, zoneState } from "./zone";
 
 interface WallCollider {
@@ -31,6 +31,8 @@ interface Enemy {
   alive: boolean;
   phase: number;
   baseScale: number;
+  path: Vec2[];
+  pathTimer: number;
 }
 
 interface Pickup {
@@ -559,6 +561,8 @@ export class DarkPixGame {
       alive: true,
       phase: Math.random() * Math.PI * 2,
       baseScale,
+      path: [],
+      pathTimer: 0,
     });
   }
 
@@ -838,6 +842,7 @@ export class DarkPixGame {
       if (!enemy.alive) continue;
       enemy.cooldown = Math.max(0, enemy.cooldown - delta);
       enemy.stagger = Math.max(0, enemy.stagger - delta);
+      enemy.pathTimer = Math.max(0, enemy.pathTimer - delta);
       enemy.group.scale.lerp(new THREE.Vector3(enemy.baseScale, enemy.baseScale, enemy.baseScale), delta * 7);
       const toPlayer = new THREE.Vector3(player.x - enemy.group.position.x, 0, player.z - enemy.group.position.z);
       const distance = toPlayer.length();
@@ -851,9 +856,34 @@ export class DarkPixGame {
         continue;
       }
       if (distance > 15) continue;
-      enemy.group.lookAt(player.x, enemy.group.position.y, player.z);
-      if (distance > enemy.range && enemy.stagger <= 0) {
-        const step = toPlayer.normalize().multiplyScalar(enemy.speed * delta);
+      const hasSight = dungeonLineOfSight(
+        { x: player.x, z: player.z },
+        { x: enemy.group.position.x, z: enemy.group.position.z },
+        0.12,
+      );
+      if ((distance > enemy.range || !hasSight) && enemy.stagger <= 0) {
+        if (hasSight) {
+          enemy.path = [];
+        } else if (enemy.pathTimer <= 0 || enemy.path.length === 0) {
+          enemy.path = dungeonPath(
+            { x: enemy.group.position.x, z: enemy.group.position.z },
+            { x: player.x, z: player.z },
+          );
+          enemy.pathTimer = 0.65 + (enemy.id % 4) * 0.12;
+        }
+        while (enemy.path[0] && Math.hypot(
+          enemy.path[0].x - enemy.group.position.x,
+          enemy.path[0].z - enemy.group.position.z,
+        ) < 0.4) enemy.path.shift();
+        const waypoint = hasSight ? { x: player.x, z: player.z } : enemy.path[0];
+        if (!waypoint) continue;
+        const movement = new THREE.Vector3(
+          waypoint.x - enemy.group.position.x,
+          0,
+          waypoint.z - enemy.group.position.z,
+        );
+        enemy.group.lookAt(waypoint.x, enemy.group.position.y, waypoint.z);
+        const step = movement.normalize().multiplyScalar(enemy.speed * delta);
         const nextX = enemy.group.position.x + step.x;
         const nextZ = enemy.group.position.z + step.z;
         if (!this.collidesEnemy(nextX, nextZ)) {
@@ -861,7 +891,8 @@ export class DarkPixGame {
           enemy.group.position.z = nextZ;
         }
         enemy.group.position.y = Math.sin(this.elapsed * 7 + enemy.phase) * 0.025;
-      } else if (distance <= enemy.range && enemy.cooldown <= 0 && enemy.stagger <= 0) {
+      } else if (enemy.cooldown <= 0 && enemy.stagger <= 0) {
+        enemy.group.lookAt(player.x, enemy.group.position.y, player.z);
         enemy.cooldown = enemy.kind === "boss" ? (enemy.group.userData.enraged ? 1.2 : 2.2) : enemy.kind === "crawler" ? 1.25 : enemy.kind === "warden" ? 1.9 : 1.55;
         const parried = enemy.kind !== "boss" && this.blocking && this.blockAge < 0.24;
         if (parried) {
