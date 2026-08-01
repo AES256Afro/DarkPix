@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createLoot, formatTime, levelForXp, progressionBonuses, rarityFromRoll } from "../src/game/data";
 import { applyRaidResult, createProfile, normalizeProfile, purchaseItem } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
+import { attackDamage } from "../src/game/combat";
 
 describe("loot generation", () => {
   it("maps rarity thresholds deterministically", () => {
@@ -156,5 +157,13 @@ describe("local game preferences", () => {
       reducedMotion: true,
     });
     expect(normalizePreferences(null)).toEqual(DEFAULT_PREFERENCES);
+  });
+});
+
+describe("directional combat damage", () => {
+  it("stacks equipment, veterancy, direction, ambush, and headshot modifiers deterministically", () => {
+    expect(attackDamage({ baseDamage: 20, weaponPower: 5, progressionBonus: 2, direction: "SWEEP", ambush: false, headshot: false })).toBe(27);
+    expect(attackDamage({ baseDamage: 20, weaponPower: 5, progressionBonus: 2, direction: "OVERHEAD", ambush: false, headshot: false })).toBe(32);
+    expect(attackDamage({ baseDamage: 20, weaponPower: 5, progressionBonus: 2, direction: "THRUST", ambush: true, headshot: true })).toBe(79);
   });
 });

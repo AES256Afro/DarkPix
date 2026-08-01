@@ -34,7 +34,7 @@ export const CLASSES: Record<ClassId, ClassDefinition> = {
     reach: 1.95,
     attackDelay: 0.43,
     accent: "#9bb17e",
-    ability: "Backstab: strikes from behind deal double damage.",
+    ability: "Ambush: strikes against unaware targets deal double damage.",
     weapon: "Hooked misericorde",
   },
   hexbound: {

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
+import { attackDamage } from "./combat";
 import { CLASSES, RARITY_COLOR, createLoot, createSigil, formatTime, progressionBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight } from "./dungeon";
 import { cardinalDirection } from "./navigation";
@@ -765,15 +766,24 @@ export class DarkPixGame {
     }
     if (!best) {
       if (this.options.classId === "hexbound") this.spawnSpellTrail(cameraPosition, forward, this.definition.reach);
+      this.mouseAccumulator.x = 0;
+      this.mouseAccumulator.y = 0;
       return;
     }
 
-    let damage = this.definition.damage + this.damageBonus + this.options.equipped.filter((item) => item.kind === "weapon").reduce((sum, item) => sum + item.power, 0);
-    if (this.attackDirection === "OVERHEAD") damage *= 1.18;
-    if (this.attackDirection === "THRUST") damage *= 1.08;
-    if (this.options.classId === "cutpurse" && !best.alerted) damage *= 2;
-    if (this.pitch < -0.12 && !best.kind.includes("crawler")) damage *= 1.35;
-    this.damageEnemy(best, Math.round(damage));
+    const headHeight = best.kind === "crawler" ? 0.72 : 1.82;
+    const toHead = best.group.position.clone().add(new THREE.Vector3(0, headHeight, 0)).sub(cameraPosition).normalize();
+    const headshot = toHead.dot(forward) > (this.options.classId === "hexbound" ? 0.992 : 0.975);
+    const weaponPower = this.options.equipped.filter((item) => item.kind === "weapon").reduce((sum, item) => sum + item.power, 0);
+    const damage = attackDamage({
+      baseDamage: this.definition.damage,
+      weaponPower,
+      progressionBonus: this.damageBonus,
+      direction: this.attackDirection,
+      ambush: this.options.classId === "cutpurse" && !best.alerted,
+      headshot,
+    });
+    this.damageEnemy(best, damage, headshot);
     if (this.options.classId === "hexbound") this.spawnSpellTrail(cameraPosition, forward, bestDistance);
     this.mouseAccumulator.x = 0;
     this.mouseAccumulator.y = 0;
@@ -790,12 +800,12 @@ export class DarkPixGame {
     }, 80);
   }
 
-  private damageEnemy(enemy: Enemy, amount: number): void {
+  private damageEnemy(enemy: Enemy, amount: number, headshot: boolean): void {
     enemy.hp -= amount;
     enemy.alerted = true;
     enemy.stagger = 0.18;
     this.audio.hit();
-    this.feed(`${enemy.name} takes ${amount}.`, enemy.kind === "rival" ? "rival" : "combat");
+    this.feed(`${headshot ? "HEADSHOT · " : ""}${enemy.name} takes ${amount}.`, enemy.kind === "rival" ? "rival" : "combat");
     enemy.group.scale.set(1.14, 0.9, 1.14);
     if (enemy.hp > 0) return;
     enemy.alive = false;
