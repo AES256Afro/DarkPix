@@ -2,6 +2,7 @@ import "./style.css";
 import { escapeHtml } from "./html";
 import { createSaveBackup, parseSaveBackup } from "./game/backup";
 import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses } from "./game/data";
+import { itemValueTotal, raidValueSummary } from "./game/economy";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { persistBeforeClearingEscrow } from "./game/persistence";
@@ -609,6 +610,15 @@ function finishRaid(result: RaidResult): void {
   const returnedItems = extracted ? riskedBeforeSettlement.filter((item) => !consumedIds.has(item.id)) : [];
   const xpBreakdown = raidXpBreakdown(result);
   const settlement = settleRaid(profile, result);
+  const riskedValue = itemValueTotal(riskedBeforeSettlement);
+  const valueSummary = raidValueSummary({
+    extracted,
+    banked: settlement.banked,
+    lost: settlement.lost,
+    consumed: consumedItems,
+    goldGained: settlement.goldGained,
+    entryFee: rules.entryFee,
+  });
   profile = settlement.profile;
   persistBeforeClearingEscrow(persistProfile, clearRaidEscrow);
   const recordedItems = extracted
@@ -653,8 +663,8 @@ function finishRaid(result: RaidResult): void {
         <div class="result-ledger">
           <span><small>CONTRACT</small><strong>${rules.name}</strong></span>
           <span><small>DEEPEST FLOOR</small><strong>${result.depthReached === 2 ? "Ashen Depth" : "Pale Toll"}</strong></span>
-          <span><small>RISKED GEAR</small><strong>${extracted ? `${returnedItems.length} returned` : `${settlement.lost.length} lost`}</strong></span>
-          <span><small>XP RATE</small><strong>${rules.xpMultiplier.toFixed(2)}x</strong></span>
+          <span><small>LOADOUT RISK</small><strong>${riskedBeforeSettlement.length} items · ${riskedValue}g</strong></span>
+          <span><small>NET POSITION</small><strong>${valueSummary.netValue >= 0 ? "+" : ""}${valueSummary.netValue}g value</strong></span>
         </div>
         <div class="result-metrics">
           <span><small>TIME BELOW</small><strong>${formatTime(result.elapsed)}</strong></span>
