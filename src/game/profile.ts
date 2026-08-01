@@ -432,6 +432,15 @@ export function raidXpBreakdown(result: RaidResult): RaidXpBreakdown {
 
 export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement {
   const next = normalizeProfile(profile);
+  result = {
+    ...result,
+    classId: validClass(result.classId) ? result.classId : next.preferredClass,
+    raidMode: validRaidMode(result.raidMode) ? result.raidMode : "standard",
+    reason: validRaidReason(result.reason) ? result.reason : "abandoned",
+    loot: Array.isArray(result.loot) ? result.loot : [],
+    equippedIds: Array.isArray(result.equippedIds) ? result.equippedIds : [],
+    consumedIds: Array.isArray(result.consumedIds) ? result.consumedIds : [],
+  };
   const rules = raidRules(result.raidMode);
   const risked = new Set(boundedItemIds(result.equippedIds));
   const consumed = new Set(boundedItemIds(result.consumedIds, 24).filter((id) => risked.has(id)).slice(0, 2));

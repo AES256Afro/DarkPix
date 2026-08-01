@@ -3,6 +3,7 @@ import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFER
 import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, raidThreatKillLedger, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, firstRunPreferences, normalizePreferences } from "../src/game/preferences";
 import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, guardBreakDuration, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat } from "../src/game/combat";
+import type { RaidResult } from "../src/game/types";
 
 describe("loot generation", () => {
   it("maps rarity thresholds deterministically", () => {
@@ -182,6 +183,26 @@ describe("persistent raid consequences", () => {
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], kills: 2, killsByKind: { skeleton: 99, rival: 99 } })?.killsByKind).toEqual({ skeleton: 2, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 });
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], kills: 2 })?.killsByKind).toEqual({ skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 });
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], variationSeed: 32 })?.variationSeed).toBeUndefined();
+  });
+
+  it("fails closed on malformed runtime identity and inventory fields", () => {
+    const profile = createProfile();
+    profile.preferredClass = "cleric";
+    const malformed = settleRaid(profile, {
+      reason: "winner",
+      raidMode: "void",
+      classId: "dragon",
+      loot: null,
+      equippedIds: null,
+      consumedIds: "starter-blade",
+      kills: 0,
+      elapsed: 20,
+      goldFound: 999,
+    } as unknown as RaidResult);
+    expect(malformed.profile).toMatchObject({ extracts: 0, deaths: 1, preferredClass: "cleric", gold: 75 });
+    expect(malformed.profile.raidHistory[0]).toMatchObject({ classId: "cleric", raidMode: "standard", reason: "abandoned" });
+    expect(malformed.banked).toEqual([]);
+    expect(malformed.lost).toEqual([]);
   });
 
   it("banks unsecured loot and gold only after extraction", () => {
