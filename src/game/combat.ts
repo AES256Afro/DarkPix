@@ -30,6 +30,7 @@ export function enemyAttackPattern(kind: ThreatKind, enraged = false): EnemyAtta
   if (kind === "boss") return enraged ? { windup: 0.34, recovery: 1.2 } : { windup: 0.62, recovery: 2.2 };
   if (kind === "warden") return { windup: 0.48, recovery: 1.9 };
   if (kind === "crawler") return { windup: 0.26, recovery: 1.25 };
+  if (kind === "rival") return { windup: 0.5, recovery: 1.8 };
   return { windup: 0.36, recovery: 1.55 };
 }
 

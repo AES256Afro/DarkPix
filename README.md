@@ -42,6 +42,7 @@ Mouse sensitivity, crypt brightness, audio, and reduced camera motion can be adj
 - Defeat two Ossuary Wardens and take their sigils.
 - Follow the contract wayfinder toward the nearest living Warden, loose sigil, or unlocked blue passage.
 - Search four coffers across an interconnected dungeon while fighting monsters and one AI rival delver.
+- Break the AI rival's sightline or react to its telegraphed throwing knife; a fresh guard can parry the projectile.
 - Find the unmarked blood reliquary in the southwest dead chamber, if the extra loot is worth 18 vigor and the noise it makes.
 - Survive the Tollkeeper in the extraction chamber. Its heavy attacks cannot be parried, it enrages below half vigor, and it always drops a named Rare-or-better chain trophy.
 - Hold `E` while facing the blue passage in the southeast reliquary to bank the haul. Looking away or taking damage breaks the extraction channel.

@@ -251,6 +251,7 @@ describe("directional combat damage", () => {
     expect(enemyAttackPattern("crawler").windup).toBeGreaterThan(0.2);
     expect(enemyAttackPattern("warden").windup).toBeGreaterThan(enemyAttackPattern("crawler").windup);
     expect(enemyAttackPattern("boss").windup).toBeGreaterThan(enemyAttackPattern("rival").windup);
+    expect(enemyAttackPattern("rival")).toEqual({ windup: 0.5, recovery: 1.8 });
     expect(enemyAttackPattern("boss", true)).toEqual({ windup: 0.34, recovery: 1.2 });
   });
 

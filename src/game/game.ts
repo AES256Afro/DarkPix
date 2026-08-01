@@ -590,7 +590,7 @@ export class DarkPixGame {
       : kind === "warden"
       ? { hp: 115, speed: 1.35, damage: 24, range: 1.7, name: "Ossuary warden" }
       : kind === "rival"
-        ? { hp: 88, speed: 2.2, damage: 19, range: 1.55, name: "Rival delver" }
+        ? { hp: 88, speed: 2.05, damage: 16, range: 6.5, name: "Rival delver" }
         : kind === "crawler"
           ? { hp: 38, speed: 2.65, damage: 12, range: 1.15, name: "Grave crawler" }
           : { hp: 64, speed: 1.55, damage: 17, range: 1.55, name: "Hollow legionary" };
@@ -930,14 +930,32 @@ export class DarkPixGame {
   }
 
   private spawnSpellTrail(start: THREE.Vector3, forward: THREE.Vector3, distance: number): void {
-    const bolt = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, Math.max(0.2, distance)), material(0x5ce3d9, 0x38c9c1));
+    const boltMaterial = material(0x5ce3d9, 0x38c9c1);
+    const bolt = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, Math.max(0.2, distance)), boltMaterial);
     bolt.position.copy(start).add(forward.clone().multiplyScalar(distance / 2));
     bolt.quaternion.copy(this.camera.quaternion);
     this.scene.add(bolt);
     window.setTimeout(() => {
       this.scene.remove(bolt);
       bolt.geometry.dispose();
+      boltMaterial.dispose();
     }, 80);
+  }
+
+  private spawnRivalKnife(enemy: Enemy): void {
+    const start = enemy.group.position.clone().add(new THREE.Vector3(0, 1.25, 0));
+    const end = this.camera.position.clone().add(new THREE.Vector3(0, -0.2, 0));
+    const distance = start.distanceTo(end);
+    const knifeMaterial = material(0xa59b8d, 0x3b2921);
+    const knife = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.065, Math.max(0.2, distance)), knifeMaterial);
+    knife.position.copy(start).lerp(end, 0.5);
+    knife.lookAt(end);
+    this.scene.add(knife);
+    window.setTimeout(() => {
+      this.scene.remove(knife);
+      knife.geometry.dispose();
+      knifeMaterial.dispose();
+    }, 95);
   }
 
   private damageEnemy(enemy: Enemy, amount: number, headshot: boolean): void {
@@ -1040,6 +1058,7 @@ export class DarkPixGame {
         enemy.group.scale.set(enemy.baseScale * 1.12, enemy.baseScale * 0.9, enemy.baseScale * 1.12);
         if (distance > enemy.range + 0.25 || !hasSight) continue;
 
+        if (enemy.kind === "rival") this.spawnRivalKnife(enemy);
         const parried = enemy.kind !== "boss" && this.blocking && this.blockAge < 0.24;
         if (parried) {
           enemy.stagger = 1.0;
