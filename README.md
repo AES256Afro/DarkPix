@@ -15,6 +15,8 @@ npm install
 npm run dev
 ```
 
+The release gate uses `npm test`, `npm run build`, and `npm run test:budget`. The budget caps total compressed JavaScript at 185 KiB, compressed CSS at 12 KiB, and entry HTML at 5 KiB.
+
 Open `http://127.0.0.1:4173` on a desktop browser. Click **Enter the Crypt** to bind the mouse.
 
 ### Controls

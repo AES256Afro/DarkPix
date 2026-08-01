@@ -52,6 +52,7 @@ Status: Complete
 - No inbound router ports or public origin address
 - Content security, framing, MIME, referrer, permissions, opener, resource, and transport headers
 - Immutable hashed assets with non-cacheable release identity and service worker
+- CI-enforced compressed JavaScript, CSS, and entry-HTML performance budgets
 - Every deploy verifies the exact commit through both `ne-gro.com` and `www.ne-gro.com`
 
 Exit evidence: Docker build and smoke checks in CI plus container, host, apex, and `www` gates during deployment.
