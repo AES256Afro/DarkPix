@@ -68,7 +68,7 @@ function normalizeItem(value: unknown): Item | undefined {
     typeof item.power === "number" && Number.isFinite(item.power) && item.power >= 0 &&
     typeof item.value === "number" && Number.isFinite(item.value) && item.value >= 0 &&
     (item.modifier === undefined || (typeof item.modifier === "string" && item.modifier.length <= 160)) &&
-    ["weapon", "armor", "treasure", "consumable", "sigil"].includes(item.kind ?? "") &&
+    ["weapon", "armor", "treasure", "consumable", "throwable", "sigil"].includes(item.kind ?? "") &&
     ["Worn", "Common", "Uncommon", "Rare", "Epic", "Legendary"].includes(item.rarity ?? "")
   )) return undefined;
   return {

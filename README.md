@@ -26,6 +26,7 @@ Open `http://127.0.0.1:4173` on a desktop browser. Click **Enter the Crypt** to 
 | `Shift` | Sprint |
 | `E` | Loot, search, rest, or hold to extract |
 | `F` | Use the first carried consumable that can help |
+| `V` | Throw the first recovered or packed throwing weapon |
 | `G` | Drop the least valuable unsecured haul item |
 | `R` | Hold at an awakened passage to descend red |
 | `T` | Hood or unhood the torch |
@@ -45,7 +46,7 @@ Mouse sensitivity, 60 to 95 degree field of view, crypt brightness, audio, reduc
 - Escape once to unlock the High Toll contract. Its 50g fee is consumed on entry, threats gain health, damage, and speed, loot rolls gain a substantial depth bonus, and all class XP is multiplied by 1.35. Death still removes carried gear, never the persistent character.
 - Complete one Ashen Return to unlock Iron Soul. Its 100g entry fee, stronger threats, +0.20 loot depth, and +75% XP trade against true hardcore stakes: any death or abandonment resets the selected discipline's class XP to zero in addition to losing gear and haul.
 - The first successful High Toll extraction records a persistent Deeper Wager victory and pays a one-time 200g contract bounty. Standard escapes and failed High Toll runs never advance it.
-- Pack up to two stash items. One weapon and one armor piece can contribute power; consumables occupy any open slot. Armor power adds vigor but imposes up to 18% encumbrance, offset by movement enchantments, and the lobby previews the final pace. Packed items are lost if the delver dies.
+- Pack up to two stash items. One weapon and one armor piece can contribute power; consumables and throwing weapons occupy any open slot. Armor power adds vigor but imposes up to 18% encumbrance, offset by movement enchantments, and the lobby previews the final pace. Packed items are lost if the delver dies.
 - Defeat two Ossuary Wardens and take their sigils.
 - Follow the contract wayfinder toward the nearest living Warden, loose sigil, or unlocked blue passage.
 - Search four coffers across an interconnected dungeon while fighting monsters and one AI rival delver. One deep coffer carries subtle teeth and wakes as a mimic instead of surrendering loot; killing it produces a depth-weighted drop.
@@ -58,13 +59,13 @@ Mouse sensitivity, 60 to 95 degree field of view, crypt brightness, audio, reduc
 - Read the shrinking safe reach in the raid HUD. Its center migrates southeast so the final refuge includes the extraction chamber.
 - Death discards all raid loot and equipped risk items. The player can always return with base class equipment.
 - Starting a raid writes a local escrow journal, checkpointed after kills and red descent. Closing or refreshing the page before a verdict settles that journal as an abandonment on the next load, so reloads cannot bypass gear loss or Iron Soul consequences while earned kill and depth XP remain accurate.
-- Spend gold at the Ironmonger on consumables and gear. Successful extracts unlock Uncommon stock and, after three returns, a Rare weapon. Draughts and bandages restore vigor, smoked roots also restore stamina, bluewax candles can rekindle a hooded torch, and camp embers restore stamina plus Hexbound spell memory. Packed remedies are consumed when used, and a full stash sends extraction overflow to the porter for an automatic half-value sale.
+- Spend gold at the Ironmonger on consumables, throwing knives, and gear. Successful extracts unlock Uncommon stock and, after three returns, a Rare weapon. Draughts and bandages restore vigor, smoked roots also restore stamina, bluewax candles can rekindle a hooded torch, and camp embers restore stamina plus Hexbound spell memory. Recovered or packed throwing weapons are finite, and a miss still consumes one. Packed remedies and knives are consumed when used, while a full stash sends extraction overflow to the porter for an automatic half-value sale.
 - Rare-or-better, crafted, and currently packed items require a second explicit confirmation before they can be sold from the stash.
 - Rolled and merchant gear modifiers directly affect edge damage, armor mitigation, maximum vigor, movement, interaction speed, or damage against undead threats. Persisted modifiers, item power, item value, progression counters, and coin totals are bounded before they affect runtime stats or the economy.
 - Forge a recovered Tollkeeper chain into the Epic Chainbreaker's ward, a Saint's broken seal into the Rare Saintless edge, or a Sepulcher ruby into the Epic Ruby cantor. Every recipe replaces its material in place, so it remains safe at the stash limit.
 - The first successful extraction pays a one-time 100g contract bounty. The first raid that kills the Tollkeeper and still extracts pays a separate 150g bounty and records a persistent boss victory. Class levels grant bounded veterancy bonuses through level seven plus discipline-specific perks at levels 2, 4, and 6.
 
-The current vertical slice simulates the PvP side with a hostile AI rival. Networked solo, duo, and trio matchmaking, proximity voice, merchant reputation, crafting, and additional maps are future systems, not part of this build.
+The current vertical slice simulates the PvP side with a hostile AI rival. Server-authoritative solo, duo, and trio matchmaking, proximity voice, merchant reputation, and additional maps are future systems, not part of this build.
 
 ## Validation
 

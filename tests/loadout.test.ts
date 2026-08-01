@@ -7,6 +7,7 @@ const items: Item[] = [
   { id: "blade-2", name: "Blade two", kind: "weapon", rarity: "Common", power: 7, value: 14 },
   { id: "jack", name: "Jack", kind: "armor", rarity: "Common", power: 5, value: 12 },
   { id: "draught", name: "Draught", kind: "consumable", rarity: "Common", power: 0, value: 8 },
+  { id: "knife", name: "Knife", kind: "throwable", rarity: "Common", power: 5, value: 11 },
 ];
 
 describe("risk loadout", () => {
@@ -37,6 +38,12 @@ describe("risk loadout", () => {
     const full = toggleEquippedItem(armored, items, "draught");
     expect([...armored]).toEqual(["blade-2", "jack"]);
     expect(full).toEqual(armored);
+  });
+
+  it("packs a throwing weapon alongside one combat slot", () => {
+    const weapon = toggleEquippedItem(new Set(), items, "blade-2");
+    const armed = toggleEquippedItem(weapon, items, "knife");
+    expect([...armed]).toEqual(["blade-2", "knife"]);
   });
 
   it("uses only the strongest value if malformed input contains duplicate slots", () => {

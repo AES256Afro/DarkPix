@@ -2,7 +2,7 @@ export type ClassId = "vanguard" | "cutpurse" | "hexbound" | "reaver" | "ranger"
 
 export type Rarity = "Worn" | "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary";
 
-export type ItemKind = "weapon" | "armor" | "treasure" | "consumable" | "sigil";
+export type ItemKind = "weapon" | "armor" | "treasure" | "consumable" | "throwable" | "sigil";
 
 export type StashSort = "recent" | "rarity" | "value" | "kind";
 

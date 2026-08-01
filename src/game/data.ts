@@ -248,6 +248,12 @@ export const MERCHANT_OFFERS: MerchantOffer[] = [
     item: { name: "Coagulation draught", kind: "consumable", rarity: "Common", power: 0, value: 12, modifier: "Restores 36 vigor" },
   },
   {
+    sku: "throwing-knife",
+    price: 24,
+    requiredExtracts: 0,
+    item: { name: "Balanced throwing knife", kind: "throwable", rarity: "Common", power: 5, value: 11, modifier: "Deals 25 thrown damage" },
+  },
+  {
     sku: "falchion",
     price: 46,
     requiredExtracts: 0,
@@ -337,6 +343,7 @@ const LOOT_NAMES = {
   armor: ["Blackguard jack", "Mildewed brigandine", "Rat-catcher gloves", "Hollow helm", "Pilgrim boots"],
   treasure: ["Saint's broken seal", "Moon-silver goblet", "Ossuary idol", "Heretic's chain", "Sepulcher ruby"],
   consumable: ["Coagulation draught", "Pitch bandage", "Smoked root", "Bluewax candle", "Camp ember"],
+  throwable: ["Notched throwing knife", "Bone dart", "Lead sling stone", "Blackglass shard"],
 } as const;
 
 const MODIFIERS = [
@@ -379,21 +386,28 @@ export function rarityFromRoll(roll: number, depthBonus = 0): Rarity {
 
 export function createLoot(random = Math.random, depthBonus = 0): Item {
   const kindRoll = random();
-  const kind = kindRoll < 0.26 ? "weapon" : kindRoll < 0.49 ? "armor" : kindRoll < 0.82 ? "treasure" : "consumable";
+  const kind = kindRoll < 0.23 ? "weapon" : kindRoll < 0.43 ? "armor" : kindRoll < 0.72 ? "treasure" : kindRoll < 0.9 ? "consumable" : "throwable";
   const rarity = rarityFromRoll(random(), depthBonus);
   const rarityIndex = RARITIES.indexOf(rarity);
   const names = LOOT_NAMES[kind];
   const name = names[Math.floor(random() * names.length)] ?? names[0];
   const consumable = kind === "consumable" ? consumableEffect({ name, kind }) : undefined;
+  const id = `${Date.now().toString(36)}-${Math.floor(random() * 1_000_000).toString(36)}`;
+  const power = 1 + rarityIndex * 3 + Math.floor(random() * 3);
   return {
-    id: `${Date.now().toString(36)}-${Math.floor(random() * 1_000_000).toString(36)}`,
+    id,
     name,
     kind,
     rarity,
-    power: 1 + rarityIndex * 3 + Math.floor(random() * 3),
+    power,
     value: 8 + rarityIndex * rarityIndex * 13 + Math.floor(random() * 12),
-    modifier: consumable?.description ?? (rarityIndex >= 2 ? MODIFIERS[Math.floor(random() * MODIFIERS.length)] : undefined),
+    modifier: consumable?.description ?? (kind === "throwable" ? `Deals ${throwableDamage({ kind, power })} thrown damage` : rarityIndex >= 2 ? MODIFIERS[Math.floor(random() * MODIFIERS.length)] : undefined),
   };
+}
+
+export function throwableDamage(item: Pick<Item, "kind" | "power">): number {
+  if (item.kind !== "throwable" || !Number.isFinite(item.power)) return 0;
+  return Math.min(60, Math.max(12, Math.round(14 + Math.max(0, item.power) * 2.2)));
 }
 
 export function createBossLoot(random = Math.random, depthBonus = 0): Item {

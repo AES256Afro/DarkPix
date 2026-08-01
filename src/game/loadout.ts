@@ -13,8 +13,9 @@ const KIND_RANK: Record<ItemKind, number> = {
   weapon: 0,
   armor: 1,
   consumable: 2,
-  treasure: 3,
-  sigil: 4,
+  throwable: 3,
+  treasure: 4,
+  sigil: 5,
 };
 
 export interface LoadoutStats {

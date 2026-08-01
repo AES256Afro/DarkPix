@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
 import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat, type ThreatKind } from "./combat";
-import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, type ClassPerkBonuses, type HexSpellId } from "./data";
+import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, depthRules } from "./depth";
 import { HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGold } from "./haul";
@@ -139,6 +139,7 @@ export class DarkPixGame {
   private readonly traps: FloorTrap[] = [];
   private readonly raidLoot: Item[] = [];
   private readonly carriedConsumables: Item[];
+  private readonly carriedThrowables: Item[];
   private readonly weapon = new THREE.Group();
   private readonly shield = new THREE.Group();
   private readonly delverTorch = new THREE.SpotLight(0xffb267, 5.2, 18, Math.PI / 3.8, 0.7, 1.25);
@@ -244,6 +245,7 @@ export class DarkPixGame {
     this.maxSpellCharges = 6 + this.perkBonuses.spellCharges;
     this.spellCharges = this.maxSpellCharges;
     this.carriedConsumables = options.equipped.filter((item) => item.kind === "consumable").map((item) => ({ ...item }));
+    this.carriedThrowables = options.equipped.filter((item) => item.kind === "throwable").map((item) => ({ ...item }));
     this.health = this.maxHealth;
     this.stamina = this.definition.maxStamina;
     this.resizeObserver = new ResizeObserver(() => this.resize());
@@ -298,6 +300,7 @@ export class DarkPixGame {
             <section class="quick-slots">
               <div class="ability-slot"><kbd>Q</kbd><span class="slot-icon ability-icon"></span><small>${CLASS_ABILITIES[this.options.classId].name}</small></div>
               <div><kbd>F</kbd><span class="slot-icon potion-icon"></span><small>${this.carriedConsumables.length ? `Packed remedy ×${this.carriedConsumables.length}` : "Recovered remedy"}</small></div>
+              <div><kbd>V</kbd><span class="slot-icon knife-icon"></span><small>${this.carriedThrowables.length ? `Packed knife ×${this.carriedThrowables.length}` : "Recovered knife"}</small></div>
               <div><kbd>G</kbd><span class="slot-icon hand-icon"></span><small>Drop lowest haul</small></div>
               <div><kbd>E</kbd><span class="slot-icon hand-icon"></span><small>Interact / extract</small></div>
               <div><kbd>T</kbd><span class="slot-icon torch-icon"></span><small>Hood the torch</small></div>
@@ -317,7 +320,7 @@ export class DarkPixGame {
             <button class="resume-raid" type="button">BIND CURSOR / RESUME</button>
             <button class="abandon-raid" type="button">ABANDON RAID</button>
           </span>
-          <span class="control-line">WASD move · mouse look · LMB strike · RMB guard · 1/2 spells · E interact · R red descent · F remedy · G drop · T torch · Shift sprint</span>
+          <span class="control-line">WASD move · mouse look · LMB strike · RMB guard · 1/2 spells · E interact · R red descent · F remedy · V throw · G drop · T torch · Shift sprint</span>
         </div>
       </div>`;
     const host = this.mount.querySelector<HTMLElement>(".render-host");
@@ -759,6 +762,7 @@ export class DarkPixGame {
     if (event.code === "KeyE") this.interactHeld = true;
     if (event.code === "KeyR") this.descendHeld = true;
     if (event.code === "KeyF" && !event.repeat) this.useConsumable();
+    if (event.code === "KeyV" && !event.repeat) this.throwItem();
     if (event.code === "KeyG" && !event.repeat) this.dropLowestHaul();
     if (event.code === "KeyQ" && !event.repeat) this.useClassAbility();
     if (event.code === "KeyT" && !event.repeat) this.toggleTorch();
@@ -1548,6 +1552,71 @@ export class DarkPixGame {
     }
     this.feed(`${consumable.name} · ${effect.description.toLowerCase()}.`, "loot");
     this.audio.loot();
+  }
+
+  private throwItem(): void {
+    if (this.paused || this.ended || this.blocking || this.attackCooldown > 0) return;
+    const recoveredIndex = this.raidLoot.findIndex((item) => item.kind === "throwable");
+    const packedIndex = recoveredIndex >= 0 ? -1 : this.carriedThrowables.findIndex((item) => item.kind === "throwable");
+    const recovered = recoveredIndex >= 0 ? this.raidLoot.splice(recoveredIndex, 1)[0] : undefined;
+    const packed = packedIndex >= 0 ? this.carriedThrowables.splice(packedIndex, 1)[0] : undefined;
+    const thrown = recovered ?? packed;
+    if (!thrown) {
+      this.feed("No throwing weapon in your unsecured haul.", "danger");
+      return;
+    }
+    if (packed) this.consumedIds.push(packed.id);
+    this.attackCooldown = 0.45;
+    this.concealmentTimer = 0;
+    this.audio.attack();
+
+    const cameraPosition = this.camera.position.clone();
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).normalize();
+    let best: Enemy | undefined;
+    let bestDistance = 10;
+    for (const enemy of this.enemies) {
+      if (!enemy.alive) continue;
+      const targetHeight = enemy.kind === "crawler" || enemy.kind === "mimic" ? 0.72 : enemy.kind === "boss" ? 1.55 : 1.12;
+      const toEnemy = enemy.group.position.clone().add(new THREE.Vector3(0, targetHeight, 0)).sub(cameraPosition);
+      const distance = toEnemy.length();
+      const visible = dungeonLineOfSight(
+        { x: cameraPosition.x, z: cameraPosition.z },
+        { x: enemy.group.position.x, z: enemy.group.position.z },
+        0.12,
+      );
+      if (distance <= bestDistance && visible && toEnemy.normalize().dot(forward) > 0.978) {
+        best = enemy;
+        bestDistance = distance;
+      }
+    }
+    this.spawnThrowableTrail(cameraPosition, forward, bestDistance);
+    if (!best) {
+      this.feed(`${thrown.name} vanishes into the dark.`, "system");
+      return;
+    }
+
+    const headHeight = best.kind === "crawler" || best.kind === "mimic" ? 0.72 : best.kind === "boss" ? 2.35 : 1.82;
+    const toHead = best.group.position.clone().add(new THREE.Vector3(0, headHeight, 0)).sub(cameraPosition).normalize();
+    const headshot = toHead.dot(forward) > 0.991;
+    const damage = Math.round(
+      throwableDamage(thrown)
+      * (headshot ? 1.35 : 1)
+      * (best.kind === "rival" ? 1 : this.loadoutBonuses.undeadDamageMultiplier),
+    );
+    this.damageEnemy(best, damage, headshot, false);
+  }
+
+  private spawnThrowableTrail(start: THREE.Vector3, forward: THREE.Vector3, distance: number): void {
+    const knifeMaterial = material(0xb7aea1, 0x34231d);
+    const knife = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.055, Math.max(0.3, distance)), knifeMaterial);
+    knife.position.copy(start).add(forward.clone().multiplyScalar(distance / 2));
+    knife.quaternion.copy(this.camera.quaternion);
+    this.scene.add(knife);
+    window.setTimeout(() => {
+      this.scene.remove(knife);
+      knife.geometry.dispose();
+      knifeMaterial.dispose();
+    }, 85);
   }
 
   private useClassAbility(): void {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll } from "../src/game/data";
+import { CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
 import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, applyRaidResult, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
 import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat } from "../src/game/combat";
@@ -27,13 +27,24 @@ describe("loot generation", () => {
   });
 
   it("gives recovered consumables explicit utility instead of gear enchantments", () => {
-    const rolls = [0.9, 0.7, 0.99, 0.1, 0.1, 0.1];
+    const rolls = [0.85, 0.7, 0.99, 0.1, 0.1, 0.1];
     const item = createLoot(() => rolls.shift() ?? 0.1);
     expect(item.kind).toBe("consumable");
     expect(item.name).toBe("Camp ember");
     expect(item.modifier).toContain("spell charges");
     expect(consumableEffect(item)).toMatchObject({ health: 20, stamina: 20, spellCharges: 2 });
     expect(consumableEffect({ name: "blade", kind: "weapon" })).toBeUndefined();
+  });
+
+  it("generates finite throwing weapons with bounded damage", () => {
+    const rolls = [0.95, 0.7, 0.1, 0.1, 0.8, 0.1];
+    const item = createLoot(() => rolls.shift() ?? 0.1);
+    expect(item.kind).toBe("throwable");
+    expect(item.modifier).toBe(`Deals ${throwableDamage(item)} thrown damage`);
+    expect(throwableDamage(item)).toBeGreaterThanOrEqual(12);
+    expect(throwableDamage({ kind: "weapon", power: 99 })).toBe(0);
+    expect(throwableDamage({ kind: "throwable", power: Number.NaN })).toBe(0);
+    expect(throwableDamage({ kind: "throwable", power: 999 })).toBe(60);
   });
 
   it("guarantees a named rare-or-better Tollkeeper trophy", () => {
