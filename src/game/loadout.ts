@@ -79,8 +79,25 @@ export function saleNeedsConfirmation(item: Item, packed: boolean): boolean {
   return packed || RARITY_RANK[item.rarity] >= RARITY_RANK.Rare || item.id.startsWith("crafted-");
 }
 
-export function equippedPower(items: Item[], kind: "weapon" | "armor"): number {
+export function equippedPower(items: readonly Item[], kind: "weapon" | "armor"): number {
   return items.reduce((highest, item) => item.kind === kind ? Math.max(highest, item.power) : highest, 0);
+}
+
+export function pickupDecision(item: Item, equipped: readonly Item[]): string {
+  if (item.kind === "sigil") return "CONTRACT ITEM · SIGIL POUCH";
+  if (item.kind === "treasure") return `${Math.max(0, Math.floor(item.value))}G RELIC`;
+  if (item.kind === "consumable" || item.kind === "throwable") {
+    return item.modifier?.toUpperCase() ?? `${item.kind.toUpperCase()} · ${Math.max(0, Math.floor(item.value))}G`;
+  }
+  const packedPower = equippedPower(equipped, item.kind);
+  const comparison = packedPower <= 0
+    ? `NO PACKED ${item.kind.toUpperCase()} · POWER ${item.power}`
+    : item.power > packedPower
+      ? `+${item.power - packedPower} POWER OVER PACKED`
+      : item.power < packedPower
+        ? `${packedPower - item.power} POWER BELOW PACKED`
+        : "MATCHES PACKED POWER";
+  return item.modifier ? `${comparison} · ${item.modifier.toUpperCase()}` : comparison;
 }
 
 export function loadoutStats(items: Item[]): LoadoutStats {

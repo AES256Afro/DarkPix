@@ -5,7 +5,7 @@ import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, c
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, depthRules } from "./depth";
 import { HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGold } from "./haul";
-import { equippedPower, loadoutStats, physicalDamageAfterArmor, type LoadoutStats } from "./loadout";
+import { equippedPower, loadoutStats, physicalDamageAfterArmor, pickupDecision, type LoadoutStats } from "./loadout";
 import { cardinalDirection, circlesOverlap } from "./navigation";
 import { raidRules, type RaidRules } from "./raid";
 import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./resolution";
@@ -1938,7 +1938,7 @@ export class DarkPixGame {
     }
 
     if (interactive === "pickup" && targetPickup) prompt = canAddToHaul(this.raidLoot, targetPickup.item)
-      ? `[ E ] TAKE ${targetPickup.item.rarity.toUpperCase()} ${targetPickup.item.name.toUpperCase()}`
+      ? `[ E ] TAKE ${targetPickup.item.rarity.toUpperCase()} ${targetPickup.item.name.toUpperCase()} · ${pickupDecision(targetPickup.item, this.options.equipped)}`
       : "HAUL FULL · [ G ] DROP THE LEAST VALUABLE ITEM";
     if (interactive === "chest") prompt = "[ E ] SEARCH IRONBOUND COFFER";
     if (interactive === "campfire") prompt = "[ HOLD E ] REST · RESTORE VIGOR AND SPELL MEMORY";

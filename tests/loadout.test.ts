@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { equippedPower, loadoutStats, physicalDamageAfterArmor, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "../src/game/loadout";
+import { equippedPower, loadoutStats, physicalDamageAfterArmor, pickupDecision, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "../src/game/loadout";
 import type { Item } from "../src/game/types";
 
 const items: Item[] = [
@@ -49,6 +49,17 @@ describe("risk loadout", () => {
   it("uses only the strongest value if malformed input contains duplicate slots", () => {
     expect(equippedPower(items, "weapon")).toBe(7);
     expect(equippedPower(items, "armor")).toBe(5);
+  });
+
+  it("compares recovered loot against the packed slot in raid-safe language", () => {
+    expect(pickupDecision({ ...items[0]!, power: 9 }, [items[1]!])).toBe("+2 POWER OVER PACKED");
+    expect(pickupDecision({ ...items[0]!, power: 3 }, [items[1]!])).toBe("4 POWER BELOW PACKED");
+    expect(pickupDecision({ ...items[2]!, power: 5 }, [items[2]!])).toBe("MATCHES PACKED POWER");
+    expect(pickupDecision({ ...items[2]!, modifier: "+7 armor" }, [])).toBe("NO PACKED ARMOR · POWER 5 · +7 ARMOR");
+    expect(pickupDecision(items[3]!, [])).toBe("CONSUMABLE · 8G");
+    expect(pickupDecision({ ...items[4]!, modifier: "Deals 25 thrown damage" }, [])).toBe("DEALS 25 THROWN DAMAGE");
+    expect(pickupDecision({ ...items[0]!, kind: "treasure", value: 42 }, [])).toBe("42G RELIC");
+    expect(pickupDecision({ ...items[0]!, kind: "sigil" }, [])).toBe("CONTRACT ITEM · SIGIL POUCH");
   });
 
   it("applies every generated gear enchantment to a real raid stat", () => {

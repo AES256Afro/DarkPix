@@ -275,7 +275,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .crosshair i { top: 0; left: 10px; width: 2px; height: 6px; }.crosshair b { right: 0; top: 10px; width: 6px; height: 2px; }.crosshair em { bottom: 0; left: 10px; width: 2px; height: 6px; }.crosshair span { left: 0; top: 10px; width: 6px; height: 2px; }
 .attack-direction { position: absolute; top: calc(50% + 22px); left: 50%; transform: translateX(-50%); color: rgba(196,183,162,.55); font: 700 7px ui-monospace, monospace; letter-spacing: .14em; opacity: .35; transition: opacity .12s; }
 .attack-direction.active { opacity: .9; }
-.interaction-prompt { position: absolute; bottom: 162px; left: 50%; min-width: 270px; padding: 9px 15px; transform: translateX(-50%); border: 1px solid rgba(167,140,101,.27); background: rgba(8,7,6,.82); color: #d8c7ac; font: 800 9px ui-monospace, monospace; letter-spacing: .08em; text-align: center; opacity: 0; transition: opacity .15s; }
+.interaction-prompt { position: absolute; bottom: 162px; left: 50%; width: max-content; min-width: 270px; max-width: min(760px, calc(100vw - 34px)); padding: 9px 15px; transform: translateX(-50%); border: 1px solid rgba(167,140,101,.27); background: rgba(8,7,6,.82); color: #d8c7ac; font: 800 9px/1.45 ui-monospace, monospace; letter-spacing: .08em; text-align: center; opacity: 0; transition: opacity .15s; }
 .interaction-prompt.visible { opacity: 1; }
 .extract-meter { position: absolute; bottom: 150px; left: 50%; width: 270px; height: 3px; transform: translateX(-50%); background: rgba(34,54,55,.8); opacity: 0; }
 .extract-meter.visible { opacity: 1; }
