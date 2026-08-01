@@ -111,7 +111,7 @@ export interface DarkPixGameOptions {
   preferences: GamePreferences;
   variationSeed?: number;
   onFinish: (result: RaidResult) => void;
-  onCheckpoint?: (depthReached: DungeonDepth, kills: number, killsByKind: Readonly<Record<ThreatKind, number>>) => void;
+  onCheckpoint?: (depthReached: DungeonDepth, kills: number, killsByKind: Readonly<Record<ThreatKind, number>>) => boolean;
 }
 
 const PLAYER_HEIGHT = 1.67;
@@ -209,6 +209,7 @@ export class DarkPixGame {
   private spellFill!: HTMLElement;
   private spellLabelHud!: HTMLElement;
   private raidClock!: HTMLElement;
+  private journalHud!: HTMLElement;
   private lootHud!: HTMLElement;
   private objectiveHud!: HTMLElement;
   private promptHud!: HTMLElement;
@@ -344,6 +345,7 @@ export class DarkPixGame {
               <span class="eyebrow">${this.raidRules.name.toUpperCase()} CONTRACT · ${raidVariationSeal(this.variationSeed)}</span>
               <strong class="raid-clock">3:30</strong>
               <span class="zone-copy">darkness dormant</span>
+              <span class="journal-copy" role="status" aria-live="polite">journal secure</span>
             </section>
             <div class="compass"><span class="compass-heading">N</span><strong class="wayfinder">WARDEN · SEEK</strong><span>⌖</span></div>
             <section class="objective-panel">
@@ -402,6 +404,7 @@ export class DarkPixGame {
     this.spellFill = this.mount.querySelector<HTMLElement>(".spells i")!;
     this.spellLabelHud = this.mount.querySelector<HTMLElement>(".spells span")!;
     this.raidClock = this.mount.querySelector<HTMLElement>(".raid-clock")!;
+    this.journalHud = this.mount.querySelector<HTMLElement>(".journal-copy")!;
     this.lootHud = this.mount.querySelector<HTMLElement>(".loot-count")!;
     this.objectiveHud = this.mount.querySelector<HTMLElement>(".objective-copy")!;
     this.promptHud = this.mount.querySelector<HTMLElement>(".interaction-prompt")!;
@@ -1762,7 +1765,7 @@ export class DarkPixGame {
         if (this.depth === 1) this.revealRedDepth();
       }
       this.kills += 1;
-      this.options.onCheckpoint?.(this.depth, this.kills, { ...this.killsByKind });
+      this.checkpointRaid();
     }
     enemy.group.rotation.z = 1.2;
     enemy.group.position.y = -0.55;
@@ -1808,6 +1811,12 @@ export class DarkPixGame {
           : enemy.crippled ? "CRYPT THREAT · CRIPPLED" : "CRYPT THREAT";
     this.threatHud.dataset.kind = enemy.kind;
     this.threatHud.classList.add("visible");
+  }
+
+  private checkpointRaid(): void {
+    const saved = this.options.onCheckpoint?.(this.depth, this.kills, { ...this.killsByKind }) ?? true;
+    this.journalHud.textContent = saved ? "journal secure" : "journal write failed · do not refresh";
+    this.journalHud.classList.toggle("failed", !saved);
   }
 
   private updateEnemies(delta: number): void {
@@ -2859,7 +2868,7 @@ export class DarkPixGame {
   private descendDeeper(): void {
     if (this.depth !== 1 || !this.bossKilled || !this.portalUnlocked) return;
     this.depth = 2;
-    this.options.onCheckpoint?.(this.depth, this.kills, { ...this.killsByKind });
+    this.checkpointRaid();
     this.depthStartedAt = this.elapsed;
     this.sigils = 0;
     this.portalUnlocked = false;

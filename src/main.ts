@@ -607,7 +607,9 @@ async function startRaid(): Promise<void> {
       variationSeed,
       onCheckpoint: (depthReached, kills, killsByKind) => {
         escrow = createRaidEscrow(escrow.classId, escrow.raidMode, escrow.equippedIds, escrow.startedAt, depthReached, kills, escrow.goldBeforeEntry, killsByKind, escrow.variationSeed);
-        if (!beginRaidEscrow(escrow)) console.warn("DarkPix could not update the active raid escrow checkpoint");
+        const saved = beginRaidEscrow(escrow);
+        if (!saved) console.warn("DarkPix could not update the active raid escrow checkpoint");
+        return saved;
       },
       onFinish: finishRaid,
     });
