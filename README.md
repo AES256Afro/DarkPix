@@ -2,6 +2,8 @@
 
 DarkPix is a browser-playable, first-person pixel dungeon extraction crawler. Enter the Crypt of the Pale Toll with a persistent class, risk equipment from your stash, fight through monsters and a rival delver, loot what you can carry, and unlock a blue passage before the dark closes in.
 
+Play the current BigBox build at [ne-gro.com](https://ne-gro.com/).
+
 ## Play the slice
 
 ```bash
@@ -44,7 +46,7 @@ Mouse sensitivity, crypt brightness, audio, and reduced camera motion can be adj
 - Spend gold at the Ironmonger on consumables and common gear. Packed draughts are consumed when used, and a full stash sends extraction overflow to the porter for an automatic half-value sale.
 - The first successful extraction pays a one-time 100g contract bounty. Class levels grant bounded vigor and damage bonuses through level seven.
 
-The current vertical slice simulates the PvP side with a hostile AI rival. Networked solo, duo, and trio matchmaking, proximity voice, merchants, crafting, and additional maps are future systems, not part of this build.
+The current vertical slice simulates the PvP side with a hostile AI rival. Networked solo, duo, and trio matchmaking, proximity voice, merchant reputation, crafting, and additional maps are future systems, not part of this build.
 
 ## Validation
 
@@ -53,7 +55,7 @@ npm test
 npm run build
 ```
 
-The automated suite covers loot rarity, deterministic item creation, profile migration, XP persistence, stash loss on death, successful extraction banking, preference normalization, deliberate interaction targeting, collision integrity, and pathfinding from the player start to every contract-critical location.
+The automated suite covers loot rarity, deterministic item creation, profile migration, XP persistence, stash loss on death, successful extraction banking, merchant guardrails, preference normalization, deliberate interaction targeting, collision integrity, sightlines, wayfinding, migrating darkness, and pathfinding from the player start to every contract-critical location.
 
 ## Production deployment
 

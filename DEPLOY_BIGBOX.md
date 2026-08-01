@@ -45,16 +45,16 @@ curl -I http://127.0.0.1:8092/
 docker compose ps
 ```
 
-## Add Cloudflare routes
+## Live Cloudflare routes
 
-Open **Networking > Tunnels > bigbox-gridless > Routes** and add two published applications:
+The `bigbox-gridless` tunnel has these published applications:
 
 | Hostname | Service type | Service URL |
 | --- | --- | --- |
 | `ne-gro.com` | HTTP | `http://darkpix:8080` |
 | `www.ne-gro.com` | HTTP | `http://darkpix:8080` |
 
-Creating these through the tunnel dashboard also creates the proxied DNS records. Do not replace the domain's Proton Mail, DMARC, or existing application records.
+Both routes and their proxied DNS records were verified over HTTPS. If they ever need to be recreated, open **Networking > Tunnels > bigbox-gridless > Routes** and use the values above. Do not replace the domain's Proton Mail, DMARC, or existing application records.
 
 ## Update
 
