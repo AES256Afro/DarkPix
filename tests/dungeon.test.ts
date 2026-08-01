@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DUNGEON, dartTrapTargetDistance, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists, encounterPosition, selectRaidVariation } from "../src/game/dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES } from "../src/game/depth";
 import { continuousHold, targetDistanceInView } from "../src/game/targeting";
-import { cardinalDirection, circlesOverlap } from "../src/game/navigation";
+import { cardinalDirection, circlesOverlap, relativeDirectionToSource } from "../src/game/navigation";
 import { directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "../src/game/zone";
 import type { Vec2 } from "../src/game/types";
 
@@ -138,6 +138,17 @@ describe("contract wayfinding", () => {
     expect(cardinalDirection({ x: 1, z: 0 })).toBe("E");
     expect(cardinalDirection({ x: -1, z: 1 })).toBe("SW");
     expect(cardinalDirection({ x: 0, z: 0 })).toBe("HERE");
+  });
+
+  it("classifies impact sources relative to the player's facing", () => {
+    const origin = { x: 0, z: 0 };
+    expect(relativeDirectionToSource(0, origin, { x: 0, z: -4 })).toBe("FRONT");
+    expect(relativeDirectionToSource(0, origin, { x: 4, z: 0 })).toBe("RIGHT");
+    expect(relativeDirectionToSource(0, origin, { x: 0, z: 4 })).toBe("BACK");
+    expect(relativeDirectionToSource(0, origin, { x: -4, z: 0 })).toBe("LEFT");
+    expect(relativeDirectionToSource(Math.PI / 2, origin, { x: -4, z: 0 })).toBe("FRONT");
+    expect(relativeDirectionToSource(0, origin, origin)).toBe("CENTER");
+    expect(relativeDirectionToSource(Number.NaN, origin, { x: 0, z: -4 })).toBe("FRONT");
   });
 
   it("keeps physical threat circles from stacking", () => {

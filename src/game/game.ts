@@ -7,7 +7,7 @@ import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encou
 import { ASHEN_CHESTS, ASHEN_ENEMIES, depthRules } from "./depth";
 import { HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGold } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, pickupDecision, type LoadoutStats } from "./loadout";
-import { cardinalDirection, circlesOverlap } from "./navigation";
+import { cardinalDirection, circlesOverlap, relativeDirectionToSource } from "./navigation";
 import { raidRules, type RaidRules } from "./raid";
 import { consumablesInUseOrder, nextConsumableId, nextThrowableId, resolveConsumableId, resolveThrowableId, throwablesInUseOrder } from "./quickslots";
 import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./resolution";
@@ -201,6 +201,7 @@ export class DarkPixGame {
   private resumeButton!: HTMLButtonElement;
   private abandonButton!: HTMLButtonElement;
   private damageOverlay!: HTMLElement;
+  private damageDirectionHud!: HTMLElement;
   private extractProgress!: HTMLElement;
   private abilityHud!: HTMLElement;
   private consumableHud!: HTMLElement;
@@ -237,6 +238,7 @@ export class DarkPixGame {
   private swingDuration = 0.42;
   private footstepClock = 0;
   private damageCooldown = 0;
+  private damageDirectionTimer = 0;
   private interactHeld = false;
   private descendHeld = false;
   private interactionHold = 0;
@@ -299,6 +301,7 @@ export class DarkPixGame {
         <div class="pixel-grid" aria-hidden="true"></div>
         <div class="darkness-vignette" aria-hidden="true"></div>
         <div class="damage-flash" aria-hidden="true"></div>
+        <div class="damage-direction" aria-hidden="true"></div>
         <div class="raid-hud">
           <div class="hud-top">
             <section class="contract-panel">
@@ -378,6 +381,7 @@ export class DarkPixGame {
     this.resumeButton = this.mount.querySelector<HTMLButtonElement>(".resume-raid")!;
     this.abandonButton = this.mount.querySelector<HTMLButtonElement>(".abandon-raid")!;
     this.damageOverlay = this.mount.querySelector<HTMLElement>(".damage-flash")!;
+    this.damageDirectionHud = this.mount.querySelector<HTMLElement>(".damage-direction")!;
     this.extractProgress = this.mount.querySelector<HTMLElement>(".extract-meter i")!;
     this.abilityHud = this.mount.querySelector<HTMLElement>(".ability-slot small")!;
     this.consumableHud = this.mount.querySelector<HTMLElement>(".consumable-slot small")!;
@@ -1147,6 +1151,7 @@ export class DarkPixGame {
     this.wildshapeTimer = Math.max(0, this.wildshapeTimer - delta);
     this.swingClock = Math.max(0, this.swingClock - delta);
     this.damageCooldown = Math.max(0, this.damageCooldown - delta);
+    this.damageDirectionTimer = Math.max(0, this.damageDirectionTimer - delta);
     this.messageTimer = Math.max(0, this.messageTimer - delta);
     this.threatTimer = Math.max(0, this.threatTimer - delta);
     this.blockAge += this.blocking ? delta : 0;
@@ -1245,7 +1250,7 @@ export class DarkPixGame {
       if (distance < 0.82) {
         trap.cooldown = 3.2;
         trap.active = 0.72;
-        this.hurt(trap.damage, "a floor trap");
+        this.hurt(trap.damage, "a floor trap", true, { x: trap.group.position.x, z: trap.group.position.z });
         continue;
       }
       const victim = this.enemies.find((enemy) => enemy.alive && Math.hypot(
@@ -1310,7 +1315,7 @@ export class DarkPixGame {
         { x: origin.x - this.camera.position.x, z: origin.z - this.camera.position.z },
       );
       const guarded = this.blocking && facingPort;
-      this.hurt(trap.damage * (guarded ? 0.28 : 1), "a wall dart");
+      this.hurt(trap.damage * (guarded ? 0.28 : 1), "a wall dart", true, origin);
       if (guarded) this.stamina = Math.max(0, this.stamina - trap.damage * 0.5);
       return;
     }
@@ -1643,7 +1648,7 @@ export class DarkPixGame {
           const attackDamage = enemy.kind === "boss" && rangedAttack
             ? Math.round(enemy.damage * 0.68)
             : enemy.kind === "rival" && enemy.attackStyle === "melee" ? Math.round(enemy.damage * 0.75) : enemy.damage;
-          this.hurt(attackDamage * (1 - reduction), enemy.name);
+          this.hurt(attackDamage * (1 - reduction), enemy.name, true, { x: enemy.group.position.x, z: enemy.group.position.z });
           if (guardingAttack) this.stamina = Math.max(0, this.stamina - attackDamage * 0.75);
         }
         continue;
@@ -1742,7 +1747,7 @@ export class DarkPixGame {
     );
     const guarded = this.blocking && facingThreat;
     const damage = bossTollDamage(enemy.damage, guarded);
-    this.hurt(damage, `${enemy.name}'s chain ring`);
+    this.hurt(damage, `${enemy.name}'s chain ring`, true, { x: enemy.group.position.x, z: enemy.group.position.z });
     if (guarded) {
       this.stamina = Math.max(0, this.stamina - 14);
       this.feed("CHAIN RING GUARDED · the impact drains your footing", "system");
@@ -1806,7 +1811,7 @@ export class DarkPixGame {
     );
   }
 
-  private hurt(amount: number, source: string, physical = true): void {
+  private hurt(amount: number, source: string, physical = true, sourcePosition?: Vec2): void {
     if (this.damageCooldown > 0 || this.ended) return;
     this.damageCooldown = 0.18;
     this.interactionHold = 0;
@@ -1816,6 +1821,18 @@ export class DarkPixGame {
     this.damageOverlay.classList.remove("pulse");
     void this.damageOverlay.offsetWidth;
     this.damageOverlay.classList.add("pulse");
+    if (sourcePosition) {
+      const direction = relativeDirectionToSource(
+        this.yaw,
+        { x: this.camera.position.x, z: this.camera.position.z },
+        sourcePosition,
+      );
+      const marker = direction === "FRONT" ? "▲" : direction === "RIGHT" ? "▶" : direction === "BACK" ? "▼" : direction === "LEFT" ? "◀" : "◆";
+      this.damageDirectionHud.textContent = `${marker} ${direction === "CENTER" ? "IMPACT" : direction}`;
+      this.damageDirectionHud.dataset.direction = direction.toLowerCase();
+      this.damageDirectionTimer = 1.15;
+      this.damageDirectionHud.classList.add("visible");
+    }
     this.audio.danger();
     this.feed(`${source} wounds you for ${Math.round(appliedDamage)}.`, "danger");
     if (this.health <= 0) this.finish(source === "the dark" ? "darkness" : "slain");
@@ -2471,6 +2488,7 @@ export class DarkPixGame {
     this.updateWayfinder();
     this.directionHud.textContent = this.attackDirection;
     this.directionHud.classList.toggle("active", this.mouseAccumulator.x !== 0 || this.mouseAccumulator.y !== 0);
+    this.damageDirectionHud.classList.toggle("visible", this.damageDirectionTimer > 0);
     this.threatHud.classList.toggle("visible", this.threatTimer > 0);
     if (!this.portalAnnounced && this.phaseElapsed() > floorRules.duration * 0.43 && this.sigils < 2) {
       this.portalAnnounced = true;
