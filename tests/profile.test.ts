@@ -79,6 +79,8 @@ describe("persistent raid consequences", () => {
     expect(result.xp.vanguard).toBe(0);
     expect(result.stash).toEqual([]);
     expect(result.extracts).toBe(0);
+    expect(result.highTollExtracts).toBe(0);
+    expect(result.version).toBe(3);
     expect(result.preferredClass).toBe("vanguard");
   });
 
@@ -140,6 +142,24 @@ describe("persistent raid consequences", () => {
     expect(standard.xpGained).toBe(100);
     expect(highToll.xpGained).toBe(135);
     expect(highToll.profile.deaths).toBe(1);
+  });
+
+  it("pays the first successful High Toll contract once and never for standard or failed raids", () => {
+    const result = {
+      reason: "extracted" as const,
+      raidMode: "high_toll" as const,
+      classId: "vanguard" as const,
+      loot: [], equippedIds: [], kills: 0, elapsed: 90, goldFound: 0,
+    };
+    const first = settleRaid(createProfile(), result);
+    expect(first.highTollContractPaid).toBe(true);
+    expect(first.profile.highTollExtracts).toBe(1);
+    expect(first.goldGained).toBe(300);
+    const second = settleRaid(first.profile, result);
+    expect(second.highTollContractPaid).toBe(false);
+    expect(second.goldGained).toBe(0);
+    expect(settleRaid(createProfile(), { ...result, raidMode: "standard" }).profile.highTollExtracts).toBe(0);
+    expect(settleRaid(createProfile(), { ...result, reason: "slain" }).profile.highTollExtracts).toBe(0);
   });
 
   it("keeps a full stash intact and liquidates extraction overflow", () => {

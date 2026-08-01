@@ -35,13 +35,14 @@ export interface ClassDefinition {
 }
 
 export interface Profile {
-  version: 2;
+  version: 3;
   gold: number;
   xp: Record<ClassId, number>;
   stash: Item[];
   extracts: number;
   deaths: number;
   bossVictories: number;
+  highTollExtracts: number;
   preferredClass: ClassId;
 }
 
