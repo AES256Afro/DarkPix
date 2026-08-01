@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createBossLoot, createLoot, formatTime, levelForXp, progressionBonuses, rarityFromRoll } from "../src/game/data";
+import { classPerkBonuses, createBossLoot, createLoot, formatTime, levelForXp, progressionBonuses, rarityFromRoll } from "../src/game/data";
 import { applyRaidResult, createProfile, normalizeProfile, purchaseItem, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
 import { attackDamage, enemyAttackPattern, guardDrainPerSecond, healthPercent } from "../src/game/combat";
@@ -242,5 +242,20 @@ describe("directional combat damage", () => {
     expect(healthPercent(-10, 100)).toBe(0);
     expect(healthPercent(140, 100)).toBe(100);
     expect(healthPercent(5, 0)).toBe(0);
+  });
+});
+
+describe("class perk milestones", () => {
+  it("keeps level one neutral and unlocks class-specific bonuses", () => {
+    expect(classPerkBonuses("vanguard", 1)).toEqual({
+      health: 0,
+      damage: 0,
+      guardUpkeepMultiplier: 1,
+      sprintCostMultiplier: 1,
+      spellCharges: 0,
+    });
+    expect(classPerkBonuses("vanguard", 2).guardUpkeepMultiplier).toBe(0.8);
+    expect(classPerkBonuses("cutpurse", 4)).toMatchObject({ damage: 3, sprintCostMultiplier: 0.8 });
+    expect(classPerkBonuses("hexbound", 6)).toMatchObject({ health: 8, damage: 4, spellCharges: 1 });
   });
 });

@@ -6,6 +6,20 @@ export interface MerchantOffer {
   item: Omit<Item, "id">;
 }
 
+export interface ClassPerk {
+  level: number;
+  name: string;
+  description: string;
+}
+
+export interface ClassPerkBonuses {
+  health: number;
+  damage: number;
+  guardUpkeepMultiplier: number;
+  sprintCostMultiplier: number;
+  spellCharges: number;
+}
+
 export const CLASSES: Record<ClassId, ClassDefinition> = {
   vanguard: {
     id: "vanguard",
@@ -53,6 +67,35 @@ export const CLASSES: Record<ClassId, ClassDefinition> = {
     weapon: "Cinderbound spellbook",
   },
 };
+
+export const CLASS_PERKS: Record<ClassId, ClassPerk[]> = {
+  vanguard: [
+    { level: 2, name: "Bulwark", description: "Guard upkeep costs 20% less stamina." },
+    { level: 4, name: "Iron Constitution", description: "+8 maximum vigor." },
+    { level: 6, name: "Mordhau", description: "+3 strike damage." },
+  ],
+  cutpurse: [
+    { level: 2, name: "Light Feet", description: "Sprinting costs 20% less stamina." },
+    { level: 4, name: "Cruel Precision", description: "+3 strike damage." },
+    { level: 6, name: "Hard Escape", description: "+8 maximum vigor." },
+  ],
+  hexbound: [
+    { level: 2, name: "Expanded Memory", description: "+1 ash-bolt charge." },
+    { level: 4, name: "Ash Covenant", description: "+4 spell damage." },
+    { level: 6, name: "Scarred Vessel", description: "+8 maximum vigor." },
+  ],
+};
+
+export function classPerkBonuses(classId: ClassId, level: number): ClassPerkBonuses {
+  const safeLevel = Math.max(1, Math.floor(level));
+  return {
+    health: safeLevel >= 6 && classId !== "vanguard" ? 8 : safeLevel >= 4 && classId === "vanguard" ? 8 : 0,
+    damage: safeLevel >= 4 && classId === "cutpurse" ? 3 : safeLevel >= 4 && classId === "hexbound" ? 4 : safeLevel >= 6 && classId === "vanguard" ? 3 : 0,
+    guardUpkeepMultiplier: safeLevel >= 2 && classId === "vanguard" ? 0.8 : 1,
+    sprintCostMultiplier: safeLevel >= 2 && classId === "cutpurse" ? 0.8 : 1,
+    spellCharges: safeLevel >= 2 && classId === "hexbound" ? 1 : 0,
+  };
+}
 
 export const RARITIES: Rarity[] = ["Worn", "Common", "Uncommon", "Rare", "Epic", "Legendary"];
 

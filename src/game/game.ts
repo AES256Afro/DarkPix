@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
 import { attackDamage, enemyAttackPattern, guardDrainPerSecond, healthPercent, type ThreatKind } from "./combat";
-import { CLASSES, RARITY_COLOR, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses } from "./data";
+import { CLASSES, RARITY_COLOR, classPerkBonuses, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, type ClassPerkBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { equippedPower } from "./loadout";
 import { cardinalDirection, circlesOverlap } from "./navigation";
@@ -141,6 +141,8 @@ export class DarkPixGame {
   private readonly resizeObserver: ResizeObserver;
   private readonly maxHealth: number;
   private readonly damageBonus: number;
+  private readonly perkBonuses: ClassPerkBonuses;
+  private readonly maxSpellCharges: number;
   private healthFill!: HTMLElement;
   private staminaFill!: HTMLElement;
   private spellFill!: HTMLElement;
@@ -164,7 +166,7 @@ export class DarkPixGame {
   private elapsed = 0;
   private health: number;
   private stamina: number;
-  private spellCharges = 6;
+  private spellCharges: number;
   private kills = 0;
   private goldFound = 0;
   private readonly consumedIds: string[] = [];
@@ -200,9 +202,12 @@ export class DarkPixGame {
     this.audio = new AudioDirector(!options.preferences.muted);
     this.definition = CLASSES[options.classId];
     const progression = progressionBonuses(options.classLevel);
+    this.perkBonuses = classPerkBonuses(options.classId, options.classLevel);
     const armorBonus = equippedPower(options.equipped, "armor");
-    this.maxHealth = this.definition.maxHealth + armorBonus + progression.health;
-    this.damageBonus = progression.damage;
+    this.maxHealth = this.definition.maxHealth + armorBonus + progression.health + this.perkBonuses.health;
+    this.damageBonus = progression.damage + this.perkBonuses.damage;
+    this.maxSpellCharges = 6 + this.perkBonuses.spellCharges;
+    this.spellCharges = this.maxSpellCharges;
     this.carriedConsumables = options.equipped.filter((item) => item.kind === "consumable").map((item) => ({ ...item }));
     this.health = this.maxHealth;
     this.stamina = this.definition.maxStamina;
@@ -780,9 +785,9 @@ export class DarkPixGame {
     const dz = (-input.x * sin - input.y * cos) * speed * delta;
     this.tryMove(dx, dz);
     if (sprinting) {
-      this.stamina = Math.max(0, this.stamina - delta * (this.options.classId === "cutpurse" ? 17 : 24));
+      this.stamina = Math.max(0, this.stamina - delta * (this.options.classId === "cutpurse" ? 17 : 24) * this.perkBonuses.sprintCostMultiplier);
     } else if (this.blocking) {
-      this.stamina = Math.max(0, this.stamina - delta * guardDrainPerSecond(this.options.classId));
+      this.stamina = Math.max(0, this.stamina - delta * guardDrainPerSecond(this.options.classId) * this.perkBonuses.guardUpkeepMultiplier);
       if (this.stamina <= 0) {
         this.blocking = false;
         this.blockAge = 0;
@@ -1234,7 +1239,7 @@ export class DarkPixGame {
   private useCampfire(): void {
     this.campfireUsed = true;
     this.health = Math.min(this.maxHealth, this.health + 52);
-    this.spellCharges = 6;
+    this.spellCharges = this.maxSpellCharges;
     this.stamina = this.definition.maxStamina;
     for (const enemy of this.enemies) {
       if (enemy.alive && enemy.group.position.distanceTo(this.campfire.position) < 14) enemy.alerted = true;
@@ -1314,7 +1319,7 @@ export class DarkPixGame {
   private updateHud(): void {
     this.healthFill.style.width = `${Math.max(0, (this.health / this.maxHealth) * 100)}%`;
     this.staminaFill.style.width = `${(this.stamina / this.definition.maxStamina) * 100}%`;
-    this.spellFill.style.width = `${this.options.classId === "hexbound" ? (this.spellCharges / 6) * 100 : 100}%`;
+    this.spellFill.style.width = `${this.options.classId === "hexbound" ? (this.spellCharges / this.maxSpellCharges) * 100 : 100}%`;
     this.spellFill.parentElement?.classList.toggle("inactive", this.options.classId !== "hexbound");
     this.raidClock.textContent = formatTime(RAID_DURATION - this.elapsed);
     this.raidClock.classList.toggle("urgent", RAID_DURATION - this.elapsed < 45);

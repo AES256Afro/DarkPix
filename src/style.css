@@ -165,6 +165,13 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .level-track i { display: block; height: 100%; background: var(--ember); box-shadow: 0 0 10px rgba(197,100,45,.5); }
 .sheet-line { display: flex; align-items: start; justify-content: space-between; gap: 20px; padding: 10px 0; border-bottom: 1px solid #211f1b; color: #6f695f; font: 10px/1.35 ui-monospace, monospace; }
 .sheet-line strong { max-width: 62%; color: #a69d8f; font-weight: 500; text-align: right; }
+.perk-list { display: grid; gap: 5px; margin-top: 14px; }
+.perk-list > div { display: grid; grid-template-columns: 38px 1fr; align-items: center; gap: 8px; padding: 8px; border: 1px solid #28241e; background: #12100e; opacity: .42; }
+.perk-list > div.unlocked { border-color: #4c3927; opacity: 1; }
+.perk-list b { color: #826a50; font: 700 7px ui-monospace, monospace; }
+.perk-list span { display: flex; min-width: 0; flex-direction: column; }
+.perk-list strong { color: #bba68f; font: 10px Georgia, serif; }
+.perk-list small { margin-top: 2px; color: #6f685f; font: 7px/1.3 ui-monospace, monospace; }
 .risk-total { display: flex; align-items: center; justify-content: space-between; margin: 16px -24px -24px; padding: 14px 24px; border-top: 1px solid #332a20; background: #17120e; color: #8b7257; font: 800 9px ui-monospace, monospace; letter-spacing: .12em; }
 .risk-total strong { color: #d5a46e; }
 .contract-card { display: grid; grid-template-columns: 48px 1fr auto; align-items: center; gap: 14px; padding: 18px; }
