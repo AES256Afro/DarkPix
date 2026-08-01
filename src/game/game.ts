@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { escapeHtml } from "../html";
 import { AudioDirector } from "./audio";
-import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat, type AttackDirection, type RivalArchetype } from "./combat";
+import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat, type AttackDirection, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
@@ -42,6 +42,7 @@ interface Enemy {
   cooldown: number;
   windup: number;
   windupDuration: number;
+  windupFacing?: Vec2;
   stagger: number;
   alerted: boolean;
   alive: boolean;
@@ -1787,6 +1788,7 @@ export class DarkPixGame {
     }
     if (enemy.kind !== "boss" && enemy.windup > 0) {
       enemy.windup = 0;
+      enemy.windupFacing = undefined;
       enemy.cooldown = Math.max(enemy.cooldown, 0.45);
     }
     if (announce) this.audio.hit();
@@ -1914,6 +1916,7 @@ export class DarkPixGame {
       }
       if (distance > 15) {
         enemy.windup = 0;
+        enemy.windupFacing = undefined;
         continue;
       }
       const hasSight = dungeonLineOfSight(
@@ -1960,7 +1963,9 @@ export class DarkPixGame {
         const attackRange = enemy.kind === "boss" && rangedAttack
           ? 7.2
           : enemy.kind === "rival" && enemy.attackStyle === "melee" ? 1.9 : enemy.range;
-        if (distance > attackRange + 0.25 || !hasSight) continue;
+        const facingCommittedTarget = enemyStrikeFacesTarget(enemy.windupFacing, { x: toPlayerX, z: toPlayerZ }, rangedAttack);
+        enemy.windupFacing = undefined;
+        if (distance > attackRange + 0.25 || !hasSight || !facingCommittedTarget) continue;
 
         if (enemy.kind === "rival" && enemy.attackStyle === "ranged") this.spawnRivalKnife(enemy);
         if (enemy.kind === "boss" && rangedAttack) this.spawnBossChain(enemy);
@@ -2015,6 +2020,7 @@ export class DarkPixGame {
         const pattern = enemyAttackPattern("boss", Boolean(enemy.group.userData.enraged), true);
         enemy.windup = pattern.windup;
         enemy.windupDuration = pattern.windup;
+        enemy.windupFacing = { x: toPlayerX, z: toPlayerZ };
         this.feed("CHAIN LASH · break sight, retreat, or raise your guard", "danger");
         this.showDirectionalCue(enemy.group.position, "CHAIN", pattern.windup + 0.18, "warning");
         this.audio.tone(52, 0.22, "sawtooth", 0.11);
@@ -2059,6 +2065,7 @@ export class DarkPixGame {
         const pattern = enemyAttackPattern(enemy.kind, Boolean(enemy.group.userData.enraged), false);
         enemy.windup = pattern.windup;
         enemy.windupDuration = pattern.windup;
+        enemy.windupFacing = { x: toPlayerX, z: toPlayerZ };
         this.showDirectionalCue(enemy.group.position, enemy.attackStyle === "ranged" ? "MISSILE" : "STRIKE", pattern.windup + 0.18, "warning");
         this.audio.tone(enemy.kind === "boss" ? 58 : 110, 0.08, "square", 0.04);
       }

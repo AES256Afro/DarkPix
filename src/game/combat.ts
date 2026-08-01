@@ -93,6 +93,15 @@ export function enemyAttackPattern(kind: ThreatKind, enraged = false, ranged = f
   return { windup: 0.36, recovery: 1.55 };
 }
 
+export function enemyStrikeFacesTarget(committedFacing: Vec2 | undefined, toTarget: Vec2, ranged: boolean): boolean {
+  if (!committedFacing) return false;
+  const facingLength = Math.hypot(committedFacing.x, committedFacing.z);
+  const targetLength = Math.hypot(toTarget.x, toTarget.z);
+  if (!Number.isFinite(facingLength) || !Number.isFinite(targetLength) || facingLength <= 0.001 || targetLength <= 0.001) return false;
+  const alignment = (committedFacing.x * toTarget.x + committedFacing.z * toTarget.z) / (facingLength * targetLength);
+  return alignment >= (ranged ? 0.92 : 0.35);
+}
+
 export function rivalTactic(distance: number, hasSight: boolean, archetype: RivalArchetype = "skirmisher"): RivalTactic {
   if (!Number.isFinite(distance) || distance < 0 || !hasSight || distance > 6.5) return "approach";
   if (archetype === "marauder") return distance <= 1.9 ? "melee" : "approach";
