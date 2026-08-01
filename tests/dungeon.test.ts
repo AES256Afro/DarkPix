@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DUNGEON, dartTrapTargetDistance, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists, encounterPosition, selectRaidVariation } from "../src/game/dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES } from "../src/game/depth";
 import { channelInterruptionReason, continuousHold, targetDistanceInView } from "../src/game/targeting";
-import { cardinalDirection, circlesOverlap, directionalCue, movementOffset, recoveryNeed, relativeDirectionToSource } from "../src/game/navigation";
+import { cardinalDirection, circlesOverlap, directionalCue, movementOffset, passiveAwarenessRange, recoveryNeed, relativeDirectionToSource } from "../src/game/navigation";
 import { directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "../src/game/zone";
 import type { Vec2 } from "../src/game/types";
 import { RAID_VARIATION_COUNT, normalizeRaidVariationSeed, raidVariationSeal, validRaidVariationSeed } from "../src/game/contract";
@@ -141,6 +141,13 @@ describe("deliberate interaction targeting", () => {
     expect(continuousHold(partial, 0.4, true)).toBeCloseTo(1.3);
     expect(continuousHold(partial, 0.4, false)).toBe(0);
     expect(continuousHold(Number.NaN, -1, true)).toBe(0);
+  });
+
+  it("reduces passive acquisition through both darkness and crouching", () => {
+    expect(passiveAwarenessRange(true, false)).toBe(10.5);
+    expect(passiveAwarenessRange(false, false)).toBe(6.5);
+    expect(passiveAwarenessRange(true, true)).toBeCloseTo(6.93);
+    expect(passiveAwarenessRange(false, true)).toBeCloseTo(4.29);
   });
 
   it("names the highest-priority channel interruption", () => {

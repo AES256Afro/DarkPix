@@ -7,7 +7,7 @@ import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encou
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
 import { HAUL_CAPACITY, RIVAL_EXTRACTION_SECONDS, advanceRivalExtraction, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, rivalShouldExtract, treasureGoldTotal } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, pickupDecision, type LoadoutStats } from "./loadout";
-import { cardinalDirection, circlesOverlap, directionalCue, movementOffset, recoveryNeed } from "./navigation";
+import { cardinalDirection, circlesOverlap, directionalCue, movementOffset, passiveAwarenessRange, recoveryNeed } from "./navigation";
 import { raidRules, type RaidRules } from "./raid";
 import { consumablesInUseOrder, nextConsumableId, nextThrowableId, resolveConsumableId, resolveThrowableId, throwablesInUseOrder } from "./quickslots";
 import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./resolution";
@@ -115,6 +115,7 @@ export interface DarkPixGameOptions {
 }
 
 const PLAYER_HEIGHT = 1.67;
+const CROUCH_HEIGHT = 1.24;
 const PLAYER_RADIUS = 0.38;
 
 function pixelTexture(base: string, light: string, dark: string, mortar = false): THREE.CanvasTexture {
@@ -390,7 +391,7 @@ export class DarkPixGame {
             <button class="resume-raid" type="button">BIND CURSOR / RESUME</button>
             <button class="abandon-raid" type="button">ABANDON RAID</button>
           </span>
-          <span class="control-line">WASD move · mouse look · LMB strike · RMB guard · Space sidestep · 1/2 spells · E interact · R red descent · F use remedy · C cycle remedy · V throw · B cycle throw · G drop · T torch · Shift sprint</span>
+          <span class="control-line">WASD move · mouse look · LMB strike · RMB guard · Space sidestep · Ctrl crouch · 1/2 spells · E interact · R red descent · F use remedy · C cycle remedy · V throw · B cycle throw · G drop · T torch · Shift sprint</span>
         </div>
       </div>`;
     const host = this.mount.querySelector<HTMLElement>(".render-host");
@@ -978,6 +979,7 @@ export class DarkPixGame {
     if (event.code === "KeyG" && !event.repeat) this.dropLowestHaul();
     if (event.code === "KeyQ" && !event.repeat) this.useClassAbility();
     if (event.code === "KeyT" && !event.repeat) this.toggleTorch();
+    if ((event.code === "ControlLeft" || event.code === "ControlRight") && !event.repeat) this.feed("CROUCH · slower steps reduce passive detection", "system");
     if (event.code === "Space" && !event.repeat) {
       event.preventDefault();
       this.dodge();
@@ -1301,9 +1303,10 @@ export class DarkPixGame {
     );
     const moving = input.lengthSq() > 0;
     if (moving) input.normalize();
-    const sprinting = moving && this.keys.has("ShiftLeft") && this.stamina > 1 && !this.blocking && !this.remedyItemId;
+    const crouching = this.keys.has("ControlLeft") || this.keys.has("ControlRight");
+    const sprinting = moving && !crouching && this.keys.has("ShiftLeft") && this.stamina > 1 && !this.blocking && !this.remedyItemId;
     const sprintMultiplier = sprinting ? (this.options.classId === "cutpurse" ? 1.65 : 1.48) : 1;
-    const movementPenalty = this.blocking ? 0.55 : this.guardBreakTimer > 0 ? 0.42 : this.remedyItemId ? 0.62 : 1;
+    const movementPenalty = (this.blocking ? 0.55 : this.guardBreakTimer > 0 ? 0.42 : this.remedyItemId ? 0.62 : 1) * (crouching ? 0.58 : 1);
     const speed = this.definition.speed * this.loadoutBonuses.movementMultiplier * classMovementMultiplier(this.options.classId, this.wildshapeTimer) * sprintMultiplier * movementPenalty;
     const sin = Math.sin(this.yaw);
     const cos = Math.cos(this.yaw);
@@ -1319,11 +1322,12 @@ export class DarkPixGame {
       this.stamina = Math.min(this.definition.maxStamina, this.stamina + delta * staminaRecoveryPerSecond(moving, recovering));
     }
 
+    const stanceHeight = crouching ? CROUCH_HEIGHT : PLAYER_HEIGHT;
     if (moving && !this.options.preferences.reducedMotion) {
       this.footstepClock += delta * speed;
-      this.camera.position.y = PLAYER_HEIGHT + Math.sin(this.footstepClock * 2.25) * 0.035;
+      this.camera.position.y = stanceHeight + Math.sin(this.footstepClock * 2.25) * 0.035;
     } else {
-      this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, PLAYER_HEIGHT, delta * 7);
+      this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, stanceHeight, delta * 7);
     }
     this.camera.rotation.set(this.pitch, this.yaw, 0);
   }
@@ -1824,7 +1828,7 @@ export class DarkPixGame {
       const toPlayerX = player.x - enemy.group.position.x;
       const toPlayerZ = player.z - enemy.group.position.z;
       const distance = Math.hypot(toPlayerX, toPlayerZ);
-      const awareness = this.torchLit ? 10.5 : 6.5;
+      const awareness = passiveAwarenessRange(this.torchLit, this.keys.has("ControlLeft") || this.keys.has("ControlRight"));
       if (this.phaseElapsed() >= depthRules(this.depth).spawnGrace && this.concealmentTimer <= 0 && distance < awareness && dungeonLineOfSight(
         { x: player.x, z: player.z },
         { x: enemy.group.position.x, z: enemy.group.position.z },

@@ -59,6 +59,11 @@ export function movementOffset(yaw: number, strafe: number, forward: number, dis
   };
 }
 
+export function passiveAwarenessRange(torchLit: boolean, crouching: boolean): number {
+  const base = torchLit ? 10.5 : 6.5;
+  return crouching ? base * 0.66 : base;
+}
+
 export type RecoveryNeed = "MEMORY" | "VIGOR" | "STAMINA" | "TORCH" | undefined;
 
 export function recoveryNeed(
