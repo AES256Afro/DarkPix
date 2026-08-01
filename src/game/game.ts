@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { escapeHtml } from "../html";
 import { AudioDirector } from "./audio";
-import { attackDamage, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat } from "./combat";
+import { attackDamage, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, depthRules } from "./depth";
@@ -46,6 +46,7 @@ interface Enemy {
   attackStyle: "melee" | "ranged";
   crippled: boolean;
   carriedLoot: Item[];
+  rivalArchetype?: RivalArchetype;
   tollCooldown: number;
   tollWindup: number;
   tollWindupDuration: number;
@@ -176,7 +177,7 @@ export class DarkPixGame {
   private readonly perkBonuses: ClassPerkBonuses;
   private readonly loadoutBonuses: LoadoutStats;
   private readonly raidRules: RaidRules;
-  private readonly variation = selectRaidVariation(Math.floor(Math.random() * 8));
+  private readonly variation = selectRaidVariation(Math.floor(Math.random() * 16));
   private readonly encountersMirrored = this.variation.encountersMirrored;
   private readonly portalSite = DUNGEON.portalSites[this.variation.portalSiteIndex] ?? DUNGEON.portal;
   private readonly maxSpellCharges: number;
@@ -731,6 +732,9 @@ export class DarkPixGame {
     const isRival = kind === "rival";
     const isWarden = kind === "warden";
     const isBoss = kind === "boss";
+    const rivalArchetype: RivalArchetype | undefined = isRival
+      ? (this.variation.rivalArchetypeIndex + this.depth - 1) % 2 === 0 ? "skirmisher" : "marauder"
+      : undefined;
     const bone = material(isBoss ? 0x8e5d3f : isRival ? 0x513542 : isWarden ? 0xc2b07f : kind === "mimic" ? 0x8a5336 : isCrawler ? 0x695d4d : 0x9c9687);
     const dark = material(isBoss ? 0x24110c : isRival ? 0x251720 : kind === "mimic" ? 0x321b13 : 0x27251f);
     const torso = new THREE.Mesh(new THREE.BoxGeometry(isCrawler ? 0.62 : 0.52, isCrawler ? 0.4 : 0.78, 0.3), dark);
@@ -759,6 +763,12 @@ export class DarkPixGame {
         satchel.rotation.z = 0.16;
         satchel.visible = false;
         group.add(satchel);
+        if (rivalArchetype === "marauder") {
+          const shield = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.09, 8), material(0x514737, 0x160d09));
+          shield.position.set(-0.48, 1.16, 0.14);
+          shield.rotation.x = Math.PI / 2;
+          group.add(shield);
+        }
       }
     } else {
       for (let index = 0; index < 6; index += 1) {
@@ -794,7 +804,9 @@ export class DarkPixGame {
       : kind === "warden"
       ? { hp: 115, speed: 1.35, damage: 24, range: 1.7, name: "Ossuary warden" }
       : kind === "rival"
-        ? { hp: 88, speed: 2.05, damage: 16, range: 6.5, name: "Rival delver" }
+        ? rivalArchetype === "marauder"
+          ? { hp: 112, speed: 1.82, damage: 23, range: 1.9, name: "Guildless marauder" }
+          : { hp: 88, speed: 2.05, damage: 16, range: 6.5, name: "Guildless skirmisher" }
         : kind === "mimic"
           ? { hp: 76, speed: 2.3, damage: 20, range: 1.3, name: "Coffer mimic" }
         : kind === "crawler"
@@ -831,6 +843,7 @@ export class DarkPixGame {
       attackStyle: "melee",
       crippled: false,
       carriedLoot: [],
+      rivalArchetype,
       tollCooldown: 5,
       tollWindup: 0,
       tollWindupDuration: 1.15,
@@ -1520,7 +1533,7 @@ export class DarkPixGame {
       : enemy.kind === "boss"
         ? enemy.tollWindup > 0 ? "KEEPER · CHAIN RING" : enemy.group.userData.enraged ? "KEEPER · ENRAGED" : "KEEPER"
         : enemy.kind === "rival"
-          ? enemy.crippled ? "HOSTILE DELVER · CRIPPLED" : "HOSTILE DELVER"
+          ? `${enemy.rivalArchetype === "marauder" ? "HOSTILE MARAUDER" : "HOSTILE SKIRMISHER"}${enemy.crippled ? " · CRIPPLED" : ""}`
           : enemy.crippled ? "CRYPT THREAT · CRIPPLED" : "CRYPT THREAT";
     this.threatHud.dataset.kind = enemy.kind;
     this.threatHud.classList.add("visible");
@@ -1627,7 +1640,7 @@ export class DarkPixGame {
         }
         continue;
       }
-      const tactic = enemy.kind === "rival" ? rivalTactic(distance, hasSight) : undefined;
+      const tactic = enemy.kind === "rival" ? rivalTactic(distance, hasSight, enemy.rivalArchetype) : undefined;
       const keeperTactic = enemy.kind === "boss" ? bossTactic(distance, hasSight, Boolean(enemy.group.userData.enraged)) : undefined;
       if (tactic === "retreat" && enemy.stagger <= 0) {
         enemy.path = [];

@@ -590,6 +590,13 @@ describe("directional combat damage", () => {
     expect(rivalTactic(Number.NaN, true)).toBe("approach");
   });
 
+  it("makes the rival marauder commit to melee instead of kiting", () => {
+    expect(rivalTactic(6, true, "marauder")).toBe("approach");
+    expect(rivalTactic(3, true, "marauder")).toBe("approach");
+    expect(rivalTactic(1.9, true, "marauder")).toBe("melee");
+    expect(rivalTactic(1, false, "marauder")).toBe("approach");
+  });
+
   it("makes the Tollkeeper telegraph chain lashes only at counterable range", () => {
     expect(bossTactic(8, true)).toBe("approach");
     expect(bossTactic(5, false)).toBe("approach");

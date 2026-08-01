@@ -56,7 +56,7 @@ export const BESTIARY: Record<ThreatKind, BestiaryEntry> = {
   crawler: { kind: "crawler", name: "Grave crawler", title: "The Low Hunger", tactic: "Keep the crosshair low. Its quick lunge is weaker after a missed commitment." },
   mimic: { kind: "mimic", name: "Coffer mimic", title: "The Patient Maw", tactic: "Watch deep coffer locks for teeth. A sweep can cripple the awakened thing." },
   warden: { kind: "warden", name: "Ossuary warden", title: "The Sigil Bearer", tactic: "Bait its heavy windup or a floor trap, then take the sigil from the drop." },
-  rival: { kind: "rival", name: "Guildless rival", title: "The Other Torch", tactic: "Break sight at throwing range, close through the retreat, and recover its stolen satchel." },
+  rival: { kind: "rival", name: "Guildless rival", title: "The Other Torch", tactic: "Skirmishers throw and retreat. Shielded marauders close for heavier blows. Either can steal two loose relics." },
   boss: { kind: "boss", name: "The Tollkeeper", title: "Keeper of the Blue Toll", tactic: "Its chain needs sight. At half vigor, stand inside or beyond the marked chain ring. A forward guard is a costly fallback." },
 };
 

@@ -81,12 +81,12 @@ describe("Crypt of the Pale Toll topology", () => {
   });
 
   it("derives all three raid-variation switches from one bounded seed", () => {
-    expect(selectRaidVariation(0)).toEqual({ encountersMirrored: false, portalSiteIndex: 0, trapLayoutIndex: 0 });
-    expect(selectRaidVariation(7)).toEqual({ encountersMirrored: true, portalSiteIndex: 1, trapLayoutIndex: 1 });
-    expect(selectRaidVariation(8)).toEqual(selectRaidVariation(0));
-    expect(selectRaidVariation(-7)).toEqual(selectRaidVariation(7));
+    expect(selectRaidVariation(0)).toEqual({ encountersMirrored: false, portalSiteIndex: 0, trapLayoutIndex: 0, rivalArchetypeIndex: 0 });
+    expect(selectRaidVariation(15)).toEqual({ encountersMirrored: true, portalSiteIndex: 1, trapLayoutIndex: 1, rivalArchetypeIndex: 1 });
+    expect(selectRaidVariation(16)).toEqual(selectRaidVariation(0));
+    expect(selectRaidVariation(-15)).toEqual(selectRaidVariation(15));
     expect(selectRaidVariation(Number.NaN)).toEqual(selectRaidVariation(0));
-    expect(new Set(Array.from({ length: 8 }, (_, seed) => JSON.stringify(selectRaidVariation(seed))))).toHaveLength(8);
+    expect(new Set(Array.from({ length: 16 }, (_, seed) => JSON.stringify(selectRaidVariation(seed))))).toHaveLength(16);
   });
 
   it("rejects targets behind, beside, or beyond a wall dart lane", () => {

@@ -33,6 +33,7 @@ export interface RaidVariation {
   encountersMirrored: boolean;
   portalSiteIndex: number;
   trapLayoutIndex: number;
+  rivalArchetypeIndex: number;
 }
 
 export const DUNGEON = {
@@ -128,11 +129,12 @@ export const DUNGEON = {
 } as const;
 
 export function selectRaidVariation(seed: number): RaidVariation {
-  const normalized = Number.isFinite(seed) ? Math.abs(Math.floor(seed)) % 8 : 0;
+  const normalized = Number.isFinite(seed) ? Math.abs(Math.floor(seed)) % 16 : 0;
   return {
     encountersMirrored: (normalized & 1) === 1,
     portalSiteIndex: (normalized >> 1) & 1,
     trapLayoutIndex: (normalized >> 2) & 1,
+    rivalArchetypeIndex: (normalized >> 3) & 1,
   };
 }
 

@@ -9,6 +9,7 @@ export interface EnemyAttackPattern {
 }
 
 export type RivalTactic = "approach" | "retreat" | "throw" | "melee";
+export type RivalArchetype = "skirmisher" | "marauder";
 export type BossTactic = "approach" | "chain" | "melee";
 
 export interface DamageInput {
@@ -41,8 +42,9 @@ export function enemyAttackPattern(kind: ThreatKind, enraged = false, ranged = f
   return { windup: 0.36, recovery: 1.55 };
 }
 
-export function rivalTactic(distance: number, hasSight: boolean): RivalTactic {
+export function rivalTactic(distance: number, hasSight: boolean, archetype: RivalArchetype = "skirmisher"): RivalTactic {
   if (!Number.isFinite(distance) || distance < 0 || !hasSight || distance > 6.5) return "approach";
+  if (archetype === "marauder") return distance <= 1.9 ? "melee" : "approach";
   if (distance <= 1.75) return "melee";
   if (distance < 3.1) return "retreat";
   return "throw";
