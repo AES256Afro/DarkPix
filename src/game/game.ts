@@ -12,6 +12,7 @@ import { raidRules, type RaidRules } from "./raid";
 import { consumablesInUseOrder, nextConsumableId, nextThrowableId, resolveConsumableId, resolveThrowableId, throwablesInUseOrder } from "./quickslots";
 import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./resolution";
 import { disposeSceneResources } from "./resources";
+import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { continuousHold, targetDistanceInView } from "./targeting";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
 import { directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "./zone";
@@ -2200,7 +2201,10 @@ export class DarkPixGame {
       : "HAUL FULL · [ G ] DROP THE LEAST VALUABLE ITEM";
     if (interactive === "chest") prompt = "[ E ] SEARCH IRONBOUND COFFER";
     if (interactive === "campfire") prompt = "[ HOLD E ] REST · RESTORE VIGOR AND SPELL MEMORY";
-    if (interactive === "shrine") prompt = "[ E ] PAY 18 VIGOR TO THE BLOOD RELIQUARY";
+    if (interactive === "shrine") {
+      const exchange = dropLeastValuable(this.raidLoot).dropped;
+      prompt = `[ E ] PAY 18 VIGOR FOR TWO RELICS · [ R ] ${exchange ? `OFFER ${exchange.name.toUpperCase()} FOR ONE DEEPER ROLL` : "NEEDS ORDINARY HAUL"}`;
+    }
     if (interactive === "false_wall") prompt = "[ HOLD E ] TRACE THE MORTAR SEAM";
     const redDepthAvailable = interactive === "portal" && this.depth === 1 && this.bossKilled;
     if (interactive === "portal") prompt = redDepthAvailable
@@ -2229,8 +2233,9 @@ export class DarkPixGame {
         this.interactHeld = false;
       }
     } else if (interactive === "shrine") {
-      this.useShrine();
+      this.useShrine(this.descendHeld ? "exchange" : "blood");
       this.interactHeld = false;
+      this.descendHeld = false;
     } else if (interactive === "false_wall") {
       if (this.interactionHold >= channelDuration) {
         this.openFalseWall();
@@ -2317,25 +2322,40 @@ export class DarkPixGame {
     this.audio.portal();
   }
 
-  private useShrine(): void {
-    if (this.health <= 18 || this.damageCooldown > 0) {
+  private useShrine(offering: ShrineOffering): void {
+    const rules = shrineOfferingRules(offering);
+    let surrendered: Item | undefined;
+    if (offering === "exchange") {
+      const exchange = dropLeastValuable(this.raidLoot);
+      if (!exchange.dropped) {
+        this.feed("The reliquary demands an ordinary piece of unsecured haul.", "danger");
+        return;
+      }
+      surrendered = exchange.dropped;
+      this.raidLoot.splice(0, this.raidLoot.length, ...exchange.kept);
+      this.goldFound = Math.max(0, this.goldFound - treasureGold(surrendered));
+    } else if (this.health <= rules.healthCost || this.damageCooldown > 0) {
       this.feed("The reliquary rejects weak or freshly spilled blood.", "danger");
       return;
     }
     this.shrineUsed = true;
-    this.hurt(18, "the blood reliquary", false);
+    if (rules.healthCost > 0) this.hurt(rules.healthCost, "the blood reliquary", false);
     const rune = this.shrine.getObjectByName("bloodRune") as THREE.Mesh | undefined;
     if (rune?.material instanceof THREE.MeshStandardMaterial) rune.material.emissiveIntensity = 0.08;
     const light = this.shrine.getObjectByName("shrineLight") as THREE.PointLight | undefined;
     if (light) light.intensity = 0;
     const origin = this.shrine.position.clone();
-    const depthBonus = 0.16 + this.raidRules.lootDepthBonus + depthRules(this.depth).lootDepthBonus;
-    this.spawnPickup(createLoot(Math.random, depthBonus), origin.clone().add(new THREE.Vector3(1, 0, -0.48)));
-    this.spawnPickup(createLoot(Math.random, depthBonus), origin.clone().add(new THREE.Vector3(1, 0, 0.48)));
-    for (const enemy of this.enemies) {
-      if (enemy.alive && enemy.group.position.distanceTo(this.shrine.position) < 16) enemy.alerted = true;
+    const depthBonus = rules.lootDepthBonus + this.raidRules.lootDepthBonus + depthRules(this.depth).lootDepthBonus;
+    for (let index = 0; index < rules.rewardCount; index += 1) {
+      const z = rules.rewardCount === 1 ? 0 : index === 0 ? -0.48 : 0.48;
+      this.spawnPickup(createLoot(Math.random, depthBonus), origin.clone().add(new THREE.Vector3(1, 0, z)));
     }
-    this.feed("The reliquary opens. Something in the crypt answers.", "loot");
+    for (const enemy of this.enemies) {
+      if (enemy.alive && enemy.group.position.distanceTo(this.shrine.position) < rules.alertRadius) enemy.alerted = true;
+    }
+    this.feed(surrendered
+      ? `${surrendered.name} burns away. The reliquary answers with a deeper relic.`
+      : "The reliquary opens. Something in the crypt answers.", "loot");
     this.audio.portal();
   }
 
