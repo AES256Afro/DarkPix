@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CRAFTING_RECIPES, MERCHANT_OFFERS, classPerkBonuses, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll } from "../src/game/data";
+import { CLASS_ABILITIES, CRAFTING_RECIPES, MERCHANT_OFFERS, classPerkBonuses, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll } from "../src/game/data";
 import { applyRaidResult, craftItem, createProfile, normalizeProfile, purchaseItem, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
 import { attackDamage, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic } from "../src/game/combat";
@@ -324,6 +324,15 @@ describe("class perk milestones", () => {
     expect(classPerkBonuses("vanguard", 2).guardUpkeepMultiplier).toBe(0.8);
     expect(classPerkBonuses("cutpurse", 4)).toMatchObject({ damage: 3, sprintCostMultiplier: 0.8 });
     expect(classPerkBonuses("hexbound", 6)).toMatchObject({ health: 8, damage: 4, spellCharges: 1 });
+  });
+
+  it("gives every class a bounded active-skill cooldown", () => {
+    expect(Object.keys(CLASS_ABILITIES).sort()).toEqual(["cutpurse", "hexbound", "vanguard"]);
+    for (const ability of Object.values(CLASS_ABILITIES)) {
+      expect(ability.name.length).toBeGreaterThan(0);
+      expect(ability.cooldown).toBeGreaterThanOrEqual(30);
+      expect(ability.cooldown).toBeLessThanOrEqual(60);
+    }
   });
 });
 

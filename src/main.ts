@@ -1,7 +1,7 @@
 import "./style.css";
 import { escapeHtml } from "./html";
 import { createSaveBackup, parseSaveBackup } from "./game/backup";
-import { CLASSES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses } from "./game/data";
+import { CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses } from "./game/data";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { craftItem, loadProfile, purchaseItem, saveProfile, settleRaid } from "./game/profile";
@@ -181,6 +181,7 @@ function renderLobby(): void {
               <div class="sheet-line"><span>Experience</span><strong>${classXp} / ${nextLevelXp}</strong></div>
               <div class="sheet-line"><span>Raid weapon</span><strong>${chosen.weapon}</strong></div>
               <div class="sheet-line"><span>Class art</span><strong>${chosen.ability}</strong></div>
+              <div class="sheet-line"><span>Active skill</span><strong>Q · ${CLASS_ABILITIES[selectedClass].name}</strong></div>
               <div class="sheet-line"><span>Veterancy</span><strong>+${bonuses.health} vigor · +${bonuses.damage} damage</strong></div>
               <div class="sheet-line"><span>Packed vigor</span><strong>+${packedVigor}</strong></div>
               <div class="sheet-line"><span>Loadout pace</span><strong>${Math.round(previewStats.movementMultiplier * 100)}%</strong></div>

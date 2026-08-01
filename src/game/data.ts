@@ -30,6 +30,12 @@ export interface ClassPerkBonuses {
   spellCharges: number;
 }
 
+export interface ClassAbilityDefinition {
+  name: string;
+  cooldown: number;
+  description: string;
+}
+
 export const CLASSES: Record<ClassId, ClassDefinition> = {
   vanguard: {
     id: "vanguard",
@@ -94,6 +100,24 @@ export const CLASS_PERKS: Record<ClassId, ClassPerk[]> = {
     { level: 4, name: "Ash Covenant", description: "+4 spell damage." },
     { level: 6, name: "Scarred Vessel", description: "+8 maximum vigor." },
   ],
+};
+
+export const CLASS_ABILITIES: Record<ClassId, ClassAbilityDefinition> = {
+  vanguard: {
+    name: "Iron rally",
+    cooldown: 42,
+    description: "Recover 18 vigor and 45 stamina.",
+  },
+  cutpurse: {
+    name: "Smoke step",
+    cooldown: 36,
+    description: "Break distant pursuit and suppress reacquisition for four seconds.",
+  },
+  hexbound: {
+    name: "Blood memory",
+    cooldown: 38,
+    description: "Trade 12 vigor for two ash-bolt charges.",
+  },
 };
 
 export function classPerkBonuses(classId: ClassId, level: number): ClassPerkBonuses {

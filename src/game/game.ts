@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
 import { attackDamage, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, type ThreatKind } from "./combat";
-import { CLASSES, RARITY_COLOR, classPerkBonuses, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, type ClassPerkBonuses } from "./data";
+import { CLASSES, CLASS_ABILITIES, RARITY_COLOR, classPerkBonuses, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, type ClassPerkBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { HAUL_CAPACITY, canAddToHaul, dropLeastValuable, haulCount, treasureGold } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, type LoadoutStats } from "./loadout";
@@ -170,6 +170,7 @@ export class DarkPixGame {
   private lockOverlay!: HTMLElement;
   private damageOverlay!: HTMLElement;
   private extractProgress!: HTMLElement;
+  private abilityHud!: HTMLElement;
   private animationFrame = 0;
   private enemyId = 0;
   private elapsed = 0;
@@ -205,6 +206,8 @@ export class DarkPixGame {
   private threatTimer = 0;
   private vignette = 0;
   private torchLit = true;
+  private abilityCooldown = 0;
+  private concealmentTimer = 0;
   private renderScale = 0;
   private frameTimeTotal = 0;
   private frameSamples = 0;
@@ -277,7 +280,7 @@ export class DarkPixGame {
               </div>
             </section>
             <section class="quick-slots">
-              <div><kbd>1</kbd><span class="slot-icon weapon-icon"></span><small>${this.definition.weapon}</small></div>
+              <div class="ability-slot"><kbd>Q</kbd><span class="slot-icon ability-icon"></span><small>${CLASS_ABILITIES[this.options.classId].name}</small></div>
               <div><kbd>F</kbd><span class="slot-icon potion-icon"></span><small>${this.carriedConsumables.length ? `Packed draught ×${this.carriedConsumables.length}` : "Recovered draught"}</small></div>
               <div><kbd>G</kbd><span class="slot-icon hand-icon"></span><small>Drop lowest haul</small></div>
               <div><kbd>E</kbd><span class="slot-icon hand-icon"></span><small>Interact / extract</small></div>
@@ -318,6 +321,7 @@ export class DarkPixGame {
     this.lockOverlay = this.mount.querySelector<HTMLElement>(".lock-overlay")!;
     this.damageOverlay = this.mount.querySelector<HTMLElement>(".damage-flash")!;
     this.extractProgress = this.mount.querySelector<HTMLElement>(".extract-meter i")!;
+    this.abilityHud = this.mount.querySelector<HTMLElement>(".ability-slot small")!;
   }
 
   private configureRenderer(): void {
@@ -685,6 +689,7 @@ export class DarkPixGame {
     if (event.code === "KeyE") this.interactHeld = true;
     if (event.code === "KeyF" && !event.repeat) this.usePotion();
     if (event.code === "KeyG" && !event.repeat) this.dropLowestHaul();
+    if (event.code === "KeyQ" && !event.repeat) this.useClassAbility();
     if (event.code === "KeyT" && !event.repeat) this.toggleTorch();
   };
 
@@ -857,6 +862,8 @@ export class DarkPixGame {
   private update(delta: number): void {
     this.elapsed += delta;
     this.attackCooldown = Math.max(0, this.attackCooldown - delta);
+    this.abilityCooldown = Math.max(0, this.abilityCooldown - delta);
+    this.concealmentTimer = Math.max(0, this.concealmentTimer - delta);
     this.swingClock = Math.max(0, this.swingClock - delta);
     this.damageCooldown = Math.max(0, this.damageCooldown - delta);
     this.messageTimer = Math.max(0, this.messageTimer - delta);
@@ -954,6 +961,7 @@ export class DarkPixGame {
       return;
     }
     this.attackCooldown = this.definition.attackDelay;
+    this.concealmentTimer = 0;
     this.swingClock = Math.min(0.42, this.definition.attackDelay * 0.72);
     this.stamina = Math.max(0, this.stamina - (this.options.classId === "hexbound" ? 5 : 10));
     if (this.options.classId === "hexbound") this.spellCharges -= 1;
@@ -1109,7 +1117,7 @@ export class DarkPixGame {
       const toPlayerZ = player.z - enemy.group.position.z;
       const distance = Math.hypot(toPlayerX, toPlayerZ);
       const awareness = this.torchLit ? 10.5 : 6.5;
-      if (this.elapsed >= SPAWN_GRACE && distance < awareness && dungeonLineOfSight(
+      if (this.elapsed >= SPAWN_GRACE && this.concealmentTimer <= 0 && distance < awareness && dungeonLineOfSight(
         { x: player.x, z: player.z },
         { x: enemy.group.position.x, z: enemy.group.position.z },
       )) enemy.alerted = true;
@@ -1270,6 +1278,48 @@ export class DarkPixGame {
     this.health = Math.min(this.maxHealth, this.health + 36);
     this.feed(`${potion.name} restores 36 vigor.`, "loot");
     this.audio.loot();
+  }
+
+  private useClassAbility(): void {
+    if (this.abilityCooldown > 0) {
+      this.feed(`${CLASS_ABILITIES[this.options.classId].name} returns in ${Math.ceil(this.abilityCooldown)}s.`, "system");
+      return;
+    }
+    const ability = CLASS_ABILITIES[this.options.classId];
+    if (this.options.classId === "vanguard") {
+      if (this.health >= this.maxHealth && this.stamina >= this.definition.maxStamina) {
+        this.feed("Iron rally is already at full strength.", "system");
+        return;
+      }
+      this.health = Math.min(this.maxHealth, this.health + 18);
+      this.stamina = Math.min(this.definition.maxStamina, this.stamina + 45);
+      this.feed("IRON RALLY · vigor and stamina restored", "system");
+    } else if (this.options.classId === "cutpurse") {
+      this.concealmentTimer = 4;
+      for (const enemy of this.enemies) {
+        if (!enemy.alive || enemy.group.position.distanceTo(this.camera.position) <= 3.5) continue;
+        enemy.alerted = false;
+        enemy.windup = 0;
+        enemy.path = [];
+      }
+      this.feed("SMOKE STEP · distant pursuit loses your trail", "system");
+    } else {
+      if (this.spellCharges >= this.maxSpellCharges) {
+        this.feed("Spell memory is already full.", "system");
+        return;
+      }
+      if (this.health <= 12) {
+        this.feed("Blood memory demands more vigor than remains.", "danger");
+        return;
+      }
+      this.health -= 12;
+      this.interactionHold = 0;
+      this.vignette = Math.max(this.vignette, 0.48);
+      this.spellCharges = Math.min(this.maxSpellCharges, this.spellCharges + 2);
+      this.feed("BLOOD MEMORY · two ash charges return", "danger");
+    }
+    this.abilityCooldown = ability.cooldown;
+    this.audio.portal();
   }
 
   private updateZone(_delta: number): void {
@@ -1533,6 +1583,8 @@ export class DarkPixGame {
     const carried = haulCount(this.raidLoot);
     this.lootHud.textContent = `${carried} / ${HAUL_CAPACITY} slots · ${this.goldFound}g`;
     this.objectiveHud.textContent = this.portalUnlocked ? "BLUE PASSAGE OPEN" : `WARDEN SIGILS ${this.sigils} / 2`;
+    const ability = CLASS_ABILITIES[this.options.classId];
+    this.abilityHud.textContent = this.abilityCooldown > 0 ? `${ability.name} · ${Math.ceil(this.abilityCooldown)}s` : ability.name;
     this.updateWayfinder();
     this.directionHud.textContent = this.attackDirection;
     this.directionHud.classList.toggle("active", this.mouseAccumulator.x !== 0 || this.mouseAccumulator.y !== 0);
