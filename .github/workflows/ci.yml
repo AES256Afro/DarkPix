@@ -27,3 +27,21 @@ jobs:
       - run: npm run build
       - run: docker compose config --quiet
       - run: docker build -t darkpix-web:ci .
+      - name: Smoke-test production container
+        run: |
+          container_id="$(docker run -d -p 127.0.0.1:18092:8080 darkpix-web:ci)"
+          cleanup() { docker stop "$container_id" >/dev/null; }
+          trap cleanup EXIT
+          for attempt in {1..15}; do
+            if curl -fsS http://127.0.0.1:18092/healthz >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          test "$(curl -fsS http://127.0.0.1:18092/healthz)" = "ok"
+          test "$(curl -fsS http://127.0.0.1:18092/version.txt)" = "dev"
+          curl -fsSI http://127.0.0.1:18092/version.txt | grep -qi '^cache-control: no-store'
+          asset_path="$(curl -fsS http://127.0.0.1:18092/ | sed -n 's/.*src="\([^"]*\.js\)".*/\1/p' | head -n 1)"
+          test -n "$asset_path"
+          curl -fsSI "http://127.0.0.1:18092$asset_path" | grep -qi '^cache-control: public, max-age=31536000, immutable'
+          curl -fsSI http://127.0.0.1:18092/ | grep -qi '^x-frame-options: DENY'

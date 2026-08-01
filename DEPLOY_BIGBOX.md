@@ -24,7 +24,7 @@ The service also binds to `127.0.0.1:8092` for host-only health checks. BigBox p
 - `no-new-privileges` enabled
 - Unprivileged Nginx worker on port 8080
 - Strict content, framing, referrer, and browser-permission headers
-- Hashed JavaScript and CSS cached immutably; entry HTML always revalidated
+- All content-hashed production assets cached immutably; entry HTML always revalidated and release identity never stored
 - Existing Gridless tunnel token stays in the Gridless project and is never copied
 
 ## Install
