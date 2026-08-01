@@ -153,11 +153,28 @@ describe("persistent raid consequences", () => {
     expect(survived.profile.xp.ranger).toBe(998);
   });
 
+  it("reconciles an interrupted paid entry from its escrow balance", () => {
+    const unpaidProfile = createProfile();
+    unpaidProfile.gold = 200;
+    const escrow = createRaidEscrow("vanguard", "high_toll", [], 123, 1, 0, unpaidProfile.gold);
+    expect(escrow).toMatchObject({ entryFee: 50, goldBeforeEntry: 200, goldAfterEntry: 150 });
+    expect(settleInterruptedRaid(unpaidProfile, escrow).profile.gold).toBe(150);
+
+    const chargedProfile = createProfile();
+    chargedProfile.gold = 150;
+    expect(settleInterruptedRaid(chargedProfile, escrow).profile.gold).toBe(150);
+
+    const legacyEscrow = createRaidEscrow("vanguard", "high_toll", []);
+    expect(legacyEscrow.goldAfterEntry).toBeUndefined();
+    expect(settleInterruptedRaid(unpaidProfile, legacyEscrow).profile.gold).toBe(200);
+  });
+
   it("rejects malformed raid escrow journals before recovery", () => {
     expect(normalizeRaidEscrow({ version: 2, classId: "ranger", raidMode: "standard", equippedIds: [] })).toBeUndefined();
     expect(normalizeRaidEscrow({ version: 1, classId: "dragon", raidMode: "iron_soul", equippedIds: [] })).toBeUndefined();
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "unknown", equippedIds: [] })).toBeUndefined();
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: "blade" })).toBeUndefined();
+    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "high_toll", equippedIds: [], goldBeforeEntry: 200, entryFee: 0 })).toMatchObject({ entryFee: 50, goldAfterEntry: 150 });
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], startedAt: Number.NaN })?.startedAt).toBe(0);
   });
 

@@ -261,6 +261,9 @@ export interface RaidEscrow {
   startedAt: number;
   depthReached: 1 | 2;
   kills: number;
+  entryFee: number;
+  goldBeforeEntry?: number;
+  goldAfterEntry?: number;
 }
 
 export function createRaidEscrow(
@@ -270,7 +273,10 @@ export function createRaidEscrow(
   startedAt = Date.now(),
   depthReached: 1 | 2 = 1,
   kills = 0,
+  goldBeforeEntry?: number,
 ): RaidEscrow {
+  const entryFee = raidRules(raidMode).entryFee;
+  const safeGoldBeforeEntry = Number.isFinite(goldBeforeEntry) ? nonnegativeInteger(goldBeforeEntry, MAX_GOLD) : undefined;
   return {
     version: 1,
     classId,
@@ -279,6 +285,11 @@ export function createRaidEscrow(
     startedAt: Number.isFinite(startedAt) ? Math.max(0, Math.floor(startedAt)) : 0,
     depthReached: depthReached === 2 ? 2 : 1,
     kills: Math.min(1_000, nonnegativeInteger(kills)),
+    entryFee,
+    ...(safeGoldBeforeEntry === undefined ? {} : {
+      goldBeforeEntry: safeGoldBeforeEntry,
+      goldAfterEntry: Math.max(0, safeGoldBeforeEntry - entryFee),
+    }),
   };
 }
 
@@ -293,6 +304,7 @@ export function normalizeRaidEscrow(value: unknown): RaidEscrow | undefined {
     candidate.startedAt,
     candidate.depthReached,
     candidate.kills,
+    candidate.goldBeforeEntry,
   );
 }
 
@@ -326,7 +338,11 @@ export function clearRaidEscrow(): void {
 }
 
 export function settleInterruptedRaid(profile: Profile, escrow: RaidEscrow): RaidSettlement {
-  return settleRaid(profile, {
+  const reconciled = normalizeProfile(profile);
+  if (escrow.goldAfterEntry !== undefined && Number.isFinite(escrow.goldAfterEntry)) {
+    reconciled.gold = Math.min(reconciled.gold, nonnegativeInteger(escrow.goldAfterEntry, MAX_GOLD));
+  }
+  return settleRaid(reconciled, {
     reason: "abandoned",
     raidMode: escrow.raidMode,
     depthReached: escrow.depthReached,

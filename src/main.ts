@@ -546,6 +546,13 @@ function renderLobby(): void {
   app.querySelector<HTMLAnchorElement>(".brand")?.addEventListener("click", (event) => event.preventDefault());
 }
 
+function refundFailedRaidStart(goldBeforeEntry: number): boolean {
+  profile.gold = goldBeforeEntry;
+  if (!saveProfile(profile)) return false;
+  clearRaidEscrow();
+  return true;
+}
+
 async function startRaid(): Promise<void> {
   if (typeof HTMLCanvasElement.prototype.requestPointerLock !== "function") {
     merchantNotice = "DarkPix raids require pointer lock. Use a current desktop browser to descend.";
@@ -568,27 +575,24 @@ async function startRaid(): Promise<void> {
   }
   const equipped = profile.stash.filter((item) => equippedIds.has(item.id));
   const goldBeforeEntry = profile.gold;
-  profile.gold -= rules.entryFee;
-  if (!saveProfile(profile)) {
-    profile.gold = goldBeforeEntry;
+  let escrow = createRaidEscrow(selectedClass, selectedRaidMode, equipped.map((item) => item.id), Date.now(), 1, 0, goldBeforeEntry);
+  if (!beginRaidEscrow(escrow)) {
     persistenceWarning = "The browser could not secure a raid escrow. No fee was charged and the raid did not start.";
     renderLobby();
     return;
   }
-  let escrow = createRaidEscrow(selectedClass, selectedRaidMode, equipped.map((item) => item.id));
-  if (!beginRaidEscrow(escrow)) {
+  profile.gold = escrow.goldAfterEntry ?? Math.max(0, goldBeforeEntry - rules.entryFee);
+  if (!saveProfile(profile)) {
     profile.gold = goldBeforeEntry;
-    saveProfile(profile);
-    persistenceWarning = "The browser could not secure a raid escrow. No fee was charged and the raid did not start.";
+    clearRaidEscrow();
+    persistenceWarning = "The browser could not persist the raid entry. No fee was charged and the raid did not start.";
     renderLobby();
     return;
   }
   app.innerHTML = `<main class="game-mount" aria-label="DarkPix dungeon raid"><div class="crypt-loading" role="status"><span>DP</span><strong>OPENING THE ${rules.name.toUpperCase()}</strong><small>Kindling the dungeon renderer</small></div></main>`;
   const mount = app.querySelector<HTMLElement>(".game-mount");
   if (!mount) {
-    clearRaidEscrow();
-    profile.gold = goldBeforeEntry;
-    persistProfile();
+    if (!refundFailedRaidStart(goldBeforeEntry)) persistenceWarning = "The failed raid entry could not be refunded yet. Its escrow remains for recovery.";
     return;
   }
   try {
@@ -600,18 +604,17 @@ async function startRaid(): Promise<void> {
       equipped,
       preferences,
       onCheckpoint: (depthReached, kills) => {
-        escrow = createRaidEscrow(escrow.classId, escrow.raidMode, escrow.equippedIds, escrow.startedAt, depthReached, kills);
+        escrow = createRaidEscrow(escrow.classId, escrow.raidMode, escrow.equippedIds, escrow.startedAt, depthReached, kills, escrow.goldBeforeEntry);
         if (!beginRaidEscrow(escrow)) console.warn("DarkPix could not update the active raid escrow checkpoint");
       },
       onFinish: finishRaid,
     });
   } catch (error) {
     console.error("DarkPix could not start the 3D raid", error);
-    clearRaidEscrow();
-    profile.gold = goldBeforeEntry;
-    persistProfile();
+    const refunded = refundFailedRaidStart(goldBeforeEntry);
+    if (!refunded) persistenceWarning = "The failed raid entry could not be refunded yet. Its escrow remains for recovery.";
     mount.innerHTML = `<section class="runtime-error"><span>†</span><h1>THE PASSAGE FAILED</h1><p>The 3D renderer could not start. Update the browser, enable WebGL, or try the raid again.</p><button type="button">RETURN TO THE LAST LANTERN</button></section>`;
-    mount.querySelector<HTMLButtonElement>("button")?.addEventListener("click", renderLobby);
+    mount.querySelector<HTMLButtonElement>("button")?.addEventListener("click", refunded ? renderLobby : () => location.reload());
   }
 }
 
