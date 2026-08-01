@@ -67,18 +67,27 @@ echo "Cloudflare service target: http://darkpix:8080"
 
 check_public_release() {
   local observed_release
+  local public_headers
   if command -v curl >/dev/null 2>&1; then
     observed_release="$(curl -fsS --max-time 8 "$darkpix_public_url/version.txt" 2>/dev/null)" || return 1
-    curl -fsSI --max-time 8 "$darkpix_public_url/" 2>/dev/null | grep -qi '^strict-transport-security: max-age=31536000' || return 1
+    public_headers="$(curl -fsSI --max-time 8 "$darkpix_public_url/" 2>/dev/null)" || return 1
     curl -fsSI --max-time 8 "$darkpix_public_url/sw.js?v=$darkpix_release" 2>/dev/null | grep -qi '^cache-control:.*no-store' || return 1
   elif command -v wget >/dev/null 2>&1; then
     observed_release="$(wget -q -T 8 -O - "$darkpix_public_url/version.txt" 2>/dev/null)" || return 1
-    wget -q -T 8 --server-response --spider "$darkpix_public_url/" 2>&1 | grep -qi 'strict-transport-security: max-age=31536000' || return 1
+    public_headers="$(wget -q -T 8 --server-response --spider "$darkpix_public_url/" 2>&1)" || return 1
     wget -q -T 8 --server-response --spider "$darkpix_public_url/sw.js?v=$darkpix_release" 2>&1 | grep -qi 'cache-control:.*no-store' || return 1
   else
     echo "curl or wget is required to verify the public release." >&2
     return 1
   fi
+  grep -qi 'strict-transport-security: max-age=31536000' <<<"$public_headers" || return 1
+  grep -qi 'x-content-type-options: nosniff' <<<"$public_headers" || return 1
+  grep -qi 'x-frame-options: DENY' <<<"$public_headers" || return 1
+  grep -qi 'referrer-policy: strict-origin-when-cross-origin' <<<"$public_headers" || return 1
+  grep -qi 'permissions-policy: camera=(), microphone=(), geolocation=(), payment=()' <<<"$public_headers" || return 1
+  grep -qi "content-security-policy:.*default-src 'self'.*frame-ancestors 'none'" <<<"$public_headers" || return 1
+  grep -qi 'cross-origin-opener-policy: same-origin' <<<"$public_headers" || return 1
+  grep -qi 'cross-origin-resource-policy: same-origin' <<<"$public_headers" || return 1
   [[ "$observed_release" == "$darkpix_release" ]]
 }
 

@@ -73,7 +73,7 @@ curl -I https://ne-gro.com/
 
 The Cloudflare connector does not need a restart after an ordinary DarkPix update.
 
-The deploy script waits for `https://www.ne-gro.com/version.txt` to return the exact Git release through Cloudflare before it reports success. Set `DARKPIX_PUBLIC_URL` only when intentionally verifying another hostname.
+The deploy script waits for `https://www.ne-gro.com/version.txt` to return the exact Git release through Cloudflare before it reports success. It also requires HSTS, no-store service-worker delivery, CSP framing restrictions, MIME hardening, referrer and permissions policies, and same-origin opener/resource policies. Set `DARKPIX_PUBLIC_URL` only when intentionally verifying another hostname.
 
 ## Roll back
 
