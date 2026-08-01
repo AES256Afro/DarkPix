@@ -73,7 +73,7 @@ curl -I https://ne-gro.com/
 
 The Cloudflare connector does not need a restart after an ordinary DarkPix update.
 
-The deploy script waits for both `https://ne-gro.com/version.txt` and `https://www.ne-gro.com/version.txt` to return the exact Git release through Cloudflare before it reports success. Each route must also provide HSTS, no-store service-worker delivery, CSP framing restrictions, MIME hardening, referrer and permissions policies, and same-origin opener/resource policies. Set `DARKPIX_PUBLIC_URL` only when intentionally replacing the two-route gate with one alternate hostname.
+The deploy script waits for both `https://ne-gro.com/version.txt` and `https://www.ne-gro.com/version.txt` to return the exact Git release through Cloudflare before it reports success. Each route must also return `ok` from a non-cacheable `/healthz`, avoid a Cloudflare cache hit for that probe, and provide HSTS, no-store service-worker delivery, CSP framing restrictions, MIME hardening, referrer and permissions policies, and same-origin opener/resource policies. Set `DARKPIX_PUBLIC_URL` only when intentionally replacing the two-route gate with one alternate hostname.
 
 ## Roll back
 

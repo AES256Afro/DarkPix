@@ -57,7 +57,7 @@ Status: Complete
 - Immutable hashed assets with non-cacheable release identity and service worker
 - CI-enforced compressed JavaScript, CSS, and entry-HTML performance budgets
 - CI rejects high or critical dependency advisories before building the release image
-- Every deploy verifies the exact commit through both `ne-gro.com` and `www.ne-gro.com`
+- Every deploy verifies non-cacheable live health and the exact commit through both `ne-gro.com` and `www.ne-gro.com`
 
 Exit evidence: Docker build and smoke checks in CI plus container, host, apex, and `www` gates during deployment.
 

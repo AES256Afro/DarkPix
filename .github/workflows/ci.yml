@@ -42,6 +42,8 @@ jobs:
             sleep 1
           done
           test "$(curl -fsS http://127.0.0.1:18092/healthz)" = "ok"
+          curl -fsSI http://127.0.0.1:18092/healthz | grep -qi '^cache-control: no-store'
+          curl -fsSI http://127.0.0.1:18092/healthz | grep -qi '^cloudflare-cdn-cache-control: no-store'
           test "$(curl -fsS http://127.0.0.1:18092/version.txt)" = "dev"
           curl -fsSI http://127.0.0.1:18092/version.txt | grep -qi '^cache-control: no-store'
           asset_path="$(curl -fsS http://127.0.0.1:18092/ | sed -n 's/.*src="\([^"]*\.js\)".*/\1/p' | head -n 1)"

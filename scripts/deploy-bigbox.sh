@@ -72,13 +72,19 @@ check_public_release() {
   local public_url="$1"
   local observed_release
   local public_headers
+  local health_body
+  local health_headers
   if command -v curl >/dev/null 2>&1; then
     observed_release="$(curl -fsS --max-time 8 "$public_url/version.txt" 2>/dev/null)" || return 1
     public_headers="$(curl -fsSI --max-time 8 "$public_url/" 2>/dev/null)" || return 1
+    health_body="$(curl -fsS --max-time 8 "$public_url/healthz" 2>/dev/null)" || return 1
+    health_headers="$(curl -fsSI --max-time 8 "$public_url/healthz" 2>/dev/null)" || return 1
     curl -fsSI --max-time 8 "$public_url/sw.js?v=$darkpix_release" 2>/dev/null | grep -qi '^cache-control:.*no-store' || return 1
   elif command -v wget >/dev/null 2>&1; then
     observed_release="$(wget -q -T 8 -O - "$public_url/version.txt" 2>/dev/null)" || return 1
     public_headers="$(wget -q -T 8 --server-response --spider "$public_url/" 2>&1)" || return 1
+    health_body="$(wget -q -T 8 -O - "$public_url/healthz" 2>/dev/null)" || return 1
+    health_headers="$(wget -q -T 8 --server-response --spider "$public_url/healthz" 2>&1)" || return 1
     wget -q -T 8 --server-response --spider "$public_url/sw.js?v=$darkpix_release" 2>&1 | grep -qi 'cache-control:.*no-store' || return 1
   else
     echo "curl or wget is required to verify the public release." >&2
@@ -92,6 +98,9 @@ check_public_release() {
   grep -qi "content-security-policy:.*default-src 'self'.*frame-ancestors 'none'" <<<"$public_headers" || return 1
   grep -qi 'cross-origin-opener-policy: same-origin' <<<"$public_headers" || return 1
   grep -qi 'cross-origin-resource-policy: same-origin' <<<"$public_headers" || return 1
+  [[ "$health_body" == "ok" ]] || return 1
+  grep -qi 'cache-control:.*no-store' <<<"$health_headers" || return 1
+  if grep -qi 'cf-cache-status: *HIT' <<<"$health_headers"; then return 1; fi
   [[ "$observed_release" == "$darkpix_release" ]]
 }
 
@@ -99,7 +108,7 @@ for darkpix_public_url in "${darkpix_public_urls[@]}"; do
   public_verified=false
   for attempt in {1..20}; do
     if check_public_release "$darkpix_public_url"; then
-      echo "Public release verified: $darkpix_public_url/version.txt -> $darkpix_release"
+      echo "Public release and live health verified: $darkpix_public_url -> $darkpix_release"
       public_verified=true
       break
     fi
