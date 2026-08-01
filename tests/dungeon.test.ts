@@ -5,6 +5,7 @@ import { channelInterruptionReason, continuousHold, targetDistanceInView } from 
 import { cardinalDirection, circlesOverlap, directionalCue, movementOffset, recoveryNeed, relativeDirectionToSource } from "../src/game/navigation";
 import { directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "../src/game/zone";
 import type { Vec2 } from "../src/game/types";
+import { RAID_VARIATION_COUNT, normalizeRaidVariationSeed, raidVariationSeal, validRaidVariationSeed } from "../src/game/contract";
 
 describe("Crypt of the Pale Toll topology", () => {
   it("keeps every contract-critical location reachable from the player start", () => {
@@ -87,6 +88,17 @@ describe("Crypt of the Pale Toll topology", () => {
     expect(selectRaidVariation(-31)).toEqual(selectRaidVariation(31));
     expect(selectRaidVariation(Number.NaN)).toEqual(selectRaidVariation(0));
     expect(new Set(Array.from({ length: 32 }, (_, seed) => JSON.stringify(selectRaidVariation(seed))))).toHaveLength(32);
+  });
+
+  it("gives every bounded layout a compact stable contract seal", () => {
+    expect(RAID_VARIATION_COUNT).toBe(32);
+    expect(raidVariationSeal(0)).toBe("PT-00");
+    expect(raidVariationSeal(31)).toBe("PT-1F");
+    expect(raidVariationSeal(32)).toBe("PT-00");
+    expect(normalizeRaidVariationSeed(-31)).toBe(31);
+    expect(validRaidVariationSeed(31)).toBe(true);
+    expect(validRaidVariationSeed(32)).toBe(false);
+    expect(new Set(Array.from({ length: RAID_VARIATION_COUNT }, (_, seed) => raidVariationSeal(seed)))).toHaveLength(RAID_VARIATION_COUNT);
   });
 
   it("rejects targets behind, beside, or beyond a wall dart lane", () => {

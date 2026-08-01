@@ -2,6 +2,7 @@ import "./style.css";
 import { escapeHtml } from "./html";
 import { createSaveBackup, parseSaveBackup } from "./game/backup";
 import { merchantCommission } from "./game/commission";
+import { raidVariationSeal, validRaidVariationSeed } from "./game/contract";
 import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses } from "./game/data";
 import { itemValueTotal, raidValueSummary } from "./game/economy";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
@@ -330,7 +331,7 @@ function renderLobby(): void {
                   const xp = entry.xpDelta >= 0 ? `+${entry.xpDelta} XP` : `${entry.xpDelta} XP`;
                   return `<article class="journal-entry ${entry.reason === "extracted" ? "survived" : "failed"}">
                     <span>${CLASS_RUNES[entry.classId]}</span>
-                    <div><small>${journalDate(entry.completedAt)} · ${rules.name.toUpperCase()} · ${floor}</small><strong>${outcome}${entry.bossKilled ? " · KEEPER FELLED" : ""}</strong><p>${CLASSES[entry.classId].name} · ${formatTime(entry.elapsed)} · ${entry.kills} kills${entry.gearLost ? ` · ${entry.gearLost} gear lost` : ""}</p></div>
+                    <div><small>${journalDate(entry.completedAt)} · ${rules.name.toUpperCase()} · ${floor}${validRaidVariationSeed(entry.variationSeed) ? ` · ${raidVariationSeal(entry.variationSeed)}` : ""}</small><strong>${outcome}${entry.bossKilled ? " · KEEPER FELLED" : ""}</strong><p>${CLASSES[entry.classId].name} · ${formatTime(entry.elapsed)} · ${entry.kills} kills${entry.gearLost ? ` · ${entry.gearLost} gear lost` : ""}</p></div>
                     <b>${entry.goldDelta > 0 ? `+${entry.goldDelta}G` : "0G"}<small>${xp}</small></b>
                   </article>`;
                 }).join("") : `<div class="empty-stash"><strong>NO CONTRACTS RECORDED</strong><span>Your next verdict will be preserved here.</span></div>`}
@@ -677,7 +678,7 @@ function finishRaid(result: RaidResult): void {
         <h1>${headline}</h1>
         <p class="result-detail">${detail}</p>
         <div class="result-ledger">
-          <span><small>CONTRACT</small><strong>${rules.name}</strong></span>
+          <span><small>CONTRACT</small><strong>${rules.name}${validRaidVariationSeed(result.variationSeed) ? ` · ${raidVariationSeal(result.variationSeed)}` : ""}</strong></span>
           <span><small>DEEPEST FLOOR</small><strong>${result.depthReached === 2 ? "Ashen Depth" : "Pale Toll"}</strong></span>
           <span><small>LOADOUT RISK</small><strong>${riskedBeforeSettlement.length} items · ${riskedValue}g</strong></span>
           <span><small>NET POSITION</small><strong>${valueSummary.netValue >= 0 ? "+" : ""}${valueSummary.netValue}g value</strong></span>

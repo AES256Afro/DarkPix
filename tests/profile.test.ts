@@ -256,11 +256,12 @@ describe("persistent raid consequences", () => {
         elapsed: 60 + index,
         goldFound: index,
         bossKilled: index === 11,
+        variationSeed: index % 32,
         finishedAt: 1_000 + index,
       }).profile;
     }
     expect(profile.raidHistory).toHaveLength(RAID_HISTORY_LIMIT);
-    expect(profile.raidHistory[0]).toMatchObject({ completedAt: 1_011, raidMode: "high_toll", depthReached: 2, kills: 11, bossKilled: true });
+    expect(profile.raidHistory[0]).toMatchObject({ completedAt: 1_011, raidMode: "high_toll", depthReached: 2, kills: 11, bossKilled: true, variationSeed: 11 });
     expect(profile.raidHistory.at(-1)?.completedAt).toBe(1_002);
     expect(profile.raidHistory.some((entry) => entry.completedAt === 1_000)).toBe(false);
   });
@@ -292,6 +293,7 @@ describe("persistent raid consequences", () => {
       xpDelta: -700,
       gearLost: 2,
       bossKilled: true,
+      variationSeed: 31,
     };
     const profile = normalizeProfile({ ...createProfile(), raidHistory: [{ ...valid }, { ...valid, classId: "dragon" }, null] });
     expect(profile.raidHistory).toEqual([valid]);

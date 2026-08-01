@@ -1,4 +1,5 @@
 import type { Vec2 } from "./types";
+import { normalizeRaidVariationSeed } from "./contract";
 
 export interface WallSpec extends Vec2 {
   width: number;
@@ -131,7 +132,7 @@ export const DUNGEON = {
 } as const;
 
 export function selectRaidVariation(seed: number): RaidVariation {
-  const normalized = Number.isFinite(seed) ? Math.abs(Math.floor(seed)) % 32 : 0;
+  const normalized = normalizeRaidVariationSeed(seed);
   return {
     encountersMirrored: (normalized & 1) === 1,
     portalSiteIndex: (normalized >> 1) & 1,

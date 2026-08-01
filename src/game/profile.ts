@@ -4,6 +4,7 @@ import { raidRules } from "./raid";
 import { depthXpBonus } from "./depth";
 import { treasureGoldTotal } from "./haul";
 import { merchantCommission, validUtcDayKey } from "./commission";
+import { validRaidVariationSeed } from "./contract";
 
 const PROFILE_KEY = "darkpix-profile-v1";
 const RAID_ESCROW_KEY = "darkpix-active-raid-v1";
@@ -98,7 +99,7 @@ function normalizeRaidJournalEntry(value: unknown): RaidJournalEntry | undefined
   if (!value || typeof value !== "object") return undefined;
   const entry = value as Partial<RaidJournalEntry>;
   if (!validClass(entry.classId) || !validRaidMode(entry.raidMode) || !validRaidReason(entry.reason)) return undefined;
-  return {
+  const normalized: RaidJournalEntry = {
     completedAt: nonnegativeInteger(entry.completedAt),
     classId: entry.classId,
     raidMode: entry.raidMode,
@@ -111,6 +112,8 @@ function normalizeRaidJournalEntry(value: unknown): RaidJournalEntry | undefined
     gearLost: nonnegativeInteger(entry.gearLost, 24),
     bossKilled: entry.bossKilled === true,
   };
+  if (validRaidVariationSeed(entry.variationSeed)) normalized.variationSeed = entry.variationSeed;
+  return normalized;
 }
 
 function normalizeItem(value: unknown): Item | undefined {
@@ -490,6 +493,7 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     gearLost: settlement.lost.length,
     bossKilled: result.bossKilled === true,
   };
+  if (validRaidVariationSeed(result.variationSeed)) journalEntry.variationSeed = result.variationSeed;
   next.raidHistory = [journalEntry, ...next.raidHistory].slice(0, RAID_HISTORY_LIMIT);
   return settlement;
 }

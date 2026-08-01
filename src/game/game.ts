@@ -12,6 +12,7 @@ import { raidRules, type RaidRules } from "./raid";
 import { consumablesInUseOrder, nextConsumableId, nextThrowableId, resolveConsumableId, resolveThrowableId, throwablesInUseOrder } from "./quickslots";
 import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./resolution";
 import { disposeSceneResources } from "./resources";
+import { RAID_VARIATION_COUNT, raidVariationSeal } from "./contract";
 import { rarityShape } from "./rarity";
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
@@ -191,7 +192,8 @@ export class DarkPixGame {
   private readonly perkBonuses: ClassPerkBonuses;
   private readonly loadoutBonuses: LoadoutStats;
   private readonly raidRules: RaidRules;
-  private readonly variation = selectRaidVariation(Math.floor(Math.random() * 32));
+  private readonly variationSeed = Math.floor(Math.random() * RAID_VARIATION_COUNT);
+  private readonly variation = selectRaidVariation(this.variationSeed);
   private readonly encountersMirrored = this.variation.encountersMirrored;
   private readonly portalSite = DUNGEON.portalSites[this.variation.portalSiteIndex] ?? DUNGEON.portal;
   private readonly campfireSite = DUNGEON.campfireSites[this.variation.campfireSiteIndex] ?? DUNGEON.campfire;
@@ -326,7 +328,7 @@ export class DarkPixGame {
         <div class="raid-hud">
           <div class="hud-top">
             <section class="contract-panel">
-              <span class="eyebrow">${this.raidRules.name.toUpperCase()} CONTRACT</span>
+              <span class="eyebrow">${this.raidRules.name.toUpperCase()} CONTRACT · ${raidVariationSeal(this.variationSeed)}</span>
               <strong class="raid-clock">3:30</strong>
               <span class="zone-copy">darkness dormant</span>
             </section>
@@ -1103,6 +1105,7 @@ export class DarkPixGame {
         ${ordinaryHaul.map((item) => itemRow(item, "HAUL")).join("")}
         ${remainingPacked.length || ordinaryHaul.length ? "" : `<span class="pause-ledger-empty">No gear or unsecured loot is recorded.</span>`}
       </div>
+      <p>CONTRACT SEAL · ${raidVariationSeal(this.variationSeed)} · identifies this raid layout</p>
       <p>${dropCandidate ? `DROP PREVIEW · G will discard ${escapeHtml(dropCandidate.name)} (${dropCandidate.value}g)` : "DROP PREVIEW · no ordinary haul can be discarded"}</p>`;
   }
 
@@ -2897,6 +2900,7 @@ export class DarkPixGame {
       goldFound: treasureGoldTotal(this.raidLoot),
       bossKilled: this.bossKilled,
       finishedAt: Date.now(),
+      variationSeed: this.variationSeed,
     };
     window.setTimeout(() => this.options.onFinish(result), 260);
   }

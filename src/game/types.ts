@@ -69,6 +69,7 @@ export interface RaidJournalEntry {
   xpDelta: number;
   gearLost: number;
   bossKilled: boolean;
+  variationSeed?: number;
 }
 
 export interface GamePreferences {
@@ -101,6 +102,7 @@ export interface RaidResult {
   goldFound: number;
   bossKilled?: boolean;
   finishedAt?: number;
+  variationSeed?: number;
 }
 
 export interface Vec2 {
