@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { equippedPower, loadoutStats, physicalDamageAfterArmor, sortStash, toggleEquippedItem } from "../src/game/loadout";
+import { equippedPower, loadoutStats, physicalDamageAfterArmor, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "../src/game/loadout";
 import type { Item } from "../src/game/types";
 
 const items: Item[] = [
@@ -66,5 +66,12 @@ describe("risk loadout", () => {
     expect(physicalDamageAfterArmor(100, 0)).toBe(100);
     expect(physicalDamageAfterArmor(100, 25)).toBe(80);
     expect(physicalDamageAfterArmor(-5, 25)).toBe(0);
+  });
+
+  it("protects valuable, crafted, and packed gear from one-click sales", () => {
+    expect(saleNeedsConfirmation(items[0]!, false)).toBe(false);
+    expect(saleNeedsConfirmation(items[0]!, true)).toBe(true);
+    expect(saleNeedsConfirmation({ ...items[0]!, rarity: "Rare" }, false)).toBe(true);
+    expect(saleNeedsConfirmation({ ...items[0]!, id: "crafted-ward", rarity: "Common" }, false)).toBe(true);
   });
 });

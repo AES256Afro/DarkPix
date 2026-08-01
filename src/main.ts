@@ -2,7 +2,7 @@ import "./style.css";
 import { escapeHtml } from "./html";
 import { createSaveBackup, parseSaveBackup } from "./game/backup";
 import { CLASSES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses } from "./game/data";
-import { equippedPower, loadoutStats, sortStash, toggleEquippedItem } from "./game/loadout";
+import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { craftItem, loadProfile, purchaseItem, saveProfile, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
@@ -21,6 +21,7 @@ let selectedRaidMode: RaidMode = "standard";
 let equippedIds = new Set<string>();
 let activeGame: DarkPixGame | undefined;
 let merchantNotice = "";
+let pendingSaleId: string | undefined;
 let persistenceWarning = "";
 let gameModulePromise: Promise<typeof import("./game/game")> | undefined;
 
@@ -42,6 +43,7 @@ function persistPreferences(): void {
 
 function itemMarkup(item: Item, riskable = false): string {
   const selected = equippedIds.has(item.id);
+  const confirmingSale = pendingSaleId === item.id;
   const itemId = escapeHtml(item.id);
   const itemName = escapeHtml(item.name);
   const itemModifier = item.modifier ? ` · ${escapeHtml(item.modifier)}` : "";
@@ -51,7 +53,7 @@ function itemMarkup(item: Item, riskable = false): string {
       <span class="item-copy"><strong>${itemName}</strong><small>${item.rarity} ${item.kind}${itemModifier}</small></span>
       <span class="item-value">${item.value}g</span>
       ${riskable && item.kind !== "treasure" ? `<button class="risk-item" type="button">${selected ? "Packed" : "Pack"}</button>` : ""}
-      <button class="sell-item" type="button" aria-label="Sell ${itemName}">Sell</button>
+      <button class="sell-item ${confirmingSale ? "confirming" : ""}" type="button" aria-label="${confirmingSale ? "Confirm sale of" : "Sell"} ${itemName}">${confirmingSale ? "Confirm" : "Sell"}</button>
     </article>`;
 }
 
@@ -239,6 +241,7 @@ function renderLobby(): void {
     button.addEventListener("click", () => {
       const id = button.closest<HTMLElement>("[data-item-id]")?.dataset.itemId;
       if (!id) return;
+      pendingSaleId = undefined;
       equippedIds = toggleEquippedItem(equippedIds, profile.stash, id);
       renderLobby();
     });
@@ -248,6 +251,13 @@ function renderLobby(): void {
       const id = button.closest<HTMLElement>("[data-item-id]")?.dataset.itemId;
       const item = profile.stash.find((candidate) => candidate.id === id);
       if (!item) return;
+      if (saleNeedsConfirmation(item, equippedIds.has(item.id)) && pendingSaleId !== item.id) {
+        pendingSaleId = item.id;
+        merchantNotice = `${item.name} is protected. Click Confirm to sell it for ${item.value}g.`;
+        renderLobby();
+        return;
+      }
+      pendingSaleId = undefined;
       profile.gold += item.value;
       profile.stash = profile.stash.filter((candidate) => candidate.id !== id);
       equippedIds.delete(item.id);

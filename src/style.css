@@ -158,6 +158,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .risk-item:hover, .sell-item:hover { border-color: #8d5f3d; color: #e0cbb0; }
 .stash-item.selected .risk-item { border-color: #976241; color: #dfb989; }
 .sell-item { min-width: 42px; background: transparent; color: #70685e; }
+.sell-item.confirming { border-color: #9c4f44; background: #351a17; color: #e2a093; }
 .empty-stash { display: grid; min-height: 110px; place-content: center; color: #645e55; text-align: center; }
 .empty-stash strong { font: 800 9px ui-monospace, monospace; letter-spacing: .16em; }
 .empty-stash span { margin-top: 6px; font: 11px Georgia, serif; }

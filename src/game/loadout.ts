@@ -62,6 +62,10 @@ export function sortStash(items: readonly Item[], mode: StashSort): Item[] {
     .map(({ item }) => item);
 }
 
+export function saleNeedsConfirmation(item: Item, packed: boolean): boolean {
+  return packed || RARITY_RANK[item.rarity] >= RARITY_RANK.Rare || item.id.startsWith("crafted-");
+}
+
 export function equippedPower(items: Item[], kind: "weapon" | "armor"): number {
   return items.reduce((highest, item) => item.kind === kind ? Math.max(highest, item.power) : highest, 0);
 }
