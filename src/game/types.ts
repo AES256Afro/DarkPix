@@ -10,6 +10,8 @@ export type RaidMode = "standard" | "high_toll" | "iron_soul";
 
 export type DungeonDepth = 1 | 2;
 
+export type ThreatKind = "skeleton" | "crawler" | "mimic" | "warden" | "rival" | "boss";
+
 export interface Item {
   id: string;
   name: string;
@@ -37,7 +39,7 @@ export interface ClassDefinition {
 }
 
 export interface Profile {
-  version: 8;
+  version: 9;
   gold: number;
   xp: Record<ClassId, number>;
   stash: Item[];
@@ -46,6 +48,9 @@ export interface Profile {
   bossVictories: number;
   highTollExtracts: number;
   ashenExtracts: number;
+  threatKills: Record<ThreatKind, number>;
+  boneBountyPaid: boolean;
+  rivalBountyPaid: boolean;
   preferredClass: ClassId;
 }
 
@@ -70,6 +75,7 @@ export interface RaidResult {
   equippedIds: string[];
   consumedIds?: string[];
   kills: number;
+  killsByKind?: Partial<Record<ThreatKind, number>>;
   elapsed: number;
   goldFound: number;
   bossKilled?: boolean;

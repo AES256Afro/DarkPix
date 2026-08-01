@@ -4,7 +4,7 @@ import { createSaveBackup, parseSaveBackup } from "./game/backup";
 import { CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses } from "./game/data";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
-import { beginRaidEscrow, clearRaidEscrow, craftItem, createRaidEscrow, loadProfile, loadRaidEscrow, purchaseItem, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
+import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, craftItem, createRaidEscrow, loadProfile, loadRaidEscrow, purchaseItem, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
 import type { DarkPixGame } from "./game/game";
 import type { ClassId, GamePreferences, Item, Profile, RaidMode, RaidResult } from "./game/types";
@@ -130,6 +130,7 @@ function renderLobby(): void {
   const previewLoadout = profile.stash.filter((item) => equippedIds.has(item.id));
   const previewStats = loadoutStats(previewLoadout);
   const packedVigor = equippedPower(previewLoadout, "armor") + previewStats.health;
+  const boneKills = boneKillCount(profile);
   app.innerHTML = `
     <main class="lobby">
       <header class="lobby-header">
@@ -266,6 +267,16 @@ function renderLobby(): void {
               <span class="wax-seal">IV</span>
               <div><small>ASH BELOW ASH</small><strong>${profile.ashenExtracts > 0 ? "Depth answered" : "Return from the Ashen Depth"}</strong><p>${profile.ashenExtracts > 0 ? `${profile.ashenExtracts} Ashen return${profile.ashenExtracts === 1 ? "" : "s"}. The first 250g bounty was paid.` : "Slay the first keeper, descend red, and escape the second floor. Reward: 250g."}</p></div>
               <b>${profile.ashenExtracts > 0 ? "PAID" : "0 / 1"}</b>
+            </section>
+            <section class="contract-card">
+              <span class="wax-seal">V</span>
+              <div><small>THE OSSUARY LEDGER</small><strong>${profile.boneBountyPaid ? "Bone tithe settled" : boneKills >= BONE_BOUNTY_TARGET ? "Return alive to claim" : "Cull cryptborn threats"}</strong><p>${profile.boneBountyPaid ? "The guild paid 175g for the completed bestiary ledger." : `Skeletons, crawlers, mimics, and wardens count. Reward: 175g on extraction.`}</p></div>
+              <b>${profile.boneBountyPaid ? "PAID" : `${Math.min(BONE_BOUNTY_TARGET, boneKills)} / ${BONE_BOUNTY_TARGET}`}</b>
+            </section>
+            <section class="contract-card">
+              <span class="wax-seal">VI</span>
+              <div><small>KNIVES OF THE GUILDLESS</small><strong>${profile.rivalBountyPaid ? "Rival ledger settled" : profile.threatKills.rival >= RIVAL_BOUNTY_TARGET ? "Return alive to claim" : "Defeat rival delvers"}</strong><p>${profile.rivalBountyPaid ? "The guild paid 225g for three hostile delver marks." : "Kill three rival delvers across any contracts. Reward: 225g on extraction."}</p></div>
+              <b>${profile.rivalBountyPaid ? "PAID" : `${Math.min(RIVAL_BOUNTY_TARGET, profile.threatKills.rival)} / ${RIVAL_BOUNTY_TARGET}`}</b>
             </section>
             <section class="settings-panel" aria-labelledby="settings-heading">
               <div class="panel-heading"><span><small>ACCESSIBILITY</small><strong id="settings-heading">Delver settings</strong></span><b>LOCAL</b></div>
@@ -561,7 +572,7 @@ function finishRaid(result: RaidResult): void {
       ? "THE IRON SOUL WAS EXTINGUISHED"
       : result.reason === "abandoned" ? "THE CONTRACT WAS FORFEIT" : "YOUR TORCH WENT OUT";
   const detail = extracted
-    ? `${result.depthReached === 2 ? "The Ashen Depth's passage" : "The blue passage"} seals behind you. ${settlement.overflow.length ? `${settlement.overflow.length} overflow item${settlement.overflow.length === 1 ? " was" : "s were"} sold by the porter for ${settlement.overflowGold}g.` : "Everything in your haul fits safely in the stash."}${result.depthReached === 2 ? " The red-depth veterancy bonus is recorded." : ""}${settlement.firstContractPaid ? " The Taverner's 100g bounty is paid." : ""}${settlement.bossContractPaid ? " The 150g Tollkeeper bounty is paid." : ""}${settlement.highTollContractPaid ? " The 200g Deeper Wager bounty is paid." : result.raidMode === "high_toll" ? " The High Toll veterancy bonus is recorded." : ""}${settlement.ashenContractPaid ? " The 250g Ash Below Ash bounty is paid." : ""}`
+    ? `${result.depthReached === 2 ? "The Ashen Depth's passage" : "The blue passage"} seals behind you. ${settlement.overflow.length ? `${settlement.overflow.length} overflow item${settlement.overflow.length === 1 ? " was" : "s were"} sold by the porter for ${settlement.overflowGold}g.` : "Everything in your haul fits safely in the stash."}${result.depthReached === 2 ? " The red-depth veterancy bonus is recorded." : ""}${settlement.firstContractPaid ? " The Taverner's 100g bounty is paid." : ""}${settlement.bossContractPaid ? " The 150g Tollkeeper bounty is paid." : ""}${settlement.highTollContractPaid ? " The 200g Deeper Wager bounty is paid." : result.raidMode === "high_toll" ? " The High Toll veterancy bonus is recorded." : ""}${settlement.ashenContractPaid ? " The 250g Ash Below Ash bounty is paid." : ""}${settlement.boneBountyPaid ? " The 175g Ossuary Ledger bounty is paid." : ""}${settlement.rivalBountyPaid ? " The 225g Guildless Knives bounty is paid." : ""}`
     : `${settlement.classXpLost > 0 ? `${settlement.classXpLost} ${CLASSES[result.classId].name} XP is erased by the Iron Soul oath.` : result.raidMode === "iron_soul" ? "The Iron Soul oath finds no veterancy left to erase." : "Your class remembers."} Your carried gear and every unsecured find remain ${result.depthReached === 2 ? "in the Ashen Depth" : "below"}.${result.depthReached === 2 && result.raidMode !== "iron_soul" ? " Some red-depth veterancy survives." : ""}${rules.entryFee ? ` The ${rules.entryFee}g entry fee is gone.` : ""}`;
   const nextStep = extracted
     ? settlement.overflow.length

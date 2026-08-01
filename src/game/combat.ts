@@ -1,8 +1,7 @@
-import type { ClassId } from "./types";
-import type { Vec2 } from "./types";
+import type { ClassId, ThreatKind, Vec2 } from "./types";
 
 export type AttackDirection = "OVERHEAD" | "THRUST" | "SWEEP";
-export type ThreatKind = "skeleton" | "crawler" | "mimic" | "warden" | "rival" | "boss";
+export type { ThreatKind } from "./types";
 
 export interface EnemyAttackPattern {
   windup: number;

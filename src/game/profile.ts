@@ -1,4 +1,4 @@
-import type { ClassId, Item, Profile, RaidResult } from "./types";
+import type { ClassId, Item, Profile, RaidResult, ThreatKind } from "./types";
 import type { CraftingRecipe } from "./data";
 import { raidRules } from "./raid";
 import { depthXpBonus } from "./depth";
@@ -10,6 +10,9 @@ export const MAX_ITEM_POWER = 100;
 export const MAX_ITEM_VALUE = 99_999;
 const MAX_CLASS_XP = 99_999_999;
 const MAX_OUTCOME_COUNT = 9_999_999;
+export const BONE_BOUNTY_TARGET = 12;
+export const RIVAL_BOUNTY_TARGET = 3;
+const THREAT_KINDS: ThreatKind[] = ["skeleton", "crawler", "mimic", "warden", "rival", "boss"];
 
 const STARTER_STASH: Item[] = [
   {
@@ -32,7 +35,7 @@ const STARTER_STASH: Item[] = [
 
 export function createProfile(): Profile {
   return {
-    version: 8,
+    version: 9,
     gold: 75,
     xp: { vanguard: 0, cutpurse: 0, hexbound: 0, reaver: 0, ranger: 0, cleric: 0, shapeshifter: 0 },
     stash: STARTER_STASH.map((item) => ({ ...item })),
@@ -41,6 +44,9 @@ export function createProfile(): Profile {
     bossVictories: 0,
     highTollExtracts: 0,
     ashenExtracts: 0,
+    threatKills: { skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 },
+    boneBountyPaid: false,
+    rivalBountyPaid: false,
     preferredClass: "vanguard",
   };
 }
@@ -87,6 +93,7 @@ export function normalizeProfile(value: unknown): Profile {
   if (!value || typeof value !== "object") return fallback;
   const candidate = value as Partial<Profile>;
   const xp = candidate.xp && typeof candidate.xp === "object" ? candidate.xp : fallback.xp;
+  const threatKills = candidate.threatKills && typeof candidate.threatKills === "object" ? candidate.threatKills : fallback.threatKills;
   const stash: Item[] = [];
   const itemIds = new Set<string>();
   if (Array.isArray(candidate.stash)) {
@@ -98,7 +105,7 @@ export function normalizeProfile(value: unknown): Profile {
     }
   }
   return {
-    version: 8,
+    version: 9,
     gold: nonnegativeInteger(candidate.gold, MAX_GOLD),
     xp: {
       vanguard: nonnegativeInteger(xp.vanguard, MAX_CLASS_XP),
@@ -115,8 +122,33 @@ export function normalizeProfile(value: unknown): Profile {
     bossVictories: nonnegativeInteger(candidate.bossVictories, MAX_OUTCOME_COUNT),
     highTollExtracts: nonnegativeInteger(candidate.highTollExtracts, MAX_OUTCOME_COUNT),
     ashenExtracts: nonnegativeInteger(candidate.ashenExtracts, MAX_OUTCOME_COUNT),
+    threatKills: {
+      skeleton: nonnegativeInteger(threatKills.skeleton, MAX_OUTCOME_COUNT),
+      crawler: nonnegativeInteger(threatKills.crawler, MAX_OUTCOME_COUNT),
+      mimic: nonnegativeInteger(threatKills.mimic, MAX_OUTCOME_COUNT),
+      warden: nonnegativeInteger(threatKills.warden, MAX_OUTCOME_COUNT),
+      rival: nonnegativeInteger(threatKills.rival, MAX_OUTCOME_COUNT),
+      boss: nonnegativeInteger(threatKills.boss, MAX_OUTCOME_COUNT),
+    },
+    boneBountyPaid: typeof candidate.boneBountyPaid === "boolean" ? candidate.boneBountyPaid : false,
+    rivalBountyPaid: typeof candidate.rivalBountyPaid === "boolean" ? candidate.rivalBountyPaid : false,
     preferredClass: validClass(candidate.preferredClass) ? candidate.preferredClass : fallback.preferredClass,
   };
+}
+
+export function boneKillCount(profile: Pick<Profile, "threatKills">): number {
+  return profile.threatKills.skeleton + profile.threatKills.crawler + profile.threatKills.mimic + profile.threatKills.warden;
+}
+
+function boundedRaidThreatKills(result: RaidResult): Record<ThreatKind, number> {
+  const bounded: Record<ThreatKind, number> = { skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 };
+  let remaining = Math.min(1_000, nonnegativeInteger(result.kills));
+  for (const kind of THREAT_KINDS) {
+    const count = Math.min(remaining, nonnegativeInteger(result.killsByKind?.[kind], 1_000));
+    bounded[kind] = count;
+    remaining -= count;
+  }
+  return bounded;
 }
 
 export function loadProfile(): Profile {
@@ -231,6 +263,8 @@ export interface RaidSettlement {
   bossContractPaid: boolean;
   highTollContractPaid: boolean;
   ashenContractPaid: boolean;
+  boneBountyPaid: boolean;
+  rivalBountyPaid: boolean;
   overflowGold: number;
   goldGained: number;
   xpGained: number;
@@ -276,6 +310,8 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
   const xpGain = raidXpBreakdown(result).total;
   next.xp[result.classId] = Math.min(MAX_CLASS_XP, next.xp[result.classId] + xpGain);
   next.preferredClass = result.classId;
+  const raidThreatKills = boundedRaidThreatKills(result);
+  for (const kind of THREAT_KINDS) next.threatKills[kind] = Math.min(MAX_OUTCOME_COUNT, next.threatKills[kind] + raidThreatKills[kind]);
   const settlement: RaidSettlement = {
     profile: next,
     banked: [],
@@ -285,6 +321,8 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     bossContractPaid: false,
     highTollContractPaid: false,
     ashenContractPaid: false,
+    boneBountyPaid: false,
+    rivalBountyPaid: false,
     overflowGold: 0,
     goldGained: 0,
     xpGained: xpGain,
@@ -296,10 +334,16 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     const bossContractReward = result.bossKilled && next.bossVictories === 0 ? 150 : 0;
     const highTollContractReward = result.raidMode === "high_toll" && next.highTollExtracts === 0 ? 200 : 0;
     const ashenContractReward = result.depthReached === 2 && next.ashenExtracts === 0 ? 250 : 0;
+    const boneBountyReward = !next.boneBountyPaid && boneKillCount(next) >= BONE_BOUNTY_TARGET ? 175 : 0;
+    const rivalBountyReward = !next.rivalBountyPaid && next.threatKills.rival >= RIVAL_BOUNTY_TARGET ? 225 : 0;
     settlement.firstContractPaid = firstContractReward > 0;
     settlement.bossContractPaid = bossContractReward > 0;
     settlement.highTollContractPaid = highTollContractReward > 0;
     settlement.ashenContractPaid = ashenContractReward > 0;
+    settlement.boneBountyPaid = boneBountyReward > 0;
+    settlement.rivalBountyPaid = rivalBountyReward > 0;
+    if (boneBountyReward) next.boneBountyPaid = true;
+    if (rivalBountyReward) next.rivalBountyPaid = true;
     next.extracts = Math.min(MAX_OUTCOME_COUNT, next.extracts + 1);
     if (result.bossKilled) next.bossVictories = Math.min(MAX_OUTCOME_COUNT, next.bossVictories + 1);
     if (result.raidMode === "high_toll") next.highTollExtracts = Math.min(MAX_OUTCOME_COUNT, next.highTollExtracts + 1);
@@ -322,7 +366,7 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     const availableGoldCapacity = Math.max(0, MAX_GOLD - next.gold);
     settlement.goldGained = Math.min(
       availableGoldCapacity,
-      nonnegativeInteger(result.goldFound, MAX_GOLD) + firstContractReward + bossContractReward + highTollContractReward + ashenContractReward + settlement.overflowGold,
+      nonnegativeInteger(result.goldFound, MAX_GOLD) + firstContractReward + bossContractReward + highTollContractReward + ashenContractReward + boneBountyReward + rivalBountyReward + settlement.overflowGold,
     );
     next.stash = [...next.stash, ...settlement.banked];
     next.gold += settlement.goldGained;

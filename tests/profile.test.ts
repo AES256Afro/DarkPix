@@ -159,11 +159,14 @@ describe("persistent raid consequences", () => {
     expect(result.extracts).toBe(0);
     expect(result.highTollExtracts).toBe(0);
     expect(result.ashenExtracts).toBe(0);
-    expect(result.version).toBe(8);
+    expect(result.version).toBe(9);
     expect(result.xp.reaver).toBe(0);
     expect(result.xp.ranger).toBe(0);
     expect(result.xp.cleric).toBe(0);
     expect(result.xp.shapeshifter).toBe(0);
+    expect(result.threatKills).toEqual({ skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 });
+    expect(result.boneBountyPaid).toBe(false);
+    expect(result.rivalBountyPaid).toBe(false);
     expect(result.preferredClass).toBe("vanguard");
   });
 
@@ -172,10 +175,19 @@ describe("persistent raid consequences", () => {
     legacy.version = 7;
     legacy.xp = { vanguard: 700, cutpurse: 350, hexbound: 0, reaver: 0, ranger: 0, cleric: 0 };
     const migrated = normalizeProfile(legacy);
-    expect(migrated.version).toBe(8);
+    expect(migrated.version).toBe(9);
     expect(migrated.xp.vanguard).toBe(700);
     expect(migrated.xp.cutpurse).toBe(350);
     expect(migrated.xp.shapeshifter).toBe(0);
+  });
+
+  it("migrates pre-bestiary profiles with empty bounded ledgers", () => {
+    const legacy = { ...createProfile(), version: 8, threatKills: undefined, boneBountyPaid: undefined, rivalBountyPaid: undefined };
+    const migrated = normalizeProfile(legacy);
+    expect(migrated.version).toBe(9);
+    expect(migrated.threatKills).toEqual({ skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 });
+    expect(migrated.boneBountyPaid).toBe(false);
+    expect(migrated.rivalBountyPaid).toBe(false);
   });
 
   it("rejects non-finite items and deduplicates persisted stash IDs", () => {
@@ -228,6 +240,46 @@ describe("persistent raid consequences", () => {
     const second = applyRaidResult(first, result);
     expect(first.gold).toBe(185);
     expect(second.gold).toBe(195);
+  });
+
+  it("persists bounded bestiary kills and pays guild bounties only on extraction", () => {
+    const profile = createProfile();
+    profile.extracts = 1;
+    const failed = settleRaid(profile, {
+      reason: "slain", classId: "vanguard", loot: [], equippedIds: [], kills: 12, killsByKind: { skeleton: 9, warden: 3 }, elapsed: 80, goldFound: 0,
+    });
+    expect(failed.profile.threatKills).toMatchObject({ skeleton: 9, warden: 3 });
+    expect(failed.profile.boneBountyPaid).toBe(false);
+    expect(failed.goldGained).toBe(0);
+
+    const claimed = settleRaid(failed.profile, {
+      reason: "extracted", classId: "vanguard", loot: [], equippedIds: [], kills: 0, elapsed: 40, goldFound: 0,
+    });
+    expect(claimed.boneBountyPaid).toBe(true);
+    expect(claimed.profile.boneBountyPaid).toBe(true);
+    expect(claimed.goldGained).toBe(175);
+    const repeated = settleRaid(claimed.profile, {
+      reason: "extracted", classId: "vanguard", loot: [], equippedIds: [], kills: 0, elapsed: 40, goldFound: 0,
+    });
+    expect(repeated.boneBountyPaid).toBe(false);
+    expect(repeated.goldGained).toBe(0);
+
+    const rivalProfile = createProfile();
+    rivalProfile.extracts = 1;
+    const rivals = settleRaid(rivalProfile, {
+      reason: "extracted", classId: "cutpurse", loot: [], equippedIds: [], kills: 3, killsByKind: { rival: 3 }, elapsed: 90, goldFound: 0,
+    });
+    expect(rivals.rivalBountyPaid).toBe(true);
+    expect(rivals.profile.threatKills.rival).toBe(3);
+    expect(rivals.goldGained).toBe(225);
+  });
+
+  it("never credits more typed kills than the raid total", () => {
+    const result = settleRaid(createProfile(), {
+      reason: "slain", classId: "vanguard", loot: [], equippedIds: [], kills: 1, killsByKind: { skeleton: 999, rival: 999 }, elapsed: 20, goldFound: 0,
+    });
+    expect(result.profile.threatKills.skeleton).toBe(1);
+    expect(result.profile.threatKills.rival).toBe(0);
   });
 
   it("pays the first extracted Tollkeeper victory once and never on death", () => {

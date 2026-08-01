@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
-import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat, type ThreatKind } from "./combat";
+import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, depthRules } from "./depth";
@@ -11,7 +11,7 @@ import { raidRules, type RaidRules } from "./raid";
 import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./resolution";
 import { disposeSceneResources } from "./resources";
 import { continuousHold, targetDistanceInView } from "./targeting";
-import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, Vec2 } from "./types";
+import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
 import { distanceFromZoneCenter, zoneState } from "./zone";
 
 interface WallCollider {
@@ -202,6 +202,7 @@ export class DarkPixGame {
   private spellCharges: number;
   private selectedSpell: HexSpellId = "ash_bolt";
   private kills = 0;
+  private readonly killsByKind: Record<ThreatKind, number> = { skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 };
   private goldFound = 0;
   private bossKilled = false;
   private readonly consumedIds: string[] = [];
@@ -1409,6 +1410,7 @@ export class DarkPixGame {
       return;
     }
     enemy.alive = false;
+    this.killsByKind[enemy.kind] += 1;
     if (enemy.kind === "boss") {
       this.bossKilled = true;
       if (this.depth === 1) this.revealRedDepth();
@@ -2312,6 +2314,7 @@ export class DarkPixGame {
       equippedIds: this.options.equipped.map((item) => item.id),
       consumedIds: [...this.consumedIds],
       kills: this.kills,
+      killsByKind: { ...this.killsByKind },
       elapsed: this.elapsed,
       goldFound: this.goldFound,
       bossKilled: this.bossKilled,
