@@ -14,11 +14,15 @@ export class AudioDirector {
   private master?: GainNode;
   private drone?: OscillatorNode;
   private droneGain?: GainNode;
+  private readonly volume: number;
 
   constructor(
     private readonly enabled = true,
+    volume = 1,
     private readonly contextFactory: AudioContextFactory = createBrowserAudioContext,
-  ) {}
+  ) {
+    this.volume = Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 1;
+  }
 
   start(): void {
     if (!this.enabled) return;
@@ -30,7 +34,7 @@ export class AudioDirector {
     if (!context) return;
     try {
       const master = context.createGain();
-      master.gain.value = 0.18;
+      master.gain.value = 0.18 * this.volume;
       master.connect(context.destination);
       const drone = context.createOscillator();
       const droneGain = context.createGain();

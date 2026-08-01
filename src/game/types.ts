@@ -58,6 +58,7 @@ export interface GamePreferences {
   mouseSensitivity: number;
   brightness: number;
   fieldOfView: number;
+  volume: number;
   muted: boolean;
   reducedMotion: boolean;
   invertY: boolean;

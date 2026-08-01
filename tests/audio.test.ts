@@ -31,7 +31,7 @@ function audioHarness() {
 
 describe("raid audio lifecycle", () => {
   it("quietly disables audio when no browser context is available", () => {
-    const audio = new AudioDirector(true, () => undefined);
+    const audio = new AudioDirector(true, 1, () => undefined);
     expect(() => {
       audio.start();
       audio.tone(200);
@@ -43,8 +43,9 @@ describe("raid audio lifecycle", () => {
   it("starts, pauses, resumes, and disconnects the persistent drone", () => {
     const harness = audioHarness();
     const factory = vi.fn(() => harness.context as unknown as AudioContext);
-    const audio = new AudioDirector(true, factory);
+    const audio = new AudioDirector(true, 0.5, factory);
     audio.start();
+    expect(harness.master.gain.value).toBe(0.09);
     expect(factory).toHaveBeenCalledTimes(1);
     expect(harness.oscillator.start).toHaveBeenCalledOnce();
     expect(harness.context.resume).toHaveBeenCalledOnce();
@@ -59,5 +60,14 @@ describe("raid audio lifecycle", () => {
     expect(harness.droneGain.disconnect).toHaveBeenCalledOnce();
     expect(harness.master.disconnect).toHaveBeenCalledOnce();
     expect(harness.context.close).toHaveBeenCalledOnce();
+  });
+
+  it("clamps malformed master gain before creating browser audio", () => {
+    const loud = audioHarness();
+    new AudioDirector(true, 99, () => loud.context as unknown as AudioContext).start();
+    expect(loud.master.gain.value).toBe(0.18);
+    const fallback = audioHarness();
+    new AudioDirector(true, Number.NaN, () => fallback.context as unknown as AudioContext).start();
+    expect(fallback.master.gain.value).toBe(0.18);
   });
 });

@@ -251,7 +251,7 @@ export class DarkPixGame {
   constructor(mount: HTMLElement, options: DarkPixGameOptions) {
     this.mount = mount;
     this.options = options;
-    this.audio = new AudioDirector(!options.preferences.muted);
+    this.audio = new AudioDirector(!options.preferences.muted, options.preferences.volume);
     this.raidRules = raidRules(options.raidMode);
     this.definition = CLASSES[options.classId];
     const progression = progressionBonuses(options.classLevel);

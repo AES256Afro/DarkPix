@@ -296,6 +296,7 @@ function renderLobby(): void {
               <label class="setting-line"><span>Mouse sensitivity <output data-output="mouseSensitivity">${preferences.mouseSensitivity.toFixed(1)}x</output></span><input type="range" aria-label="Mouse sensitivity" data-preference="mouseSensitivity" min="0.5" max="2" step="0.1" value="${preferences.mouseSensitivity}"></label>
               <label class="setting-line"><span>Field of view <output data-output="fieldOfView">${Math.round(preferences.fieldOfView)}°</output></span><input type="range" aria-label="Field of view" data-preference="fieldOfView" min="60" max="95" step="1" value="${preferences.fieldOfView}"></label>
               <label class="setting-line"><span>Crypt brightness <output data-output="brightness">${Math.round(preferences.brightness * 100)}%</output></span><input type="range" aria-label="Crypt brightness" data-preference="brightness" min="0.75" max="1.4" step="0.05" value="${preferences.brightness}"></label>
+              <label class="setting-line"><span>Master volume <output data-output="volume">${Math.round(preferences.volume * 100)}%</output></span><input type="range" aria-label="Master volume" data-preference="volume" min="0" max="1" step="0.05" value="${preferences.volume}"></label>
               <label class="setting-toggle"><input type="checkbox" data-preference="muted" ${preferences.muted ? "checked" : ""}><span>Mute dungeon audio</span></label>
               <label class="setting-toggle"><input type="checkbox" data-preference="reducedMotion" ${preferences.reducedMotion ? "checked" : ""}><span>Reduce camera motion</span></label>
               <label class="setting-toggle"><input type="checkbox" data-preference="invertY" ${preferences.invertY ? "checked" : ""}><span>Invert vertical mouse look</span></label>
@@ -419,7 +420,7 @@ function renderLobby(): void {
       else preferences = { ...preferences, [key]: Number(input.value) };
       persistPreferences();
       const output = app.querySelector<HTMLOutputElement>(`[data-output="${key}"]`);
-      if (output) output.textContent = key === "brightness"
+      if (output) output.textContent = key === "brightness" || key === "volume"
         ? `${Math.round(Number(input.value) * 100)}%`
         : key === "fieldOfView"
           ? `${Math.round(Number(input.value))}°`
