@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
-import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
+import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, raidThreatKillLedger, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, firstRunPreferences, normalizePreferences } from "../src/game/preferences";
 import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, guardBreakDuration, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat } from "../src/game/combat";
 
@@ -440,6 +440,11 @@ describe("persistent raid consequences", () => {
     });
     expect(result.profile.threatKills.skeleton).toBe(1);
     expect(result.profile.threatKills.rival).toBe(0);
+    expect(raidThreatKillLedger({ kills: 1, killsByKind: { skeleton: 999, rival: 999 } })).toEqual({
+      total: 1,
+      byKind: { skeleton: 1, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 },
+    });
+    expect(raidThreatKillLedger({ kills: Number.NaN, killsByKind: { boss: 9 } }).total).toBe(0);
   });
 
   it("pays the first extracted Tollkeeper victory once and never on death", () => {

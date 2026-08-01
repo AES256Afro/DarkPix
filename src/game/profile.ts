@@ -239,6 +239,16 @@ function boundedThreatKills(
   return bounded;
 }
 
+export interface RaidThreatKillLedger {
+  total: number;
+  byKind: Record<ThreatKind, number>;
+}
+
+export function raidThreatKillLedger(result: Pick<RaidResult, "kills" | "killsByKind">): RaidThreatKillLedger {
+  const total = Math.min(1_000, nonnegativeInteger(result.kills));
+  return { total, byKind: boundedThreatKills(total, result.killsByKind) };
+}
+
 export function loadProfile(): Profile {
   try {
     return normalizeProfile(JSON.parse(localStorage.getItem(PROFILE_KEY) ?? "null"));
@@ -426,7 +436,7 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
   const risked = new Set(boundedItemIds(result.equippedIds));
   const consumed = new Set(boundedItemIds(result.consumedIds, 24).filter((id) => risked.has(id)).slice(0, 2));
   if (consumed.size) next.stash = next.stash.filter((item) => !consumed.has(item.id));
-  const raidThreatKills = boundedThreatKills(result.kills, result.killsByKind);
+  const raidThreatKills = raidThreatKillLedger(result).byKind;
   const bossKilled = result.bossKilled === true && raidThreatKills.boss > 0;
   const depthReached = result.depthReached === 2 && raidThreatKills.boss > 0 ? 2 : 1;
   const xpGain = raidXpBreakdown({ ...result, bossKilled, depthReached }).total;

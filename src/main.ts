@@ -8,7 +8,7 @@ import { itemValueTotal, raidValueSummary } from "./game/economy";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { persistBeforeClearingEscrow } from "./game/persistence";
-import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfile, loadRaidEscrow, purchaseItem, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
+import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfile, loadRaidEscrow, purchaseItem, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
 import { rarityMark } from "./game/rarity";
 import type { DarkPixGame } from "./game/game";
@@ -633,6 +633,11 @@ function finishRaid(result: RaidResult): void {
   const consumedItems = riskedBeforeSettlement.filter((item) => consumedIds.has(item.id));
   const returnedItems = extracted ? riskedBeforeSettlement.filter((item) => !consumedIds.has(item.id)) : [];
   const xpBreakdown = raidXpBreakdown(result);
+  const threatLedger = raidThreatKillLedger(result);
+  const threatBreakdown = Object.entries(threatLedger.byKind)
+    .filter(([, count]) => count > 0)
+    .map(([kind, count]) => `${kind.toUpperCase()} ${count}`)
+    .join(" · ");
   const settlement = settleRaid(profile, result);
   const riskedValue = itemValueTotal(riskedBeforeSettlement);
   const valueSummary = raidValueSummary({
@@ -692,11 +697,12 @@ function finishRaid(result: RaidResult): void {
         </div>
         <div class="result-metrics">
           <span><small>TIME BELOW</small><strong>${formatTime(result.elapsed)}</strong></span>
-          <span><small>THREATS FELLED</small><strong>${result.kills}</strong></span>
+          <span><small>THREATS FELLED</small><strong>${threatLedger.total}</strong></span>
           <span><small>GOLD ${extracted ? "SETTLED" : "LOST"}</small><strong>${extracted ? settlement.goldGained : result.goldFound}g</strong></span>
           <span><small>CLASS XP</small><strong>${settlement.classXpLost > 0 ? `-${settlement.classXpLost}` : `+${settlement.xpGained}`}</strong></span>
         </div>
         <p class="xp-breakdown">XP LEDGER · presence ${xpBreakdown.presence} · kills ${xpBreakdown.kills} · extraction ${xpBreakdown.extraction} · depth ${xpBreakdown.depth} · ${xpBreakdown.multiplier.toFixed(2)}x${xpBreakdown.forfeited ? " · FORFEITED BY IRON SOUL" : ` = ${xpBreakdown.total}`}</p>
+        <p class="threat-breakdown">THREAT LEDGER · ${threatBreakdown || "NO CREDITED KILLS"}</p>
         <div class="result-haul">
           <div class="panel-heading"><span><small>${extracted ? "SETTLED" : "ABANDONED"}</small><strong>${extracted ? "Recovered haul" : "Lost below"}</strong></span><b>${recordedItems.length} ITEMS</b></div>
           <div class="result-items">

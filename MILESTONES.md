@@ -32,6 +32,7 @@ Status: Complete for local-first play
 - Treasure coin credit is derived from current haul contents instead of a separate mutable raid counter
 - Boss victories, Ashen depth, and their rewards require a typed boss kill within the bounded total-kill ledger
 - Pre-raid and verdict value ledgers derive loadout risk, fees, Iron Soul XP exposure, and net wealth change from actual contract state
+- Verdicts itemize the bounded per-threat kill evidence used by bestiary, commission, and boss settlement
 - Version 13 migrates older profiles into a bounded single-day commission claim without changing prior progress
 - Class XP, contracts, bestiary ledgers, survival streaks, raid history, settings, and backup import/export survive compatible profile migrations
 - Iron Soul failure clears the selected discipline's XP while preserving the rest of the profile
