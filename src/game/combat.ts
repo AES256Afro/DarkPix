@@ -38,3 +38,8 @@ export function guardDrainPerSecond(classId: ClassId): number {
   if (classId === "hexbound") return 14;
   return 11;
 }
+
+export function healthPercent(current: number, maximum: number): number {
+  if (!Number.isFinite(current) || !Number.isFinite(maximum) || maximum <= 0) return 0;
+  return Math.min(100, Math.max(0, (current / maximum) * 100));
+}

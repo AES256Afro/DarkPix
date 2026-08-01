@@ -221,6 +221,14 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .event-feed[data-tone="rival"] { color: #c5829e; }
 .event-feed[data-tone="system"] { color: #75d5cf; }
 @keyframes feed-show { 0% { opacity: 0; transform: translate(-50%,-8px); } 8%, 80% { opacity: 1; transform: translate(-50%,0); } 100% { opacity: 0; } }
+.threat-vitals { position: absolute; top: calc(50% - 95px); left: 50%; display: grid; width: 220px; gap: 4px; transform: translateX(-50%); opacity: 0; transition: opacity .16s; text-align: center; text-shadow: 0 2px 5px #000; }
+.threat-vitals.visible { opacity: 1; }
+.threat-vitals strong { color: #c9bbab; font: 800 9px ui-monospace, monospace; letter-spacing: .12em; }
+.threat-vitals > div { height: 4px; overflow: hidden; border: 1px solid rgba(116,83,64,.65); background: rgba(13,8,7,.82); }
+.threat-vitals i { display: block; width: 100%; height: 100%; background: linear-gradient(90deg, #7a291e, #c05138); transition: width .18s; }
+.threat-vitals small { color: #786e63; font: 700 7px ui-monospace, monospace; letter-spacing: .12em; }
+.threat-vitals[data-kind="boss"] strong, .threat-vitals[data-kind="boss"] small { color: #d18a5f; }
+.threat-vitals[data-kind="rival"] strong { color: #c5829e; }
 .crosshair { position: absolute; top: 50%; left: 50%; width: 22px; height: 22px; transform: translate(-50%, -50%); filter: drop-shadow(0 1px 2px #000); }
 .crosshair i, .crosshair b, .crosshair em, .crosshair span { position: absolute; display: block; background: rgba(228,218,199,.8); }
 .crosshair i { top: 0; left: 10px; width: 2px; height: 6px; }.crosshair b { right: 0; top: 10px; width: 6px; height: 2px; }.crosshair em { bottom: 0; left: 10px; width: 2px; height: 6px; }.crosshair span { left: 0; top: 10px; width: 6px; height: 2px; }

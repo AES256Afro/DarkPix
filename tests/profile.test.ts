@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createBossLoot, createLoot, formatTime, levelForXp, progressionBonuses, rarityFromRoll } from "../src/game/data";
 import { applyRaidResult, createProfile, normalizeProfile, purchaseItem, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
-import { attackDamage, enemyAttackPattern, guardDrainPerSecond } from "../src/game/combat";
+import { attackDamage, enemyAttackPattern, guardDrainPerSecond, healthPercent } from "../src/game/combat";
 
 describe("loot generation", () => {
   it("maps rarity thresholds deterministically", () => {
@@ -235,5 +235,12 @@ describe("directional combat damage", () => {
     expect(guardDrainPerSecond("vanguard")).toBe(7);
     expect(guardDrainPerSecond("cutpurse")).toBe(11);
     expect(guardDrainPerSecond("hexbound")).toBe(14);
+  });
+
+  it("clamps target vigor display percentages", () => {
+    expect(healthPercent(25, 100)).toBe(25);
+    expect(healthPercent(-10, 100)).toBe(0);
+    expect(healthPercent(140, 100)).toBe(100);
+    expect(healthPercent(5, 0)).toBe(0);
   });
 });

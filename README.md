@@ -27,7 +27,7 @@ Open `http://127.0.0.1:4173` on a desktop browser. Click **Enter the Crypt** to 
 | `T` | Hood or unhood the torch |
 | `Escape` | Release the cursor and pause |
 
-Moving the mouse vertically before a strike selects an overhead attack. Horizontal movement selects a sweep. A centered motion selects a thrust. Enemies visibly draw back before committing to a strike, so sidestepping and last-moment guards matter. Sustained guards drain stamina and break at zero; the Vanguard pays the lowest upkeep and can parry during the opening guard window. Cutpurse attacks deal extra damage against unaware targets. Hexbound casts six ranged ash bolts and restores spell memory once at the campfire.
+Moving the mouse vertically before a strike selects an overhead attack. Horizontal movement selects a sweep. A centered motion selects a thrust. Enemies visibly draw back before committing to a strike, so sidestepping and last-moment guards matter. A struck threat briefly reveals its vigor and combat state above the crosshair. Sustained guards drain stamina and break at zero; the Vanguard pays the lowest upkeep and can parry during the opening guard window. Cutpurse attacks deal extra damage against unaware targets. Hexbound casts six ranged ash bolts and restores spell memory once at the campfire.
 
 Light is tactical. Hooding the torch shortens passive enemy detection range, while unhooding it restores the player spotlight. Walls block passive acquisition and attacks, but alerted enemies route through the dungeon to pursue prey they can no longer see. Threats have physical spacing and slide along corners instead of stacking into one hitbox. Four pressure-plate spike traps punish careless routes through the crypt.
 

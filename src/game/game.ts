@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
-import { attackDamage, enemyAttackPattern, guardDrainPerSecond, type ThreatKind } from "./combat";
+import { attackDamage, enemyAttackPattern, guardDrainPerSecond, healthPercent, type ThreatKind } from "./combat";
 import { CLASSES, RARITY_COLOR, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { equippedPower } from "./loadout";
@@ -148,6 +148,10 @@ export class DarkPixGame {
   private objectiveHud!: HTMLElement;
   private promptHud!: HTMLElement;
   private feedHud!: HTMLElement;
+  private threatHud!: HTMLElement;
+  private threatNameHud!: HTMLElement;
+  private threatStateHud!: HTMLElement;
+  private threatHealthFill!: HTMLElement;
   private directionHud!: HTMLElement;
   private compassHeadingHud!: HTMLElement;
   private wayfinderHud!: HTMLElement;
@@ -183,6 +187,7 @@ export class DarkPixGame {
   private yaw = 0;
   private pitch = 0;
   private messageTimer = 0;
+  private threatTimer = 0;
   private vignette = 0;
   private torchLit = true;
 
@@ -233,6 +238,7 @@ export class DarkPixGame {
             </section>
           </div>
           <div class="event-feed" role="status"></div>
+          <div class="threat-vitals" aria-live="polite"><strong></strong><div><i></i></div><small></small></div>
           <div class="crosshair" aria-hidden="true"><i></i><b></b><em></em><span></span></div>
           <div class="attack-direction">THRUST</div>
           <div class="interaction-prompt"></div>
@@ -277,6 +283,10 @@ export class DarkPixGame {
     this.objectiveHud = this.mount.querySelector<HTMLElement>(".objective-copy")!;
     this.promptHud = this.mount.querySelector<HTMLElement>(".interaction-prompt")!;
     this.feedHud = this.mount.querySelector<HTMLElement>(".event-feed")!;
+    this.threatHud = this.mount.querySelector<HTMLElement>(".threat-vitals")!;
+    this.threatNameHud = this.mount.querySelector<HTMLElement>(".threat-vitals strong")!;
+    this.threatStateHud = this.mount.querySelector<HTMLElement>(".threat-vitals small")!;
+    this.threatHealthFill = this.mount.querySelector<HTMLElement>(".threat-vitals i")!;
     this.directionHud = this.mount.querySelector<HTMLElement>(".attack-direction")!;
     this.compassHeadingHud = this.mount.querySelector<HTMLElement>(".compass-heading")!;
     this.wayfinderHud = this.mount.querySelector<HTMLElement>(".wayfinder")!;
@@ -676,6 +686,7 @@ export class DarkPixGame {
     this.swingClock = Math.max(0, this.swingClock - delta);
     this.damageCooldown = Math.max(0, this.damageCooldown - delta);
     this.messageTimer = Math.max(0, this.messageTimer - delta);
+    this.threatTimer = Math.max(0, this.threatTimer - delta);
     this.blockAge += this.blocking ? delta : 0;
     this.vignette = Math.max(0, this.vignette - delta * 1.8);
     this.updateMovement(delta);
@@ -847,7 +858,10 @@ export class DarkPixGame {
       this.feed("THE TOLLKEEPER ENRAGES · its chain quickens", "danger");
       this.audio.tone(46, 0.6, "sawtooth", 0.16);
     }
-    if (enemy.hp > 0) return;
+    if (enemy.hp > 0) {
+      this.showThreatVitals(enemy);
+      return;
+    }
     enemy.alive = false;
     this.kills += 1;
     enemy.group.rotation.z = 1.2;
@@ -859,6 +873,22 @@ export class DarkPixGame {
         ? createBossLoot()
         : createLoot(Math.random, enemy.kind === "rival" ? 0.12 : 0.03);
     this.spawnPickup(drop, enemy.group.position.clone());
+    this.showThreatVitals(enemy);
+  }
+
+  private showThreatVitals(enemy: Enemy): void {
+    this.threatTimer = enemy.alive ? 3.2 : 2;
+    this.threatNameHud.textContent = enemy.name.toUpperCase();
+    this.threatHealthFill.style.width = `${healthPercent(enemy.hp, enemy.maxHp)}%`;
+    this.threatStateHud.textContent = !enemy.alive
+      ? "FELLED"
+      : enemy.kind === "boss"
+        ? enemy.group.userData.enraged ? "KEEPER · ENRAGED" : "KEEPER"
+        : enemy.kind === "rival"
+          ? "HOSTILE DELVER"
+          : "CRYPT THREAT";
+    this.threatHud.dataset.kind = enemy.kind;
+    this.threatHud.classList.add("visible");
   }
 
   private updateEnemies(delta: number): void {
@@ -1193,6 +1223,7 @@ export class DarkPixGame {
     this.updateWayfinder();
     this.directionHud.textContent = this.attackDirection;
     this.directionHud.classList.toggle("active", this.mouseAccumulator.x !== 0 || this.mouseAccumulator.y !== 0);
+    this.threatHud.classList.toggle("visible", this.threatTimer > 0);
     if (!this.interactHeld || !this.portalUnlocked) {
       this.extractProgress.style.width = "0%";
       this.extractProgress.parentElement?.classList.remove("visible");
