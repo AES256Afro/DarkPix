@@ -15,7 +15,7 @@ Status: Complete
 - First-person movement, pixel-scaled 3D rendering, stamina-costed directional melee with recovery windows, ranged weapons, magic, guards, parries, ripostes, sidesteps, class abilities, and an exact paused-raid readiness ledger
 - Eight persistent disciplines with levels, perks, equipment, interruptible treatment remedies, throwing weapons, and local preferences
 - Loot capacity, item rarity, randomized modifiers, stash risk, merchants, rotating daily commissions, reputation-gated crafting, save backup, and authoritative local raid settlement
-- Closing darkness, two extraction sites, red descent, two floors, traps, second-floor ash vents, mimics, hidden room, campfire, blood reliquary, bosses, and loot-scavenging AI rival delvers that can fight crypt threats or race for extraction
+- Closing darkness, finite hoodable torch fuel, two extraction sites, red descent, two floors, traps, second-floor ash vents, mimics, hidden room, campfire, blood reliquary, bosses, and loot-scavenging AI rival delvers that can fight crypt threats or race for extraction
 - Standard, High Toll, and Iron Soul contracts with distinct loss and reward rules
 
 Exit evidence: automated domain tests, production TypeScript build, container health, and exact public release checks.

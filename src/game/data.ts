@@ -1,4 +1,5 @@
 import type { ClassDefinition, ClassId, Item, Rarity, ThreatKind } from "./types";
+import { BLUEWAX_FUEL_SECONDS } from "./light";
 
 export interface MerchantOffer {
   sku: string;
@@ -48,7 +49,7 @@ export interface ConsumableEffect {
   health: number;
   stamina: number;
   spellCharges: number;
-  rekindleTorch: boolean;
+  torchFuel: number;
   description: string;
 }
 
@@ -466,11 +467,11 @@ const MODIFIERS = [
 ];
 
 const CONSUMABLE_EFFECTS: Record<string, ConsumableEffect> = {
-  "Coagulation draught": { health: 36, stamina: 0, spellCharges: 0, rekindleTorch: false, description: "Restores 36 vigor" },
-  "Pitch bandage": { health: 24, stamina: 0, spellCharges: 0, rekindleTorch: false, description: "Restores 24 vigor" },
-  "Smoked root": { health: 16, stamina: 38, spellCharges: 0, rekindleTorch: false, description: "Restores 16 vigor and 38 stamina" },
-  "Bluewax candle": { health: 12, stamina: 0, spellCharges: 0, rekindleTorch: true, description: "Restores 12 vigor and rekindles the torch" },
-  "Camp ember": { health: 20, stamina: 20, spellCharges: 2, rekindleTorch: false, description: "Restores 20 vigor, 20 stamina, and 2 spell charges" },
+  "Coagulation draught": { health: 36, stamina: 0, spellCharges: 0, torchFuel: 0, description: "Restores 36 vigor" },
+  "Pitch bandage": { health: 24, stamina: 0, spellCharges: 0, torchFuel: 0, description: "Restores 24 vigor" },
+  "Smoked root": { health: 16, stamina: 38, spellCharges: 0, torchFuel: 0, description: "Restores 16 vigor and 38 stamina" },
+  "Bluewax candle": { health: 12, stamina: 0, spellCharges: 0, torchFuel: BLUEWAX_FUEL_SECONDS, description: `Restores 12 vigor and ${BLUEWAX_FUEL_SECONDS} seconds of torch fuel` },
+  "Camp ember": { health: 20, stamina: 20, spellCharges: 2, torchFuel: 0, description: "Restores 20 vigor, 20 stamina, and 2 spell charges" },
 };
 
 export function consumableEffect(item: Pick<Item, "name" | "kind">): ConsumableEffect | undefined {
@@ -479,7 +480,7 @@ export function consumableEffect(item: Pick<Item, "name" | "kind">): ConsumableE
     health: 18,
     stamina: 0,
     spellCharges: 0,
-    rekindleTorch: false,
+    torchFuel: 0,
     description: "Restores 18 vigor",
   };
 }

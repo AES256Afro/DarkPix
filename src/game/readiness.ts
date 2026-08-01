@@ -1,4 +1,5 @@
 import type { ClassId, DungeonDepth } from "./types";
+import { MAX_TORCH_FUEL_SECONDS } from "./light";
 
 export interface RaidReadinessInput {
   classId: ClassId;
@@ -12,6 +13,8 @@ export interface RaidReadinessInput {
   sigils: number;
   portalUnlocked: boolean;
   campfireUsed: boolean;
+  torchLit: boolean;
+  torchFuel: number;
 }
 
 export interface RaidReadinessSummary {
@@ -20,6 +23,7 @@ export interface RaidReadinessSummary {
   memory: string;
   passage: string;
   campfire: string;
+  torch: string;
 }
 
 function resourceCount(current: number, maximum: number): string {
@@ -30,6 +34,7 @@ function resourceCount(current: number, maximum: number): string {
 
 export function raidReadinessSummary(input: RaidReadinessInput): RaidReadinessSummary {
   const sigils = Number.isFinite(input.sigils) ? Math.min(2, Math.max(0, Math.floor(input.sigils))) : 0;
+  const torchFuel = Number.isFinite(input.torchFuel) ? Math.min(MAX_TORCH_FUEL_SECONDS, Math.max(0, input.torchFuel)) : 0;
   const passageName = input.depth === 2 ? "ASHEN" : "BLUE";
   return {
     vigor: resourceCount(input.health, input.maxHealth),
@@ -37,5 +42,6 @@ export function raidReadinessSummary(input: RaidReadinessInput): RaidReadinessSu
     memory: input.classId === "hexbound" ? `${resourceCount(input.spellCharges, input.maxSpellCharges)} CHARGES` : "NOT USED",
     passage: input.portalUnlocked ? `${passageName} OPEN` : `${passageName} SIGILS ${sigils} / 2`,
     campfire: input.campfireUsed ? "SPENT" : "AVAILABLE",
+    torch: torchFuel > 0 ? `${input.torchLit ? "LIT" : "HOODED"} · ${Math.ceil(torchFuel)}S` : "SPENT",
   };
 }

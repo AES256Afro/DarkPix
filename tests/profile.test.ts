@@ -33,6 +33,7 @@ describe("loot generation", () => {
     expect(item.name).toBe("Camp ember");
     expect(item.modifier).toContain("spell charges");
     expect(consumableEffect(item)).toMatchObject({ health: 20, stamina: 20, spellCharges: 2 });
+    expect(consumableEffect({ name: "Bluewax candle", kind: "consumable" })).toMatchObject({ health: 12, torchFuel: 45 });
     expect(consumableEffect({ name: "blade", kind: "weapon" })).toBeUndefined();
   });
 

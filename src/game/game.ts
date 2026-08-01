@@ -15,6 +15,7 @@ import { disposeSceneResources } from "./resources";
 import { RAID_VARIATION_COUNT, raidVariationSeal, validRaidVariationSeed } from "./contract";
 import { rarityShape } from "./rarity";
 import { raidReadinessSummary } from "./readiness";
+import { MAX_TORCH_FUEL_SECONDS, addTorchFuel, spendTorchFuel } from "./light";
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
@@ -227,6 +228,7 @@ export class DarkPixGame {
   private abilityHud!: HTMLElement;
   private consumableHud!: HTMLElement;
   private throwableHud!: HTMLElement;
+  private torchHud!: HTMLElement;
   private pauseLedger!: HTMLElement;
   private animationFrame = 0;
   private enemyId = 0;
@@ -277,6 +279,7 @@ export class DarkPixGame {
   private threatTimer = 0;
   private vignette = 0;
   private torchLit = true;
+  private torchFuel = MAX_TORCH_FUEL_SECONDS;
   private abilityCooldown = 0;
   private concealmentTimer = 0;
   private rageTimer = 0;
@@ -369,7 +372,7 @@ export class DarkPixGame {
               <div class="throwable-slot"><kbd>V</kbd><span class="slot-icon knife-icon"></span><small>${escapeHtml(this.carriedThrowables[0]?.name ?? "No throwing weapon")} · B cycle</small></div>
               <div><kbd>G</kbd><span class="slot-icon hand-icon"></span><small>Drop lowest haul</small></div>
               <div><kbd>E</kbd><span class="slot-icon hand-icon"></span><small>Interact / extract</small></div>
-              <div><kbd>T</kbd><span class="slot-icon torch-icon"></span><small>Hood the torch</small></div>
+              <div class="torch-slot"><kbd>T</kbd><span class="slot-icon torch-icon"></span><small>Hood torch · 90s</small></div>
             </section>
             <section class="haul-panel">
               <span class="eyebrow">UNSECURED HAUL</span>
@@ -418,6 +421,7 @@ export class DarkPixGame {
     this.abilityHud = this.mount.querySelector<HTMLElement>(".ability-slot small")!;
     this.consumableHud = this.mount.querySelector<HTMLElement>(".consumable-slot small")!;
     this.throwableHud = this.mount.querySelector<HTMLElement>(".throwable-slot small")!;
+    this.torchHud = this.mount.querySelector<HTMLElement>(".torch-slot small")!;
     this.pauseLedger = this.mount.querySelector<HTMLElement>(".pause-ledger")!;
     this.updatePauseLedger();
   }
@@ -1115,6 +1119,8 @@ export class DarkPixGame {
       sigils,
       portalUnlocked: this.portalUnlocked,
       campfireUsed: this.campfireUsed,
+      torchLit: this.torchLit,
+      torchFuel: this.torchFuel,
     });
     const itemRow = (item: Item, status: string): string => `<span class="pause-ledger-item" style="--rarity:${RARITY_COLOR[item.rarity]}"><i></i><b>${escapeHtml(item.name)}</b><small>${status} · ${item.value}g</small></span>`;
     this.pauseLedger.innerHTML = `
@@ -1127,6 +1133,7 @@ export class DarkPixGame {
         <span><small>UNSECURED HAUL</small><strong>${ordinaryHaul.length} / ${HAUL_CAPACITY} · ${haulValue}G VALUE · ${coinValue}G COIN</strong></span>
         <span><small>RESERVES</small><strong>${this.availableConsumables().length} REMEDY · ${this.availableThrowables().length} THROW</strong></span>
         <span><small>CAMPFIRE</small><strong>${readiness.campfire}</strong></span>
+        <span><small>TORCH</small><strong>${readiness.torch}</strong></span>
       </div>
       <div class="pause-ledger-items">
         ${remainingPacked.map((item) => itemRow(item, "PACKED")).join("")}
@@ -1243,6 +1250,14 @@ export class DarkPixGame {
 
   private update(delta: number): void {
     this.elapsed += delta;
+    const previousTorchFuel = this.torchFuel;
+    this.torchFuel = spendTorchFuel(this.torchFuel, delta, this.torchLit);
+    if (this.torchLit && previousTorchFuel > 0 && this.torchFuel <= 0) {
+      this.torchLit = false;
+      this.delverTorch.intensity = 0;
+      this.feed("TORCH SPENT · seek the campfire or burn bluewax", "danger");
+      this.audio.tone(78, 0.28, "sawtooth", 0.09);
+    }
     this.attackCooldown = Math.max(0, this.attackCooldown - delta);
     this.dodgeCooldown = Math.max(0, this.dodgeCooldown - delta);
     this.guardBreakTimer = Math.max(0, this.guardBreakTimer - delta);
@@ -1364,6 +1379,10 @@ export class DarkPixGame {
   private toggleTorch(): void {
     if (this.paused || this.ended) return;
     if (this.remedyBlocks("TORCH")) return;
+    if (!this.torchLit && this.torchFuel <= 0) {
+      this.feed("TORCH SPENT · seek the campfire or burn bluewax", "danger");
+      return;
+    }
     this.torchLit = !this.torchLit;
     this.delverTorch.intensity = this.torchLit ? 5.2 : 0;
     this.feed(this.torchLit ? "Torch unhooded. You see farther, and so do they." : "Torch hooded. Stay close to the stones.", "system");
@@ -2247,7 +2266,7 @@ export class DarkPixGame {
       this.health < this.maxHealth ||
       (effect.stamina > 0 && this.stamina < this.definition.maxStamina) ||
       (effect.spellCharges > 0 && this.options.classId === "hexbound" && this.spellCharges < this.maxSpellCharges) ||
-      (effect.rekindleTorch && !this.torchLit)
+      (effect.torchFuel > 0 && this.torchFuel < MAX_TORCH_FUEL_SECONDS)
     ));
   }
 
@@ -2274,7 +2293,8 @@ export class DarkPixGame {
     this.health = Math.min(this.maxHealth, this.health + effect.health);
     this.stamina = Math.min(this.definition.maxStamina, this.stamina + effect.stamina);
     if (this.options.classId === "hexbound") this.spellCharges = Math.min(this.maxSpellCharges, this.spellCharges + effect.spellCharges);
-    if (effect.rekindleTorch && !this.torchLit) {
+    if (effect.torchFuel > 0) {
+      this.torchFuel = addTorchFuel(this.torchFuel, effect.torchFuel);
       this.torchLit = true;
       this.delverTorch.intensity = 5.2;
     }
@@ -2753,6 +2773,9 @@ export class DarkPixGame {
     this.health = Math.min(this.maxHealth, this.health + 52);
     this.spellCharges = this.maxSpellCharges;
     this.stamina = this.definition.maxStamina;
+    this.torchFuel = MAX_TORCH_FUEL_SECONDS;
+    this.torchLit = true;
+    this.delverTorch.intensity = 5.2;
     for (const enemy of this.enemies) {
       if (enemy.alive && enemy.group.position.distanceTo(this.campfire.position) < 14) enemy.alerted = true;
     }
@@ -2982,6 +3005,7 @@ export class DarkPixGame {
     this.throwableHud.textContent = selectedThrowable
       ? `${selectedThrowable.name} · ${throwableDamage(selectedThrowable)} dmg · ${throwables.length} left · B cycle`
       : "No throwing weapon · B cycle";
+    this.torchHud.textContent = `${this.torchLit ? "Hood" : "Unhood"} torch · ${Math.ceil(this.torchFuel)}s`;
     this.updateWayfinder();
     this.directionHud.textContent = this.guardBreakTimer > 0
       ? `GUARD BROKEN · ${this.guardBreakTimer.toFixed(1)}s`
