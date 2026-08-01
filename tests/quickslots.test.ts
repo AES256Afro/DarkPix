@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { consumablesInUseOrder, nextConsumableId, resolveConsumableId } from "../src/game/quickslots";
+import { consumablesInUseOrder, nextConsumableId, nextThrowableId, resolveConsumableId, resolveThrowableId, throwablesInUseOrder } from "../src/game/quickslots";
 import type { Item } from "../src/game/types";
 
 const recovered: Item[] = [
@@ -31,5 +31,25 @@ describe("raid consumable quick slot", () => {
     expect(nextConsumableId(items, "root")).toBe("ember");
     expect(nextConsumableId(items, "ember")).toBe("root");
     expect(nextConsumableId([], "root")).toBeUndefined();
+  });
+});
+
+describe("raid throwable quick slot", () => {
+  const recoveredKnife: Item = { id: "dart", name: "Bone dart", kind: "throwable", rarity: "Common", power: 3, value: 7 };
+  const packedKnife: Item = { id: "glass", name: "Blackglass shard", kind: "throwable", rarity: "Rare", power: 9, value: 30 };
+
+  it("offers recovered weapons before packed weapons and filters other haul", () => {
+    const items = throwablesInUseOrder([...recovered, recoveredKnife], [...packed, packedKnife]);
+    expect(items.map((item) => item.id)).toEqual(["dart", "glass"]);
+  });
+
+  it("repairs, advances, and wraps throwable selections", () => {
+    const items = throwablesInUseOrder([recoveredKnife], [packedKnife]);
+    expect(resolveThrowableId(items, "glass")).toBe("glass");
+    expect(resolveThrowableId(items, "spent")).toBe("dart");
+    expect(nextThrowableId(items, undefined)).toBe("dart");
+    expect(nextThrowableId(items, "dart")).toBe("glass");
+    expect(nextThrowableId(items, "glass")).toBe("dart");
+    expect(nextThrowableId([], "dart")).toBeUndefined();
   });
 });

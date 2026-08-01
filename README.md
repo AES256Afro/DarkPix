@@ -29,7 +29,8 @@ Open `http://127.0.0.1:4173` on a desktop browser. Click **Enter the Crypt** to 
 | `E` | Loot, search, rest, or hold to extract |
 | `F` | Use the selected recovered or packed consumable |
 | `C` | Cycle the selected consumable |
-| `V` | Throw the first recovered or packed throwing weapon |
+| `V` | Throw the selected recovered or packed throwing weapon |
+| `B` | Cycle the selected throwing weapon |
 | `G` | Drop the least valuable unsecured haul item |
 | `R` | Hold at an awakened passage to descend red |
 | `T` | Hood or unhood the torch |

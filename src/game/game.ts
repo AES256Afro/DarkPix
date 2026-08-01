@@ -8,7 +8,7 @@ import { HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulC
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, pickupDecision, type LoadoutStats } from "./loadout";
 import { cardinalDirection, circlesOverlap } from "./navigation";
 import { raidRules, type RaidRules } from "./raid";
-import { consumablesInUseOrder, nextConsumableId, resolveConsumableId } from "./quickslots";
+import { consumablesInUseOrder, nextConsumableId, nextThrowableId, resolveConsumableId, resolveThrowableId, throwablesInUseOrder } from "./quickslots";
 import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./resolution";
 import { disposeSceneResources } from "./resources";
 import { continuousHold, targetDistanceInView } from "./targeting";
@@ -202,6 +202,7 @@ export class DarkPixGame {
   private extractProgress!: HTMLElement;
   private abilityHud!: HTMLElement;
   private consumableHud!: HTMLElement;
+  private throwableHud!: HTMLElement;
   private animationFrame = 0;
   private enemyId = 0;
   private elapsed = 0;
@@ -210,6 +211,7 @@ export class DarkPixGame {
   private spellCharges: number;
   private selectedSpell: HexSpellId = "ash_bolt";
   private selectedConsumableId?: string;
+  private selectedThrowableId?: string;
   private kills = 0;
   private readonly killsByKind: Record<ThreatKind, number> = { skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 };
   private goldFound = 0;
@@ -326,7 +328,7 @@ export class DarkPixGame {
             <section class="quick-slots">
               <div class="ability-slot"><kbd>Q</kbd><span class="slot-icon ability-icon"></span><small>${CLASS_ABILITIES[this.options.classId].name}</small></div>
               <div class="consumable-slot"><kbd>F</kbd><span class="slot-icon potion-icon"></span><small>${this.carriedConsumables[0]?.name ?? "No remedy"} · C cycle</small></div>
-              <div><kbd>V</kbd><span class="slot-icon knife-icon"></span><small>${this.carriedThrowables.length ? `Packed knife ×${this.carriedThrowables.length}` : "Recovered knife"}</small></div>
+              <div class="throwable-slot"><kbd>V</kbd><span class="slot-icon knife-icon"></span><small>${this.carriedThrowables[0]?.name ?? "No throwing weapon"} · B cycle</small></div>
               <div><kbd>G</kbd><span class="slot-icon hand-icon"></span><small>Drop lowest haul</small></div>
               <div><kbd>E</kbd><span class="slot-icon hand-icon"></span><small>Interact / extract</small></div>
               <div><kbd>T</kbd><span class="slot-icon torch-icon"></span><small>Hood the torch</small></div>
@@ -346,7 +348,7 @@ export class DarkPixGame {
             <button class="resume-raid" type="button">BIND CURSOR / RESUME</button>
             <button class="abandon-raid" type="button">ABANDON RAID</button>
           </span>
-          <span class="control-line">WASD move · mouse look · LMB strike · RMB guard · 1/2 spells · E interact · R red descent · F use remedy · C cycle remedy · V throw · G drop · T torch · Shift sprint</span>
+          <span class="control-line">WASD move · mouse look · LMB strike · RMB guard · 1/2 spells · E interact · R red descent · F use remedy · C cycle remedy · V throw · B cycle throw · G drop · T torch · Shift sprint</span>
         </div>
       </div>`;
     const host = this.mount.querySelector<HTMLElement>(".render-host");
@@ -375,6 +377,7 @@ export class DarkPixGame {
     this.extractProgress = this.mount.querySelector<HTMLElement>(".extract-meter i")!;
     this.abilityHud = this.mount.querySelector<HTMLElement>(".ability-slot small")!;
     this.consumableHud = this.mount.querySelector<HTMLElement>(".consumable-slot small")!;
+    this.throwableHud = this.mount.querySelector<HTMLElement>(".throwable-slot small")!;
   }
 
   private configureRenderer(): void {
@@ -869,6 +872,7 @@ export class DarkPixGame {
     if (event.code === "KeyF" && !event.repeat) this.useConsumable();
     if (event.code === "KeyC" && !event.repeat) this.cycleConsumable();
     if (event.code === "KeyV" && !event.repeat) this.throwItem();
+    if (event.code === "KeyB" && !event.repeat) this.cycleThrowable();
     if (event.code === "KeyG" && !event.repeat) this.dropLowestHaul();
     if (event.code === "KeyQ" && !event.repeat) this.useClassAbility();
     if (event.code === "KeyT" && !event.repeat) this.toggleTorch();
@@ -1820,15 +1824,21 @@ export class DarkPixGame {
 
   private throwItem(): void {
     if (this.paused || this.ended || this.blocking || this.attackCooldown > 0) return;
-    const recoveredIndex = this.raidLoot.findIndex((item) => item.kind === "throwable");
-    const packedIndex = recoveredIndex >= 0 ? -1 : this.carriedThrowables.findIndex((item) => item.kind === "throwable");
-    const recovered = recoveredIndex >= 0 ? this.raidLoot.splice(recoveredIndex, 1)[0] : undefined;
-    const packed = packedIndex >= 0 ? this.carriedThrowables.splice(packedIndex, 1)[0] : undefined;
-    const thrown = recovered ?? packed;
-    if (!thrown) {
+    const items = this.availableThrowables();
+    this.selectedThrowableId = resolveThrowableId(items, this.selectedThrowableId);
+    const selected = items.find((item) => item.id === this.selectedThrowableId);
+    if (!selected) {
       this.feed("No throwing weapon in your unsecured haul.", "danger");
       return;
     }
+    const nextId = items.length > 1 ? nextThrowableId(items, selected.id) : undefined;
+    const recoveredIndex = this.raidLoot.findIndex((item) => item.id === selected.id && item.kind === "throwable");
+    const packedIndex = recoveredIndex >= 0 ? -1 : this.carriedThrowables.findIndex((item) => item.id === selected.id);
+    const recovered = recoveredIndex >= 0 ? this.raidLoot.splice(recoveredIndex, 1)[0] : undefined;
+    const packed = packedIndex >= 0 ? this.carriedThrowables.splice(packedIndex, 1)[0] : undefined;
+    const thrown = recovered ?? packed;
+    if (!thrown) return;
+    this.selectedThrowableId = nextId;
     if (packed) this.consumedIds.push(packed.id);
     this.attackCooldown = 0.45;
     this.concealmentTimer = 0;
@@ -1868,6 +1878,17 @@ export class DarkPixGame {
       * (best.kind === "rival" ? 1 : this.loadoutBonuses.undeadDamageMultiplier),
     );
     this.damageEnemy(best, damage, headshot, false);
+  }
+
+  private availableThrowables(): Item[] {
+    return throwablesInUseOrder(this.raidLoot, this.carriedThrowables);
+  }
+
+  private cycleThrowable(): void {
+    const items = this.availableThrowables();
+    this.selectedThrowableId = nextThrowableId(items, this.selectedThrowableId);
+    const selected = items.find((item) => item.id === this.selectedThrowableId);
+    this.feed(selected ? `Throw readied · ${selected.name} · ${throwableDamage(selected)} damage` : "No throwing weapon to ready.", selected ? "system" : "danger");
   }
 
   private spawnThrowableTrail(start: THREE.Vector3, forward: THREE.Vector3, distance: number): void {
@@ -2361,6 +2382,12 @@ export class DarkPixGame {
     this.consumableHud.textContent = selectedConsumable
       ? `${selectedConsumable.name} · ${consumables.length} left · C cycle`
       : "No remedy · C cycle";
+    const throwables = this.availableThrowables();
+    this.selectedThrowableId = resolveThrowableId(throwables, this.selectedThrowableId);
+    const selectedThrowable = throwables.find((item) => item.id === this.selectedThrowableId);
+    this.throwableHud.textContent = selectedThrowable
+      ? `${selectedThrowable.name} · ${throwableDamage(selectedThrowable)} dmg · ${throwables.length} left · B cycle`
+      : "No throwing weapon · B cycle";
     this.updateWayfinder();
     this.directionHud.textContent = this.attackDirection;
     this.directionHud.classList.toggle("active", this.mouseAccumulator.x !== 0 || this.mouseAccumulator.y !== 0);
