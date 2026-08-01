@@ -22,6 +22,13 @@ export interface TrapSpec extends Vec2 {
   damage: number;
 }
 
+export interface DartTrapSpec extends Vec2 {
+  direction: Vec2;
+  range: number;
+  damage: number;
+  delay: number;
+}
+
 export const DUNGEON = {
   name: "Crypt of the Pale Toll",
   size: 44,
@@ -80,6 +87,10 @@ export const DUNGEON = {
     { x: 14, z: -4, damage: 20 },
     { x: 0, z: -13, damage: 22 },
   ] satisfies TrapSpec[],
+  dartTraps: [
+    { x: -9.35, z: 11, direction: { x: 1, z: 0 }, range: 8, damage: 14, delay: 0.4 },
+    { x: 9.35, z: -10, direction: { x: -1, z: 0 }, range: 8, damage: 16, delay: 1.8 },
+  ] satisfies DartTrapSpec[],
   enemies: [
     { kind: "crawler", x: -5, z: 12 },
     { kind: "skeleton", x: 5, z: 9 },
@@ -227,4 +238,17 @@ export function dungeonLineOfSight(start: Vec2, target: Vec2, radius = 0.06): bo
     if (dungeonCollides(point, radius)) return false;
   }
   return true;
+}
+
+export function dartTrapTargetDistance(origin: Vec2, direction: Vec2, range: number, target: Vec2, laneRadius = 0.5): number {
+  const directionLength = Math.hypot(direction.x, direction.z);
+  if (!Number.isFinite(directionLength) || directionLength <= 0.001 || !Number.isFinite(range) || range <= 0) return Number.POSITIVE_INFINITY;
+  const unitX = direction.x / directionLength;
+  const unitZ = direction.z / directionLength;
+  const offsetX = target.x - origin.x;
+  const offsetZ = target.z - origin.z;
+  const distance = offsetX * unitX + offsetZ * unitZ;
+  const lateralDistance = Math.abs(offsetX * unitZ - offsetZ * unitX);
+  if (distance < 0.15 || distance > range || lateralDistance > Math.max(0, laneRadius)) return Number.POSITIVE_INFINITY;
+  return distance;
 }

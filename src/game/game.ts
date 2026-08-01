@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { AudioDirector } from "./audio";
 import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat, type ThreatKind } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
-import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
+import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, depthRules } from "./depth";
 import { HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGold } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, type LoadoutStats } from "./loadout";
@@ -66,6 +66,16 @@ interface FloorTrap {
   damage: number;
   cooldown: number;
   active: number;
+}
+
+interface DartTrap {
+  group: THREE.Group;
+  portMaterial: THREE.MeshStandardMaterial;
+  direction: Vec2;
+  range: number;
+  damage: number;
+  cooldown: number;
+  windup: number;
 }
 
 export interface DarkPixGameOptions {
@@ -137,6 +147,7 @@ export class DarkPixGame {
   private readonly pickups: Pickup[] = [];
   private readonly chests: Chest[] = [];
   private readonly traps: FloorTrap[] = [];
+  private readonly dartTraps: DartTrap[] = [];
   private readonly raidLoot: Item[] = [];
   private readonly carriedConsumables: Item[];
   private readonly carriedThrowables: Item[];
@@ -408,6 +419,7 @@ export class DarkPixGame {
     this.createPortal(DUNGEON.portal.x, DUNGEON.portal.z);
     DUNGEON.chests.forEach((chest) => this.createChest(chest.x, chest.z, chest.depthBonus, chest.mimic ?? false));
     DUNGEON.traps.forEach((trap) => this.createTrap(trap.x, trap.z, trap.damage));
+    DUNGEON.dartTraps.forEach((trap) => this.createDartTrap(trap.x, trap.z, trap.direction, trap.range, trap.damage, trap.delay));
     DUNGEON.enemies.forEach((enemy) => this.spawnEnemy(enemy.kind, enemy.x, enemy.z));
 
     this.scene.add(new THREE.HemisphereLight(0x59676b, 0x241611, 0.56));
@@ -534,6 +546,29 @@ export class DarkPixGame {
     group.add(plate, inset, spikes);
     this.scene.add(group);
     this.traps.push({ group, spikes, damage, cooldown: 0, active: 0 });
+  }
+
+  private createDartTrap(x: number, z: number, direction: Vec2, range: number, damage: number, delay: number): void {
+    const group = new THREE.Group();
+    group.position.set(x, 0, z);
+    group.rotation.y = Math.atan2(direction.x, direction.z);
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.72, 1.2, 0.24), material(0x282521));
+    frame.position.y = 1.35;
+    const portMaterial = material(0x5c5147, 0x160a06);
+    portMaterial.emissiveIntensity = 0.15;
+    for (const portX of [-0.22, 0, 0.22]) {
+      const port = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.1, 6), portMaterial);
+      port.position.set(portX, 1.35, 0.16);
+      port.rotation.x = Math.PI / 2;
+      group.add(port);
+    }
+    group.add(frame);
+    group.traverse((object) => {
+      object.castShadow = true;
+      object.receiveShadow = true;
+    });
+    this.scene.add(group);
+    this.dartTraps.push({ group, portMaterial, direction: { ...direction }, range, damage, cooldown: delay, windup: 0 });
   }
 
   private createPortal(x: number, z: number): void {
@@ -988,6 +1023,7 @@ export class DarkPixGame {
     this.vignette = Math.max(0, this.vignette - delta * 1.8);
     this.updateMovement(delta);
     this.updateTraps(delta);
+    this.updateDartTraps(delta);
     this.updateEnemies(delta);
     this.updateZone(delta);
     this.updateInteraction(delta);
@@ -1092,6 +1128,87 @@ export class DarkPixGame {
       this.damageEnemy(victim, trapDamageAgainstThreat(trap.damage, victim.kind), false, false);
       this.feed(`FLOOR TRAP · ${victim.name} is impaled`, "combat");
     }
+  }
+
+  private updateDartTraps(delta: number): void {
+    for (const trap of this.dartTraps) {
+      trap.cooldown = Math.max(0, trap.cooldown - delta);
+      if (trap.windup > 0) {
+        trap.windup = Math.max(0, trap.windup - delta);
+        trap.portMaterial.emissiveIntensity = 1.2 + Math.sin(this.elapsed * 26) * 0.35;
+        if (trap.windup === 0) this.fireDartTrap(trap);
+        continue;
+      }
+      trap.portMaterial.emissiveIntensity = 0.15;
+      if (trap.cooldown > 0) continue;
+      const origin = { x: trap.group.position.x, z: trap.group.position.z };
+      const playerDistance = dartTrapTargetDistance(origin, trap.direction, trap.range, this.camera.position);
+      const enemyDistance = this.enemies.reduce((nearest, enemy) => {
+        if (!enemy.alive) return nearest;
+        return Math.min(nearest, dartTrapTargetDistance(origin, trap.direction, trap.range, enemy.group.position, enemy.kind === "boss" ? 0.72 : 0.5));
+      }, Number.POSITIVE_INFINITY);
+      if (!Number.isFinite(Math.min(playerDistance, enemyDistance))) continue;
+      trap.windup = 0.62;
+      if (Number.isFinite(playerDistance)) {
+        this.feed("WALL PORTS GLOW · leave the dart lane", "danger");
+        this.audio.tone(880, 0.08, "square", 0.07);
+      }
+    }
+  }
+
+  private fireDartTrap(trap: DartTrap): void {
+    trap.cooldown = 4.2;
+    trap.portMaterial.emissiveIntensity = 0.15;
+    const origin = { x: trap.group.position.x, z: trap.group.position.z };
+    let victim: Enemy | undefined;
+    let victimDistance = Number.POSITIVE_INFINITY;
+    for (const enemy of this.enemies) {
+      if (!enemy.alive) continue;
+      const distance = dartTrapTargetDistance(origin, trap.direction, trap.range, enemy.group.position, enemy.kind === "boss" ? 0.72 : 0.5);
+      if (distance < victimDistance) {
+        victim = enemy;
+        victimDistance = distance;
+      }
+    }
+    const playerDistance = dartTrapTargetDistance(origin, trap.direction, trap.range, this.camera.position);
+    const strikeDistance = Math.min(playerDistance, victimDistance);
+    this.spawnDartVolley(trap, Number.isFinite(strikeDistance) ? strikeDistance : trap.range);
+    if (playerDistance < victimDistance) {
+      const guardFacing = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+      const facingPort = guardFacesThreat(
+        { x: guardFacing.x, z: guardFacing.z },
+        { x: origin.x - this.camera.position.x, z: origin.z - this.camera.position.z },
+      );
+      const guarded = this.blocking && facingPort;
+      this.hurt(trap.damage * (guarded ? 0.28 : 1), "a wall dart");
+      if (guarded) this.stamina = Math.max(0, this.stamina - trap.damage * 0.5);
+      return;
+    }
+    if (!victim || !Number.isFinite(victimDistance)) return;
+    this.damageEnemy(victim, trapDamageAgainstThreat(trap.damage, victim.kind), false, false);
+    this.feed(`WALL DART · ${victim.name} is pinned`, "combat");
+  }
+
+  private spawnDartVolley(trap: DartTrap, distance: number): void {
+    const direction = new THREE.Vector3(trap.direction.x, 0, trap.direction.z).normalize();
+    const start = trap.group.position.clone().add(new THREE.Vector3(0, 1.35, 0)).add(direction.clone().multiplyScalar(0.18));
+    const dartMaterial = material(0x9f978c, 0x21120c);
+    const darts: THREE.Mesh[] = [];
+    for (const offset of [-0.22, 0, 0.22]) {
+      const dart = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, Math.max(0.2, distance)), dartMaterial);
+      dart.position.copy(start).add(new THREE.Vector3(0, offset, 0)).add(direction.clone().multiplyScalar(distance / 2));
+      dart.lookAt(start.clone().add(direction));
+      this.scene.add(dart);
+      darts.push(dart);
+    }
+    this.audio.tone(190, 0.11, "sawtooth", 0.08);
+    window.setTimeout(() => {
+      for (const dart of darts) {
+        this.scene.remove(dart);
+        dart.geometry.dispose();
+      }
+      dartMaterial.dispose();
+    }, 95);
   }
 
   private attack(): void {
@@ -1954,6 +2071,11 @@ export class DarkPixGame {
     for (const trap of this.traps) {
       trap.cooldown = 0;
       trap.active = 0;
+    }
+    for (const trap of this.dartTraps) {
+      trap.cooldown = 0;
+      trap.windup = 0;
+      trap.portMaterial.emissiveIntensity = 0.15;
     }
 
     const portalMaterial = this.portalCore.material as THREE.MeshBasicMaterial;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DUNGEON, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists } from "../src/game/dungeon";
+import { DUNGEON, dartTrapTargetDistance, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists } from "../src/game/dungeon";
 import { continuousHold, targetDistanceInView } from "../src/game/targeting";
 import { cardinalDirection, circlesOverlap } from "../src/game/navigation";
 import { distanceFromZoneCenter, zoneState } from "../src/game/zone";
@@ -29,6 +29,29 @@ describe("Crypt of the Pale Toll topology", () => {
   it("blocks sight through masonry while preserving an open-room sightline", () => {
     expect(dungeonLineOfSight(DUNGEON.playerStart, DUNGEON.campfire)).toBe(false);
     expect(dungeonLineOfSight(DUNGEON.playerStart, { x: -5, z: 12 })).toBe(true);
+  });
+
+  it("places readable wall dart lanes in open corridors", () => {
+    expect(DUNGEON.dartTraps).toHaveLength(2);
+    for (const trap of DUNGEON.dartTraps) {
+      const target = {
+        x: trap.x + trap.direction.x * (trap.range - 0.5),
+        z: trap.z + trap.direction.z * (trap.range - 0.5),
+      };
+      expect(dungeonCollides(target, 0.2)).toBe(false);
+      expect(dungeonLineOfSight({ x: trap.x, z: trap.z }, target, 0.02)).toBe(true);
+      expect(dartTrapTargetDistance(trap, trap.direction, trap.range, target)).toBeCloseTo(trap.range - 0.5);
+    }
+  });
+
+  it("rejects targets behind, beside, or beyond a wall dart lane", () => {
+    const origin = { x: 0, z: 0 };
+    const direction = { x: 1, z: 0 };
+    expect(dartTrapTargetDistance(origin, direction, 8, { x: 4, z: 0.4 })).toBe(4);
+    expect(dartTrapTargetDistance(origin, direction, 8, { x: -1, z: 0 })).toBe(Number.POSITIVE_INFINITY);
+    expect(dartTrapTargetDistance(origin, direction, 8, { x: 4, z: 0.6 })).toBe(Number.POSITIVE_INFINITY);
+    expect(dartTrapTargetDistance(origin, direction, 8, { x: 9, z: 0 })).toBe(Number.POSITIVE_INFINITY);
+    expect(dartTrapTargetDistance(origin, { x: 0, z: 0 }, 8, { x: 4, z: 0 })).toBe(Number.POSITIVE_INFINITY);
   });
 
   it("routes an alerted pursuer around masonry without crossing a collider", () => {
