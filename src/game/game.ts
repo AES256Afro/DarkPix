@@ -5,7 +5,7 @@ import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, 
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
-import { HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGoldTotal } from "./haul";
+import { HAUL_CAPACITY, RIVAL_EXTRACTION_SECONDS, advanceRivalExtraction, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, rivalShouldExtract, treasureGoldTotal } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, pickupDecision, type LoadoutStats } from "./loadout";
 import { cardinalDirection, circlesOverlap, directionalCue, movementOffset, recoveryNeed } from "./navigation";
 import { raidRules, type RaidRules } from "./raid";
@@ -49,6 +49,8 @@ interface Enemy {
   attackStyle: "melee" | "ranged";
   crippled: boolean;
   carriedLoot: Item[];
+  extractProgress: number;
+  extractAnnounced: boolean;
   rivalArchetype?: RivalArchetype;
   tollCooldown: number;
   tollWindup: number;
@@ -901,6 +903,8 @@ export class DarkPixGame {
       attackStyle: "melee",
       crippled: false,
       carriedLoot: [],
+      extractProgress: 0,
+      extractAnnounced: false,
       rivalArchetype,
       tollCooldown: Math.min(5, bossRingCooldown(this.depth, false) * 0.7),
       tollWindup: 0,
@@ -1661,6 +1665,10 @@ export class DarkPixGame {
     enemy.hp -= amount;
     enemy.alerted = true;
     enemy.stagger = 0.18;
+    if (enemy.kind === "rival") {
+      enemy.extractProgress = 0;
+      enemy.extractAnnounced = false;
+    }
     if (enemy.kind !== "boss" && enemy.windup > 0) {
       enemy.windup = 0;
       enemy.cooldown = Math.max(enemy.cooldown, 0.45);
@@ -1733,7 +1741,9 @@ export class DarkPixGame {
             ? this.depth === 2 ? "KEEPER · ASHEN" : "KEEPER · ENRAGED"
             : "KEEPER"
         : enemy.kind === "rival"
-          ? `${enemy.rivalArchetype === "marauder" ? "HOSTILE MARAUDER" : "HOSTILE SKIRMISHER"}${enemy.crippled ? " · CRIPPLED" : ""}`
+          ? enemy.extractProgress > 0
+            ? `EXTRACTING · ${Math.round((enemy.extractProgress / RIVAL_EXTRACTION_SECONDS) * 100)}%`
+            : `${enemy.rivalArchetype === "marauder" ? "HOSTILE MARAUDER" : "HOSTILE SKIRMISHER"}${enemy.crippled ? " · CRIPPLED" : ""}`
           : enemy.crippled ? "CRYPT THREAT · CRIPPLED" : "CRYPT THREAT";
     this.threatHud.dataset.kind = enemy.kind;
     this.threatHud.classList.add("visible");
@@ -1753,6 +1763,7 @@ export class DarkPixGame {
         THREE.MathUtils.lerp(enemy.group.scale.z, enemy.baseScale, delta * 7),
       );
       enemy.group.rotation.x = THREE.MathUtils.lerp(enemy.group.rotation.x, 0, delta * 8);
+      if (enemy.kind === "rival" && this.updateRivalExtraction(enemy, delta)) continue;
       const toPlayerX = player.x - enemy.group.position.x;
       const toPlayerZ = player.z - enemy.group.position.z;
       const distance = Math.hypot(toPlayerX, toPlayerZ);
@@ -1978,6 +1989,72 @@ export class DarkPixGame {
     if (movementLength <= 0.001) return true;
     enemy.group.lookAt(target.group.position.x, enemy.group.position.y, target.group.position.z);
     const stepScale = (enemy.speed * 0.72 * delta) / movementLength;
+    const nextX = enemy.group.position.x + movementX * stepScale;
+    if (!this.collidesEnemy(enemy, nextX, enemy.group.position.z)) enemy.group.position.x = nextX;
+    const nextZ = enemy.group.position.z + movementZ * stepScale;
+    if (!this.collidesEnemy(enemy, enemy.group.position.x, nextZ)) enemy.group.position.z = nextZ;
+    enemy.group.position.y = Math.sin(this.elapsed * 7 + enemy.phase) * 0.025;
+    return true;
+  }
+
+  private updateRivalExtraction(enemy: Enemy, delta: number): boolean {
+    if (!rivalShouldExtract(this.portalUnlocked, enemy.carriedLoot)) {
+      enemy.extractProgress = 0;
+      enemy.extractAnnounced = false;
+      return false;
+    }
+    const distance = Math.hypot(
+      this.portal.position.x - enemy.group.position.x,
+      this.portal.position.z - enemy.group.position.z,
+    );
+    const atPassage = distance <= 1.45 && dungeonLineOfSight(
+      { x: enemy.group.position.x, z: enemy.group.position.z },
+      { x: this.portal.position.x, z: this.portal.position.z },
+      0.12,
+    );
+    if (atPassage && enemy.stagger <= 0) {
+      enemy.path = [];
+      enemy.group.lookAt(this.portal.position.x, enemy.group.position.y, this.portal.position.z);
+      if (!enemy.extractAnnounced) {
+        enemy.extractAnnounced = true;
+        this.feed(`RIVAL OPENING PASSAGE · stop them or lose ${enemy.carriedLoot.length} stolen relic${enemy.carriedLoot.length === 1 ? "" : "s"}`, "rival");
+        this.showDirectionalCue(enemy.group.position, "RIVAL EXIT", RIVAL_EXTRACTION_SECONDS, "warning");
+        this.audio.tone(235, 0.22, "square", 0.09);
+      }
+      enemy.extractProgress = advanceRivalExtraction(enemy.extractProgress, delta, true);
+      this.showThreatVitals(enemy);
+      if (enemy.extractProgress >= RIVAL_EXTRACTION_SECONDS) {
+        const stolen = enemy.carriedLoot.length;
+        enemy.carriedLoot = [];
+        enemy.alive = false;
+        enemy.group.visible = false;
+        this.feed(`RIVAL EXTRACTED · ${stolen} stolen relic${stolen === 1 ? " is" : "s are"} gone`, "rival");
+        this.audio.portal();
+      }
+      return true;
+    }
+    enemy.extractProgress = advanceRivalExtraction(enemy.extractProgress, delta, false);
+    enemy.extractAnnounced = false;
+    if (enemy.stagger > 0) return true;
+    if (enemy.pathTimer <= 0 || enemy.path.length === 0) {
+      enemy.path = dungeonPath(
+        { x: enemy.group.position.x, z: enemy.group.position.z },
+        { x: this.portal.position.x, z: this.portal.position.z },
+        0.3,
+      );
+      enemy.pathTimer = 0.45;
+    }
+    while (enemy.path[0] && Math.hypot(
+      enemy.path[0].x - enemy.group.position.x,
+      enemy.path[0].z - enemy.group.position.z,
+    ) < 0.4) enemy.path.shift();
+    const waypoint = enemy.path[0] ?? this.portal.position;
+    const movementX = waypoint.x - enemy.group.position.x;
+    const movementZ = waypoint.z - enemy.group.position.z;
+    const movementLength = Math.hypot(movementX, movementZ);
+    if (movementLength <= 0.001) return true;
+    enemy.group.lookAt(waypoint.x, enemy.group.position.y, waypoint.z);
+    const stepScale = (enemy.speed * 0.92 * delta) / movementLength;
     const nextX = enemy.group.position.x + movementX * stepScale;
     if (!this.collidesEnemy(enemy, nextX, enemy.group.position.z)) enemy.group.position.x = nextX;
     const nextZ = enemy.group.position.z + movementZ * stepScale;

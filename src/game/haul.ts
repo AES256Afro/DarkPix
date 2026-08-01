@@ -2,6 +2,7 @@ import type { Item } from "./types";
 
 export const HAUL_CAPACITY = 8;
 export const RIVAL_HAUL_CAPACITY = 2;
+export const RIVAL_EXTRACTION_SECONDS = 1.6;
 
 export function haulCount(items: readonly Item[]): number {
   return items.reduce((count, item) => count + (item.kind === "sigil" ? 0 : 1), 0);
@@ -15,6 +16,17 @@ export function canAddToHaul(items: readonly Item[], item: Item, capacity = HAUL
 
 export function canRivalScavenge(items: readonly Item[], item: Item): boolean {
   return item.kind !== "sigil" && items.length < RIVAL_HAUL_CAPACITY;
+}
+
+export function rivalShouldExtract(portalUnlocked: boolean, items: readonly Item[]): boolean {
+  return portalUnlocked && items.some((item) => item.kind !== "sigil");
+}
+
+export function advanceRivalExtraction(current: number, delta: number, channeling: boolean): number {
+  if (!channeling) return 0;
+  const safeCurrent = Number.isFinite(current) ? Math.max(0, current) : 0;
+  const safeDelta = Number.isFinite(delta) ? Math.max(0, delta) : 0;
+  return Math.min(RIVAL_EXTRACTION_SECONDS, safeCurrent + safeDelta);
 }
 
 export function treasureGold(item: Item): number {
