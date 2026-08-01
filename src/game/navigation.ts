@@ -59,7 +59,7 @@ export function movementOffset(yaw: number, strafe: number, forward: number, dis
   };
 }
 
-export type RecoveryNeed = "MEMORY" | "VIGOR" | "STAMINA" | undefined;
+export type RecoveryNeed = "MEMORY" | "VIGOR" | "STAMINA" | "TORCH" | undefined;
 
 export function recoveryNeed(
   health: number,
@@ -68,9 +68,11 @@ export function recoveryNeed(
   maximumStamina: number,
   spellCharges: number,
   usesSpellMemory: boolean,
+  torchFuel = Number.POSITIVE_INFINITY,
 ): RecoveryNeed {
   if (usesSpellMemory && Number.isFinite(spellCharges) && spellCharges <= 0) return "MEMORY";
   if (Number.isFinite(health) && Number.isFinite(maximumHealth) && maximumHealth > 0 && health / maximumHealth <= 0.32) return "VIGOR";
   if (Number.isFinite(stamina) && Number.isFinite(maximumStamina) && maximumStamina > 0 && stamina / maximumStamina <= 0.12) return "STAMINA";
+  if (Number.isFinite(torchFuel) && torchFuel <= 20) return "TORCH";
   return undefined;
 }

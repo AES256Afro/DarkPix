@@ -191,6 +191,8 @@ describe("contract wayfinding", () => {
     expect(recoveryNeed(100, 100, 100, 100, 0, true)).toBe("MEMORY");
     expect(recoveryNeed(32, 100, 100, 100, 6, false)).toBe("VIGOR");
     expect(recoveryNeed(100, 100, 12, 100, 6, false)).toBe("STAMINA");
+    expect(recoveryNeed(100, 100, 100, 100, 6, false, 20)).toBe("TORCH");
+    expect(recoveryNeed(100, 100, 100, 100, 6, false, 21)).toBeUndefined();
     expect(recoveryNeed(33, 100, 13, 100, 6, false)).toBeUndefined();
     expect(recoveryNeed(Number.NaN, 100, 100, 100, 6, false)).toBeUndefined();
     expect(recoveryNeed(10, 0, 10, 0, 6, false)).toBeUndefined();

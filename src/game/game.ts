@@ -3036,6 +3036,7 @@ export class DarkPixGame {
       this.definition.maxStamina,
       this.spellCharges,
       this.options.classId === "hexbound",
+      this.torchFuel,
     );
     if (looseSigil) {
       target = looseSigil.group.position;
