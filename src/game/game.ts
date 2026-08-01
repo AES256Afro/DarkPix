@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
-import { attackDamage, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat, type ThreatKind } from "./combat";
+import { attackDamage, classAbilityDamageMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat, type ThreatKind } from "./combat";
 import { CLASSES, CLASS_ABILITIES, RARITY_COLOR, classPerkBonuses, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, type ClassPerkBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { depthRules } from "./depth";
@@ -212,6 +212,7 @@ export class DarkPixGame {
   private torchLit = true;
   private abilityCooldown = 0;
   private concealmentTimer = 0;
+  private rageTimer = 0;
   private renderScale = 0;
   private frameTimeTotal = 0;
   private frameSamples = 0;
@@ -278,7 +279,7 @@ export class DarkPixGame {
           <div class="extract-meter"><i></i></div>
           <div class="hud-bottom">
             <section class="vitals">
-              <div class="portrait-rune">${this.options.classId === "vanguard" ? "V" : this.options.classId === "cutpurse" ? "C" : "H"}</div>
+              <div class="portrait-rune">${this.options.classId === "vanguard" ? "V" : this.options.classId === "cutpurse" ? "C" : this.options.classId === "hexbound" ? "H" : "R"}</div>
               <div class="bars">
                 <div class="bar health"><i></i><span>VIGOR</span></div>
                 <div class="bar stamina"><i></i><span>STAMINA</span></div>
@@ -552,6 +553,16 @@ export class DarkPixGame {
       rune.position.z = 0.07;
       book.add(rune);
       this.weapon.add(book);
+    } else if (this.options.classId === "reaver") {
+      const haft = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.42, 0.1), material(0x68452e));
+      haft.position.y = 0.3;
+      const axeHead = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.34, 0.14), material(0x817b71));
+      axeHead.position.set(-0.16, 0.96, 0);
+      axeHead.rotation.z = -0.16;
+      const axeEdge = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.42, 4), material(0xaaa398));
+      axeEdge.position.set(-0.48, 0.96, 0);
+      axeEdge.rotation.z = Math.PI / 2;
+      this.weapon.add(haft, axeHead, axeEdge);
     } else {
       const blade = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.05, 0.08), material(this.options.classId === "cutpurse" ? 0x918a7d : 0xb2afa6));
       blade.position.y = 0.38;
@@ -880,6 +891,7 @@ export class DarkPixGame {
     this.attackCooldown = Math.max(0, this.attackCooldown - delta);
     this.abilityCooldown = Math.max(0, this.abilityCooldown - delta);
     this.concealmentTimer = Math.max(0, this.concealmentTimer - delta);
+    this.rageTimer = Math.max(0, this.rageTimer - delta);
     this.swingClock = Math.max(0, this.swingClock - delta);
     this.damageCooldown = Math.max(0, this.damageCooldown - delta);
     this.messageTimer = Math.max(0, this.messageTimer - delta);
@@ -1038,7 +1050,11 @@ export class DarkPixGame {
       headshot,
       limb: limbHit,
     });
-    const damage = Math.round(baseDamage * (best.kind === "rival" ? 1 : this.loadoutBonuses.undeadDamageMultiplier));
+    const damage = Math.round(
+      baseDamage
+      * (best.kind === "rival" ? 1 : this.loadoutBonuses.undeadDamageMultiplier)
+      * classAbilityDamageMultiplier(this.options.classId, this.rageTimer),
+    );
     this.damageEnemy(best, damage, headshot, limbHit);
     if (this.options.classId === "hexbound") this.spawnSpellTrail(cameraPosition, forward, bestDistance);
     this.mouseAccumulator.x = 0;
@@ -1342,7 +1358,7 @@ export class DarkPixGame {
         enemy.path = [];
       }
       this.feed("SMOKE STEP · distant pursuit loses your trail", "system");
-    } else {
+    } else if (this.options.classId === "hexbound") {
       if (this.spellCharges >= this.maxSpellCharges) {
         this.feed("Spell memory is already full.", "system");
         return;
@@ -1356,6 +1372,16 @@ export class DarkPixGame {
       this.vignette = Math.max(this.vignette, 0.48);
       this.spellCharges = Math.min(this.maxSpellCharges, this.spellCharges + 2);
       this.feed("BLOOD MEMORY · two ash charges return", "danger");
+    } else {
+      if (this.health <= 12) {
+        this.feed("Blood rage demands more vigor than remains.", "danger");
+        return;
+      }
+      this.health -= 12;
+      this.interactionHold = 0;
+      this.vignette = Math.max(this.vignette, 0.65);
+      this.rageTimer = 6;
+      this.feed("BLOOD RAGE · strike damage surges for 6s", "danger");
     }
     this.abilityCooldown = ability.cooldown;
     this.audio.portal();
@@ -1709,7 +1735,9 @@ export class DarkPixGame {
       ? this.depth === 2 ? "ASHEN PASSAGE OPEN" : "BLUE PASSAGE OPEN"
       : `${this.depth === 2 ? "ASHEN" : "WARDEN"} SIGILS ${this.sigils} / 2`;
     const ability = CLASS_ABILITIES[this.options.classId];
-    this.abilityHud.textContent = this.abilityCooldown > 0 ? `${ability.name} · ${Math.ceil(this.abilityCooldown)}s` : ability.name;
+    this.abilityHud.textContent = this.rageTimer > 0
+      ? `${ability.name} · ${Math.ceil(this.rageTimer)}s RAGING`
+      : this.abilityCooldown > 0 ? `${ability.name} · ${Math.ceil(this.abilityCooldown)}s` : ability.name;
     this.updateWayfinder();
     this.directionHud.textContent = this.attackDirection;
     this.directionHud.classList.toggle("active", this.mouseAccumulator.x !== 0 || this.mouseAccumulator.y !== 0);

@@ -26,9 +26,9 @@ const STARTER_STASH: Item[] = [
 
 export function createProfile(): Profile {
   return {
-    version: 3,
+    version: 4,
     gold: 75,
-    xp: { vanguard: 0, cutpurse: 0, hexbound: 0 },
+    xp: { vanguard: 0, cutpurse: 0, hexbound: 0, reaver: 0 },
     stash: STARTER_STASH.map((item) => ({ ...item })),
     extracts: 0,
     deaths: 0,
@@ -39,7 +39,7 @@ export function createProfile(): Profile {
 }
 
 function validClass(value: unknown): value is ClassId {
-  return value === "vanguard" || value === "cutpurse" || value === "hexbound";
+  return value === "vanguard" || value === "cutpurse" || value === "hexbound" || value === "reaver";
 }
 
 function nonnegativeInteger(value: unknown): number {
@@ -77,12 +77,13 @@ export function normalizeProfile(value: unknown): Profile {
     }
   }
   return {
-    version: 3,
+    version: 4,
     gold: nonnegativeInteger(candidate.gold),
     xp: {
       vanguard: nonnegativeInteger(xp.vanguard),
       cutpurse: nonnegativeInteger(xp.cutpurse),
       hexbound: nonnegativeInteger(xp.hexbound),
+      reaver: nonnegativeInteger(xp.reaver),
     },
     stash: Array.isArray(candidate.stash) ? stash : fallback.stash,
     extracts: nonnegativeInteger(candidate.extracts),

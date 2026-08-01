@@ -82,6 +82,21 @@ export const CLASSES: Record<ClassId, ClassDefinition> = {
     ability: "Ash bolt: ranged magic. Right mouse raises a weak ward.",
     weapon: "Cinderbound spellbook",
   },
+  reaver: {
+    id: "reaver",
+    name: "Reaver",
+    title: "The Red Oath",
+    summary: "A slow executioner who turns personal wounds into a brief, crushing damage window.",
+    maxHealth: 148,
+    maxStamina: 100,
+    speed: 4.1,
+    damage: 35,
+    reach: 2.85,
+    attackDelay: 0.94,
+    accent: "#b45a4d",
+    ability: "Blood Rage: trade vigor for six seconds of amplified strikes.",
+    weapon: "Notched headsman's axe",
+  },
 };
 
 export const CLASS_PERKS: Record<ClassId, ClassPerk[]> = {
@@ -99,6 +114,11 @@ export const CLASS_PERKS: Record<ClassId, ClassPerk[]> = {
     { level: 2, name: "Expanded Memory", description: "+1 ash-bolt charge." },
     { level: 4, name: "Ash Covenant", description: "+4 spell damage." },
     { level: 6, name: "Scarred Vessel", description: "+8 maximum vigor." },
+  ],
+  reaver: [
+    { level: 2, name: "Red Guard", description: "Guard upkeep costs 10% less stamina." },
+    { level: 4, name: "Headsman's Rhythm", description: "+4 strike damage." },
+    { level: 6, name: "Carrion Heart", description: "+8 maximum vigor." },
   ],
 };
 
@@ -118,14 +138,19 @@ export const CLASS_ABILITIES: Record<ClassId, ClassAbilityDefinition> = {
     cooldown: 38,
     description: "Trade 12 vigor for two ash-bolt charges.",
   },
+  reaver: {
+    name: "Blood rage",
+    cooldown: 44,
+    description: "Trade 12 vigor for six seconds of 25% amplified strike damage.",
+  },
 };
 
 export function classPerkBonuses(classId: ClassId, level: number): ClassPerkBonuses {
   const safeLevel = Math.max(1, Math.floor(level));
   return {
     health: safeLevel >= 6 && classId !== "vanguard" ? 8 : safeLevel >= 4 && classId === "vanguard" ? 8 : 0,
-    damage: safeLevel >= 4 && classId === "cutpurse" ? 3 : safeLevel >= 4 && classId === "hexbound" ? 4 : safeLevel >= 6 && classId === "vanguard" ? 3 : 0,
-    guardUpkeepMultiplier: safeLevel >= 2 && classId === "vanguard" ? 0.8 : 1,
+    damage: safeLevel >= 4 && classId === "cutpurse" ? 3 : safeLevel >= 4 && (classId === "hexbound" || classId === "reaver") ? 4 : safeLevel >= 6 && classId === "vanguard" ? 3 : 0,
+    guardUpkeepMultiplier: safeLevel >= 2 && classId === "vanguard" ? 0.8 : safeLevel >= 2 && classId === "reaver" ? 0.9 : 1,
     sprintCostMultiplier: safeLevel >= 2 && classId === "cutpurse" ? 0.8 : 1,
     spellCharges: safeLevel >= 2 && classId === "hexbound" ? 1 : 0,
   };

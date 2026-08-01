@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CLASS_ABILITIES, CRAFTING_RECIPES, MERCHANT_OFFERS, classPerkBonuses, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll } from "../src/game/data";
 import { applyRaidResult, craftItem, createProfile, normalizeProfile, purchaseItem, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
-import { attackDamage, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat } from "../src/game/combat";
+import { attackDamage, classAbilityDamageMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat } from "../src/game/combat";
 
 describe("loot generation", () => {
   it("maps rarity thresholds deterministically", () => {
@@ -80,7 +80,8 @@ describe("persistent raid consequences", () => {
     expect(result.stash).toEqual([]);
     expect(result.extracts).toBe(0);
     expect(result.highTollExtracts).toBe(0);
-    expect(result.version).toBe(3);
+    expect(result.version).toBe(4);
+    expect(result.xp.reaver).toBe(0);
     expect(result.preferredClass).toBe("vanguard");
   });
 
@@ -325,6 +326,14 @@ describe("directional combat damage", () => {
     expect(guardDrainPerSecond("vanguard")).toBe(7);
     expect(guardDrainPerSecond("cutpurse")).toBe(11);
     expect(guardDrainPerSecond("hexbound")).toBe(14);
+    expect(guardDrainPerSecond("reaver")).toBe(11);
+  });
+
+  it("bounds Blood Rage to the Reaver's active damage window", () => {
+    expect(classAbilityDamageMultiplier("reaver", 6)).toBe(1.25);
+    expect(classAbilityDamageMultiplier("reaver", 0)).toBe(1);
+    expect(classAbilityDamageMultiplier("reaver", Number.NaN)).toBe(1);
+    expect(classAbilityDamageMultiplier("vanguard", 6)).toBe(1);
   });
 
   it("blocks only threats inside the forward guard cone", () => {
@@ -362,10 +371,11 @@ describe("class perk milestones", () => {
     expect(classPerkBonuses("vanguard", 2).guardUpkeepMultiplier).toBe(0.8);
     expect(classPerkBonuses("cutpurse", 4)).toMatchObject({ damage: 3, sprintCostMultiplier: 0.8 });
     expect(classPerkBonuses("hexbound", 6)).toMatchObject({ health: 8, damage: 4, spellCharges: 1 });
+    expect(classPerkBonuses("reaver", 6)).toMatchObject({ health: 8, damage: 4, guardUpkeepMultiplier: 0.9 });
   });
 
   it("gives every class a bounded active-skill cooldown", () => {
-    expect(Object.keys(CLASS_ABILITIES).sort()).toEqual(["cutpurse", "hexbound", "vanguard"]);
+    expect(Object.keys(CLASS_ABILITIES).sort()).toEqual(["cutpurse", "hexbound", "reaver", "vanguard"]);
     for (const ability of Object.values(CLASS_ABILITIES)) {
       expect(ability.name.length).toBeGreaterThan(0);
       expect(ability.cooldown).toBeGreaterThanOrEqual(30);

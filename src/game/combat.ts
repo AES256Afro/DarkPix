@@ -53,6 +53,10 @@ export function guardDrainPerSecond(classId: ClassId): number {
   return 11;
 }
 
+export function classAbilityDamageMultiplier(classId: ClassId, activeSeconds: number): number {
+  return classId === "reaver" && Number.isFinite(activeSeconds) && activeSeconds > 0 ? 1.25 : 1;
+}
+
 export function healthPercent(current: number, maximum: number): number {
   if (!Number.isFinite(current) || !Number.isFinite(maximum) || maximum <= 0) return 0;
   return Math.min(100, Math.max(0, (current / maximum) * 100));
