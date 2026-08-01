@@ -590,7 +590,7 @@ async function startRaid(): Promise<void> {
     renderLobby();
     return;
   }
-  app.innerHTML = `<main class="game-mount" aria-label="DarkPix dungeon raid"><div class="crypt-loading" role="status"><span>DP</span><strong>OPENING THE ${rules.name.toUpperCase()}</strong><small>Kindling the dungeon renderer</small></div></main>`;
+  app.innerHTML = `<main class="game-mount" aria-label="DarkPix dungeon raid"><div class="crypt-loading ${preferences.reducedMotion ? "reduced-motion" : ""}" role="status"><span>DP</span><strong>OPENING THE ${rules.name.toUpperCase()}</strong><small>Kindling the dungeon renderer</small></div></main>`;
   const mount = app.querySelector<HTMLElement>(".game-mount");
   if (!mount) {
     if (!refundFailedRaidStart(goldBeforeEntry)) persistenceWarning = "The failed raid entry could not be refunded yet. Its escrow remains for recovery.";

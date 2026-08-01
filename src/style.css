@@ -253,6 +253,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .game-mount { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
 .crypt-loading, .runtime-error { display: grid; width: 100%; height: 100%; place-content: center; place-items: center; background: radial-gradient(circle, #17110d, #050505 58%); color: #d8cdbd; text-align: center; }
 .crypt-loading span { display: grid; width: 64px; height: 64px; margin-bottom: 24px; place-items: center; border: 1px solid #7c593c; color: #d49558; font: 18px Georgia, serif; transform: rotate(45deg); animation: loading-rune 1.4s ease-in-out infinite alternate; }
+.crypt-loading.reduced-motion span { animation: none; }
 .crypt-loading strong { font: 22px Georgia, serif; letter-spacing: .12em; }
 .crypt-loading small { margin-top: 9px; color: #72695e; font: 8px ui-monospace, monospace; letter-spacing: .15em; text-transform: uppercase; }
 @keyframes loading-rune { to { border-color: #b57a47; box-shadow: 0 0 30px rgba(181,122,71,.3); filter: brightness(1.3); } }

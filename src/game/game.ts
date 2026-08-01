@@ -1942,7 +1942,7 @@ export class DarkPixGame {
           if (!this.collidesEnemy(enemy, strafeX, enemy.group.position.z)) enemy.group.position.x = strafeX;
           if (!this.collidesEnemy(enemy, enemy.group.position.x, strafeZ)) enemy.group.position.z = strafeZ;
         }
-        enemy.group.position.y = Math.sin(this.elapsed * 7 + enemy.phase) * 0.025;
+        enemy.group.position.y = this.enemyStepHeight(enemy);
         continue;
       }
       if (keeperTactic === "chain" && enemy.cooldown <= 0 && enemy.stagger <= 0) {
@@ -1983,7 +1983,7 @@ export class DarkPixGame {
         if (!this.collidesEnemy(enemy, nextX, enemy.group.position.z)) enemy.group.position.x = nextX;
         const nextZ = enemy.group.position.z + movementZ * stepScale;
         if (!this.collidesEnemy(enemy, enemy.group.position.x, nextZ)) enemy.group.position.z = nextZ;
-        enemy.group.position.y = Math.sin(this.elapsed * 7 + enemy.phase) * 0.025;
+        enemy.group.position.y = this.enemyStepHeight(enemy);
       } else if (enemy.cooldown <= 0 && enemy.stagger <= 0) {
         if (enemy.kind === "rival") {
           if (tactic !== "throw" && tactic !== "melee") continue;
@@ -2064,7 +2064,7 @@ export class DarkPixGame {
     if (!this.collidesEnemy(enemy, nextX, enemy.group.position.z)) enemy.group.position.x = nextX;
     const nextZ = enemy.group.position.z + movementZ * stepScale;
     if (!this.collidesEnemy(enemy, enemy.group.position.x, nextZ)) enemy.group.position.z = nextZ;
-    enemy.group.position.y = Math.sin(this.elapsed * 7 + enemy.phase) * 0.025;
+    enemy.group.position.y = this.enemyStepHeight(enemy);
     return true;
   }
 
@@ -2097,7 +2097,7 @@ export class DarkPixGame {
       if (!this.collidesEnemy(rival, nextX, rival.group.position.z)) rival.group.position.x = nextX;
       const nextZ = rival.group.position.z + movementZ * stepScale;
       if (!this.collidesEnemy(rival, rival.group.position.x, nextZ)) rival.group.position.z = nextZ;
-      rival.group.position.y = Math.sin(this.elapsed * 7 + rival.phase) * 0.025;
+      rival.group.position.y = this.enemyStepHeight(rival);
       return true;
     }
     if (tactic !== "clash") return false;
@@ -2179,7 +2179,7 @@ export class DarkPixGame {
     if (!this.collidesEnemy(enemy, nextX, enemy.group.position.z)) enemy.group.position.x = nextX;
     const nextZ = enemy.group.position.z + movementZ * stepScale;
     if (!this.collidesEnemy(enemy, enemy.group.position.x, nextZ)) enemy.group.position.z = nextZ;
-    enemy.group.position.y = Math.sin(this.elapsed * 7 + enemy.phase) * 0.025;
+    enemy.group.position.y = this.enemyStepHeight(enemy);
     return true;
   }
 
@@ -2196,6 +2196,10 @@ export class DarkPixGame {
         other.kind === "boss" ? 0.44 : 0.3,
       ),
     );
+  }
+
+  private enemyStepHeight(enemy: Enemy): number {
+    return this.options.preferences.reducedMotion ? 0 : Math.sin(this.elapsed * 7 + enemy.phase) * 0.025;
   }
 
   private hurt(amount: number, source: string, physical = true, sourcePosition?: Vec2): void {
@@ -2935,29 +2939,33 @@ export class DarkPixGame {
   }
 
   private animateWorld(delta: number): void {
+    const reducedMotion = this.options.preferences.reducedMotion;
+    const reducedFlashes = this.options.preferences.reducedFlashes;
     this.scene.traverse((object) => {
       if (object.userData.torchLight) {
         const light = object as THREE.PointLight;
-        light.intensity = 1.55 + Math.sin(this.elapsed * 13 + Number(object.userData.phase)) * 0.28;
+        light.intensity = reducedFlashes ? 1.55 : 1.55 + Math.sin(this.elapsed * 13 + Number(object.userData.phase)) * 0.28;
       }
       if (object.userData.flamePhase !== undefined) {
-        object.scale.y = 0.92 + Math.sin(this.elapsed * 17 + Number(object.userData.flamePhase)) * 0.17;
+        object.scale.y = reducedMotion ? 1 : 0.92 + Math.sin(this.elapsed * 17 + Number(object.userData.flamePhase)) * 0.17;
       }
     });
     this.pickups.forEach((pickup) => {
       if (pickup.collected) return;
-      pickup.group.rotation.y += delta * 1.5;
-      pickup.group.position.y = 0.54 + Math.sin(this.elapsed * 2.5 + pickup.phase) * 0.08;
+      if (!reducedMotion) pickup.group.rotation.y += delta * 1.5;
+      pickup.group.position.y = reducedMotion ? 0.54 : 0.54 + Math.sin(this.elapsed * 2.5 + pickup.phase) * 0.08;
     });
-    this.portal.rotation.z += delta * (this.portalUnlocked ? 0.24 : 0.035);
-    this.redDepthRing.rotation.z -= delta * 0.65;
+    if (!reducedMotion) {
+      this.portal.rotation.z += delta * (this.portalUnlocked ? 0.24 : 0.035);
+      this.redDepthRing.rotation.z -= delta * 0.65;
+    }
     if (this.depth === 1 && this.bossKilled) {
-      (this.redDepthRing.material as THREE.MeshBasicMaterial).opacity = 0.52 + Math.sin(this.elapsed * 4.2) * 0.18;
+      (this.redDepthRing.material as THREE.MeshBasicMaterial).opacity = reducedMotion || reducedFlashes ? 0.6 : 0.52 + Math.sin(this.elapsed * 4.2) * 0.18;
     }
     if (this.portalUnlocked) {
       const portalMaterial = this.portalCore.material as THREE.MeshBasicMaterial;
-      portalMaterial.opacity = 0.58 + Math.sin(this.elapsed * 3.5) * 0.14;
-      this.portal.scale.setScalar(1 + Math.sin(this.elapsed * 2.1) * 0.025);
+      portalMaterial.opacity = reducedMotion || reducedFlashes ? 0.66 : 0.58 + Math.sin(this.elapsed * 3.5) * 0.14;
+      this.portal.scale.setScalar(reducedMotion ? 1 : 1 + Math.sin(this.elapsed * 2.1) * 0.025);
     }
     const swingProgress = this.swingClock > 0 ? 1 - this.swingClock / this.swingDuration : 0;
     if (this.swingClock > 0) {
