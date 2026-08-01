@@ -31,7 +31,7 @@ Status: Complete for local-first play
 - Consumed packed items remain consumed after extraction or failure
 - Treasure coin credit is derived from current haul contents instead of a separate mutable raid counter
 - Boss victories, Ashen depth, and their rewards require a typed boss kill within the bounded total-kill ledger
-- Malformed runtime class, mode, outcome, or inventory identity fails closed to the saved class, Standard abandonment, and empty transferable loot
+- Malformed runtime class, mode, outcome, or inventory identity fails closed to the saved class, Standard abandonment, and a validated haul bounded to the eight-item raid capacity
 - Pre-raid and verdict value ledgers derive loadout risk, fees, Iron Soul XP exposure, and net wealth change from actual contract state
 - Verdicts itemize the bounded per-threat kill evidence used by bestiary, commission, and boss settlement
 - Version 13 migrates older profiles into a bounded single-day commission claim without changing prior progress

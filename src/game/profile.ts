@@ -2,7 +2,7 @@ import type { ClassId, Item, Profile, RaidJournalEntry, RaidResult, ThreatKind }
 import { craftingRecipeUnlocked, type CraftingRecipe } from "./data";
 import { raidRules } from "./raid";
 import { depthXpBonus } from "./depth";
-import { treasureGoldTotal } from "./haul";
+import { HAUL_CAPACITY, treasureGoldTotal } from "./haul";
 import { merchantCommission, validUtcDayKey } from "./commission";
 import { validRaidVariationSeed } from "./contract";
 
@@ -11,6 +11,8 @@ const RAID_ESCROW_KEY = "darkpix-active-raid-v1";
 export const MAX_GOLD = 9_999_999;
 export const MAX_ITEM_POWER = 100;
 export const MAX_ITEM_VALUE = 99_999;
+export const MAX_RAID_SIGILS = 4;
+export const MAX_RAID_LOOT_ITEMS = HAUL_CAPACITY + MAX_RAID_SIGILS;
 const MAX_CLASS_XP = 99_999_999;
 const MAX_OUTCOME_COUNT = 9_999_999;
 export const RAID_HISTORY_LIMIT = 10;
@@ -249,6 +251,50 @@ export function raidThreatKillLedger(result: Pick<RaidResult, "kills" | "killsBy
   return { total, byKind: boundedThreatKills(total, result.killsByKind) };
 }
 
+export function normalizeRaidResult(profile: Profile, value: unknown): RaidResult {
+  const next = normalizeProfile(profile);
+  const candidate = value && typeof value === "object" ? value as Partial<RaidResult> : {};
+  const loot: Item[] = [];
+  let ordinaryLoot = 0;
+  let sigils = 0;
+  if (Array.isArray(candidate.loot)) {
+    for (const claim of candidate.loot.slice(0, MAX_RAID_LOOT_ITEMS)) {
+      const item = normalizeItem(claim);
+      if (!item) continue;
+      if (item.kind === "sigil") {
+        if (sigils >= MAX_RAID_SIGILS) continue;
+        sigils += 1;
+      } else {
+        if (ordinaryLoot >= HAUL_CAPACITY) continue;
+        ordinaryLoot += 1;
+      }
+      loot.push(item);
+    }
+  }
+  const kills = Math.min(1_000, nonnegativeInteger(candidate.kills));
+  const killsByKind = boundedThreatKills(kills, candidate.killsByKind);
+  const bossKilled = candidate.bossKilled === true && killsByKind.boss > 0;
+  const finishedAt = Number.isFinite(candidate.finishedAt) && Number(candidate.finishedAt) > 0
+    ? nonnegativeInteger(candidate.finishedAt)
+    : undefined;
+  return {
+    reason: validRaidReason(candidate.reason) ? candidate.reason : "abandoned",
+    raidMode: validRaidMode(candidate.raidMode) ? candidate.raidMode : "standard",
+    depthReached: candidate.depthReached === 2 && bossKilled ? 2 : 1,
+    classId: validClass(candidate.classId) ? candidate.classId : next.preferredClass,
+    loot,
+    equippedIds: boundedItemIds(candidate.equippedIds),
+    consumedIds: boundedItemIds(candidate.consumedIds, 24),
+    kills,
+    killsByKind,
+    elapsed: nonnegativeInteger(candidate.elapsed, 86_400),
+    goldFound: treasureGoldTotal(loot),
+    bossKilled,
+    ...(finishedAt === undefined ? {} : { finishedAt }),
+    ...(validRaidVariationSeed(candidate.variationSeed) ? { variationSeed: candidate.variationSeed } : {}),
+  };
+}
+
 export function loadProfile(): Profile {
   try {
     return normalizeProfile(JSON.parse(localStorage.getItem(PROFILE_KEY) ?? "null"));
@@ -432,15 +478,7 @@ export function raidXpBreakdown(result: RaidResult): RaidXpBreakdown {
 
 export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement {
   const next = normalizeProfile(profile);
-  result = {
-    ...result,
-    classId: validClass(result.classId) ? result.classId : next.preferredClass,
-    raidMode: validRaidMode(result.raidMode) ? result.raidMode : "standard",
-    reason: validRaidReason(result.reason) ? result.reason : "abandoned",
-    loot: Array.isArray(result.loot) ? result.loot : [],
-    equippedIds: Array.isArray(result.equippedIds) ? result.equippedIds : [],
-    consumedIds: Array.isArray(result.consumedIds) ? result.consumedIds : [],
-  };
+  result = normalizeRaidResult(next, result);
   const rules = raidRules(result.raidMode);
   const risked = new Set(boundedItemIds(result.equippedIds));
   const consumed = new Set(boundedItemIds(result.consumedIds, 24).filter((id) => risked.has(id)).slice(0, 2));

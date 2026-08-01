@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
-import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, raidThreatKillLedger, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
+import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, MAX_RAID_LOOT_ITEMS, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, normalizeRaidResult, purchaseItem, raidThreatKillLedger, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, firstRunPreferences, normalizePreferences } from "../src/game/preferences";
 import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, guardBreakDuration, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat } from "../src/game/combat";
 import type { RaidResult } from "../src/game/types";
@@ -203,6 +203,47 @@ describe("persistent raid consequences", () => {
     expect(malformed.profile.raidHistory[0]).toMatchObject({ classId: "cleric", raidMode: "standard", reason: "abandoned" });
     expect(malformed.banked).toEqual([]);
     expect(malformed.lost).toEqual([]);
+  });
+
+  it("bounds and normalizes a runtime loot ledger before settlement or display", () => {
+    const profile = createProfile();
+    const claims = Array.from({ length: MAX_RAID_LOOT_ITEMS + 2_000 }, (_, index) => ({
+      id: `claim-${index}`,
+      name: `Recovered claim ${index}`,
+      kind: "weapon" as const,
+      rarity: "Common" as const,
+      power: 4,
+      value: 10,
+    }));
+    const verdict = normalizeRaidResult(profile, {
+      reason: "extracted",
+      raidMode: "standard",
+      depthReached: 2,
+      classId: "vanguard",
+      loot: claims,
+      equippedIds: [],
+      kills: 0,
+      elapsed: Number.POSITIVE_INFINITY,
+      goldFound: MAX_GOLD,
+      bossKilled: true,
+    });
+    expect(verdict.loot).toHaveLength(8);
+    expect(verdict.loot.at(-1)?.id).toBe("claim-7");
+    expect(verdict.depthReached).toBe(1);
+    expect(verdict.elapsed).toBe(0);
+    expect(verdict.goldFound).toBe(0);
+    const settlement = settleRaid(profile, verdict);
+    expect(settlement.banked).toHaveLength(8);
+    expect(settlement.overflow).toEqual([]);
+
+    const deepestValidHaul = normalizeRaidResult(profile, {
+      ...verdict,
+      loot: [
+        ...claims.slice(0, 8),
+        ...Array.from({ length: 4 }, (_, index) => ({ ...claims[0]!, id: `sigil-${index}`, name: "Warden sigil", kind: "sigil" as const })),
+      ],
+    });
+    expect(deepestValidHaul.loot).toHaveLength(MAX_RAID_LOOT_ITEMS);
   });
 
   it("banks unsecured loot and gold only after extraction", () => {

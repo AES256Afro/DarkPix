@@ -8,7 +8,7 @@ import { itemValueTotal, raidValueSummary } from "./game/economy";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { persistBeforeClearingEscrow } from "./game/persistence";
-import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfile, loadRaidEscrow, purchaseItem, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
+import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfile, loadRaidEscrow, normalizeRaidResult, purchaseItem, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
 import { rarityMark } from "./game/rarity";
 import type { DarkPixGame } from "./game/game";
@@ -625,6 +625,7 @@ async function startRaid(): Promise<void> {
 function finishRaid(result: RaidResult): void {
   activeGame?.destroy();
   activeGame = undefined;
+  result = normalizeRaidResult(profile, result);
   const extracted = result.reason === "extracted";
   const rules = raidRules(result.raidMode);
   const riskedIds = new Set(result.equippedIds);
