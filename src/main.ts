@@ -68,7 +68,7 @@ function renderLobby(): void {
           <div class="rule-line"><i></i><strong>DEATH TAKES WHAT YOU CARRY</strong><i></i></div>
           <button class="descend-button" type="button">
             <span>DESCEND INTO THE PALE TOLL</span>
-            <small>Solo contract · 7 threats · 2 sigils</small>
+            <small>Solo contract · 8 threats · 2 sigils · 1 keeper</small>
           </button>
           <p class="raid-warning">Equipped items are lost on death. Class experience always persists.</p>
         </div>

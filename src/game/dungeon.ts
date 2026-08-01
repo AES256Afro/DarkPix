@@ -10,7 +10,7 @@ export interface ChestSpec extends Vec2 {
 }
 
 export interface EnemySpec extends Vec2 {
-  kind: "skeleton" | "crawler" | "warden" | "rival";
+  kind: "skeleton" | "crawler" | "warden" | "rival" | "boss";
 }
 
 export interface TorchSpec extends Vec2 {
@@ -85,7 +85,8 @@ export const DUNGEON = {
     { kind: "warden", x: 15, z: 2 },
     { kind: "skeleton", x: 4, z: -11 },
     { kind: "crawler", x: -4, z: -17 },
-    { kind: "rival", x: 14, z: -12 },
+    { kind: "rival", x: 14, z: -9 },
+    { kind: "boss", x: 16, z: -14 },
   ] satisfies EnemySpec[],
 } as const;
 

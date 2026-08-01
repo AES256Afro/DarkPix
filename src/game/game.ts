@@ -18,7 +18,7 @@ interface WallCollider {
 interface Enemy {
   id: number;
   group: THREE.Group;
-  kind: "skeleton" | "crawler" | "warden" | "rival";
+  kind: "skeleton" | "crawler" | "warden" | "rival" | "boss";
   name: string;
   hp: number;
   maxHp: number;
@@ -30,6 +30,7 @@ interface Enemy {
   alerted: boolean;
   alive: boolean;
   phase: number;
+  baseScale: number;
 }
 
 interface Pickup {
@@ -495,8 +496,9 @@ export class DarkPixGame {
     const isCrawler = kind === "crawler";
     const isRival = kind === "rival";
     const isWarden = kind === "warden";
-    const bone = material(isRival ? 0x513542 : isWarden ? 0xc2b07f : isCrawler ? 0x695d4d : 0x9c9687);
-    const dark = material(isRival ? 0x251720 : 0x27251f);
+    const isBoss = kind === "boss";
+    const bone = material(isBoss ? 0x8e5d3f : isRival ? 0x513542 : isWarden ? 0xc2b07f : isCrawler ? 0x695d4d : 0x9c9687);
+    const dark = material(isBoss ? 0x24110c : isRival ? 0x251720 : 0x27251f);
     const torso = new THREE.Mesh(new THREE.BoxGeometry(isCrawler ? 0.62 : 0.52, isCrawler ? 0.4 : 0.78, 0.3), dark);
     torso.position.y = isCrawler ? 0.45 : 1.18;
     const head = new THREE.Mesh(new THREE.BoxGeometry(isCrawler ? 0.44 : 0.38, 0.38, 0.38), bone);
@@ -525,12 +527,16 @@ export class DarkPixGame {
       }
     }
     group.position.set(x, 0, z);
+    const baseScale = isBoss ? 1.35 : 1;
+    group.scale.setScalar(baseScale);
     group.traverse((object) => {
       object.castShadow = true;
       object.userData.enemyId = id;
     });
     this.scene.add(group);
-    const stats = kind === "warden"
+    const stats = kind === "boss"
+      ? { hp: 245, speed: 1.12, damage: 31, range: 2.15, name: "The Tollkeeper" }
+      : kind === "warden"
       ? { hp: 115, speed: 1.35, damage: 24, range: 1.7, name: "Ossuary warden" }
       : kind === "rival"
         ? { hp: 88, speed: 2.2, damage: 19, range: 1.55, name: "Rival delver" }
@@ -552,6 +558,7 @@ export class DarkPixGame {
       alerted: false,
       alive: true,
       phase: Math.random() * Math.PI * 2,
+      baseScale,
     });
   }
 
@@ -771,7 +778,7 @@ export class DarkPixGame {
       return;
     }
 
-    const headHeight = best.kind === "crawler" ? 0.72 : 1.82;
+    const headHeight = best.kind === "crawler" ? 0.72 : best.kind === "boss" ? 2.35 : 1.82;
     const toHead = best.group.position.clone().add(new THREE.Vector3(0, headHeight, 0)).sub(cameraPosition).normalize();
     const headshot = toHead.dot(forward) > (this.options.classId === "hexbound" ? 0.992 : 0.975);
     const weaponPower = this.options.equipped.filter((item) => item.kind === "weapon").reduce((sum, item) => sum + item.power, 0);
@@ -806,14 +813,22 @@ export class DarkPixGame {
     enemy.stagger = 0.18;
     this.audio.hit();
     this.feed(`${headshot ? "HEADSHOT · " : ""}${enemy.name} takes ${amount}.`, enemy.kind === "rival" ? "rival" : "combat");
-    enemy.group.scale.set(1.14, 0.9, 1.14);
+    enemy.group.scale.set(enemy.baseScale * 1.14, enemy.baseScale * 0.9, enemy.baseScale * 1.14);
+    if (enemy.kind === "boss" && enemy.hp > 0 && enemy.hp <= enemy.maxHp / 2 && !enemy.group.userData.enraged) {
+      enemy.group.userData.enraged = true;
+      enemy.speed *= 1.28;
+      enemy.damage = Math.round(enemy.damage * 1.2);
+      enemy.cooldown = 0;
+      this.feed("THE TOLLKEEPER ENRAGES · its chain quickens", "danger");
+      this.audio.tone(46, 0.6, "sawtooth", 0.16);
+    }
     if (enemy.hp > 0) return;
     enemy.alive = false;
     this.kills += 1;
     enemy.group.rotation.z = 1.2;
     enemy.group.position.y = -0.55;
     this.feed(`${enemy.name} falls.`, enemy.kind === "rival" ? "rival" : "loot");
-    const drop = enemy.kind === "warden" ? createSigil() : createLoot(Math.random, enemy.kind === "rival" ? 0.12 : 0.03);
+    const drop = enemy.kind === "warden" ? createSigil() : createLoot(Math.random, enemy.kind === "boss" ? 0.22 : enemy.kind === "rival" ? 0.12 : 0.03);
     this.spawnPickup(drop, enemy.group.position.clone());
   }
 
@@ -823,7 +838,7 @@ export class DarkPixGame {
       if (!enemy.alive) continue;
       enemy.cooldown = Math.max(0, enemy.cooldown - delta);
       enemy.stagger = Math.max(0, enemy.stagger - delta);
-      enemy.group.scale.lerp(new THREE.Vector3(1, 1, 1), delta * 7);
+      enemy.group.scale.lerp(new THREE.Vector3(enemy.baseScale, enemy.baseScale, enemy.baseScale), delta * 7);
       const toPlayer = new THREE.Vector3(player.x - enemy.group.position.x, 0, player.z - enemy.group.position.z);
       const distance = toPlayer.length();
       const awareness = this.torchLit ? 10.5 : 6.5;
@@ -847,8 +862,8 @@ export class DarkPixGame {
         }
         enemy.group.position.y = Math.sin(this.elapsed * 7 + enemy.phase) * 0.025;
       } else if (distance <= enemy.range && enemy.cooldown <= 0 && enemy.stagger <= 0) {
-        enemy.cooldown = enemy.kind === "crawler" ? 1.25 : enemy.kind === "warden" ? 1.9 : 1.55;
-        const parried = this.blocking && this.blockAge < 0.24;
+        enemy.cooldown = enemy.kind === "boss" ? (enemy.group.userData.enraged ? 1.2 : 2.2) : enemy.kind === "crawler" ? 1.25 : enemy.kind === "warden" ? 1.9 : 1.55;
+        const parried = enemy.kind !== "boss" && this.blocking && this.blockAge < 0.24;
         if (parried) {
           enemy.stagger = 1.0;
           this.stamina = Math.max(0, this.stamina - 5);

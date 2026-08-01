@@ -6,8 +6,8 @@ import { distanceFromZoneCenter, zoneState } from "../src/game/zone";
 
 describe("Crypt of the Pale Toll topology", () => {
   it("keeps every contract-critical location reachable from the player start", () => {
-    const wardens = DUNGEON.enemies.filter((enemy) => enemy.kind === "warden");
-    const criticalLocations = [DUNGEON.campfire, DUNGEON.portal, ...wardens, ...DUNGEON.chests];
+    const contractEnemies = DUNGEON.enemies.filter((enemy) => enemy.kind === "warden" || enemy.kind === "boss");
+    const criticalLocations = [DUNGEON.campfire, DUNGEON.portal, ...contractEnemies, ...DUNGEON.chests];
     for (const location of criticalLocations) {
       expect(dungeonPathExists(DUNGEON.playerStart, location), `${location.x},${location.z} should be reachable`).toBe(true);
     }
