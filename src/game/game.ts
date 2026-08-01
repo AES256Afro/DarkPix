@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
-import { attackDamage } from "./combat";
+import { attackDamage, enemyAttackPattern, type ThreatKind } from "./combat";
 import { CLASSES, RARITY_COLOR, createLoot, createSigil, formatTime, progressionBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { cardinalDirection } from "./navigation";
@@ -19,7 +19,7 @@ interface WallCollider {
 interface Enemy {
   id: number;
   group: THREE.Group;
-  kind: "skeleton" | "crawler" | "warden" | "rival" | "boss";
+  kind: ThreatKind;
   name: string;
   hp: number;
   maxHp: number;
@@ -27,6 +27,8 @@ interface Enemy {
   damage: number;
   range: number;
   cooldown: number;
+  windup: number;
+  windupDuration: number;
   stagger: number;
   alerted: boolean;
   alive: boolean;
@@ -557,6 +559,8 @@ export class DarkPixGame {
       damage: stats.damage,
       range: stats.range,
       cooldown: 0,
+      windup: 0,
+      windupDuration: 0,
       stagger: 0,
       alerted: false,
       alive: true,
@@ -816,6 +820,10 @@ export class DarkPixGame {
     enemy.hp -= amount;
     enemy.alerted = true;
     enemy.stagger = 0.18;
+    if (enemy.kind !== "boss" && enemy.windup > 0) {
+      enemy.windup = 0;
+      enemy.cooldown = Math.max(enemy.cooldown, 0.45);
+    }
     this.audio.hit();
     this.feed(`${headshot ? "HEADSHOT · " : ""}${enemy.name} takes ${amount}.`, enemy.kind === "rival" ? "rival" : "combat");
     enemy.group.scale.set(enemy.baseScale * 1.14, enemy.baseScale * 0.9, enemy.baseScale * 1.14);
@@ -845,6 +853,7 @@ export class DarkPixGame {
       enemy.stagger = Math.max(0, enemy.stagger - delta);
       enemy.pathTimer = Math.max(0, enemy.pathTimer - delta);
       enemy.group.scale.lerp(new THREE.Vector3(enemy.baseScale, enemy.baseScale, enemy.baseScale), delta * 7);
+      enemy.group.rotation.x = THREE.MathUtils.lerp(enemy.group.rotation.x, 0, delta * 8);
       const toPlayer = new THREE.Vector3(player.x - enemy.group.position.x, 0, player.z - enemy.group.position.z);
       const distance = toPlayer.length();
       const awareness = this.torchLit ? 10.5 : 6.5;
@@ -856,12 +865,41 @@ export class DarkPixGame {
         enemy.group.rotation.y += Math.sin(this.elapsed * 0.35 + enemy.phase) * delta * 0.15;
         continue;
       }
-      if (distance > 15) continue;
+      if (distance > 15) {
+        enemy.windup = 0;
+        continue;
+      }
       const hasSight = dungeonLineOfSight(
         { x: player.x, z: player.z },
         { x: enemy.group.position.x, z: enemy.group.position.z },
         0.12,
       );
+      if (enemy.windup > 0) {
+        enemy.windup = Math.max(0, enemy.windup - delta);
+        const windupProgress = enemy.windupDuration > 0 ? enemy.windup / enemy.windupDuration : 0;
+        enemy.group.rotation.x = -0.2 * windupProgress;
+        enemy.group.scale.set(enemy.baseScale * 0.94, enemy.baseScale * 1.08, enemy.baseScale * 0.94);
+        if (enemy.windup > 0) continue;
+
+        const pattern = enemyAttackPattern(enemy.kind, Boolean(enemy.group.userData.enraged));
+        enemy.cooldown = pattern.recovery;
+        enemy.group.rotation.x = 0.18;
+        enemy.group.scale.set(enemy.baseScale * 1.12, enemy.baseScale * 0.9, enemy.baseScale * 1.12);
+        if (distance > enemy.range + 0.25 || !hasSight) continue;
+
+        const parried = enemy.kind !== "boss" && this.blocking && this.blockAge < 0.24;
+        if (parried) {
+          enemy.stagger = 1.0;
+          this.stamina = Math.max(0, this.stamina - 5);
+          this.feed(`PARRIED · ${enemy.name} is exposed`, "system");
+          this.audio.tone(780, 0.12, "square", 0.13);
+        } else {
+          const reduction = this.blocking ? (this.options.classId === "hexbound" ? 0.45 : 0.72) : 0;
+          this.hurt(enemy.damage * (1 - reduction), enemy.name);
+          if (this.blocking) this.stamina = Math.max(0, this.stamina - enemy.damage * 0.75);
+        }
+        continue;
+      }
       if ((distance > enemy.range || !hasSight) && enemy.stagger <= 0) {
         if (hasSight) {
           enemy.path = [];
@@ -894,18 +932,10 @@ export class DarkPixGame {
         enemy.group.position.y = Math.sin(this.elapsed * 7 + enemy.phase) * 0.025;
       } else if (enemy.cooldown <= 0 && enemy.stagger <= 0) {
         enemy.group.lookAt(player.x, enemy.group.position.y, player.z);
-        enemy.cooldown = enemy.kind === "boss" ? (enemy.group.userData.enraged ? 1.2 : 2.2) : enemy.kind === "crawler" ? 1.25 : enemy.kind === "warden" ? 1.9 : 1.55;
-        const parried = enemy.kind !== "boss" && this.blocking && this.blockAge < 0.24;
-        if (parried) {
-          enemy.stagger = 1.0;
-          this.stamina = Math.max(0, this.stamina - 5);
-          this.feed(`PARRIED · ${enemy.name} is exposed`, "system");
-          this.audio.tone(780, 0.12, "square", 0.13);
-        } else {
-          const reduction = this.blocking ? (this.options.classId === "hexbound" ? 0.45 : 0.72) : 0;
-          this.hurt(enemy.damage * (1 - reduction), enemy.name);
-          if (this.blocking) this.stamina = Math.max(0, this.stamina - enemy.damage * 0.75);
-        }
+        const pattern = enemyAttackPattern(enemy.kind, Boolean(enemy.group.userData.enraged));
+        enemy.windup = pattern.windup;
+        enemy.windupDuration = pattern.windup;
+        this.audio.tone(enemy.kind === "boss" ? 58 : 110, 0.08, "square", 0.04);
       }
     }
   }

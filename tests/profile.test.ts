@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createLoot, formatTime, levelForXp, progressionBonuses, rarityFromRoll } from "../src/game/data";
 import { applyRaidResult, createProfile, normalizeProfile, purchaseItem } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
-import { attackDamage } from "../src/game/combat";
+import { attackDamage, enemyAttackPattern } from "../src/game/combat";
 
 describe("loot generation", () => {
   it("maps rarity thresholds deterministically", () => {
@@ -191,5 +191,12 @@ describe("directional combat damage", () => {
     expect(attackDamage({ baseDamage: 20, weaponPower: 5, progressionBonus: 2, direction: "SWEEP", ambush: false, headshot: false })).toBe(27);
     expect(attackDamage({ baseDamage: 20, weaponPower: 5, progressionBonus: 2, direction: "OVERHEAD", ambush: false, headshot: false })).toBe(32);
     expect(attackDamage({ baseDamage: 20, weaponPower: 5, progressionBonus: 2, direction: "THRUST", ambush: true, headshot: true })).toBe(79);
+  });
+
+  it("gives every enemy strike a readable windup and recovery", () => {
+    expect(enemyAttackPattern("crawler").windup).toBeGreaterThan(0.2);
+    expect(enemyAttackPattern("warden").windup).toBeGreaterThan(enemyAttackPattern("crawler").windup);
+    expect(enemyAttackPattern("boss").windup).toBeGreaterThan(enemyAttackPattern("rival").windup);
+    expect(enemyAttackPattern("boss", true)).toEqual({ windup: 0.34, recovery: 1.2 });
   });
 });

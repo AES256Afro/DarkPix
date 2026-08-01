@@ -1,4 +1,10 @@
 export type AttackDirection = "OVERHEAD" | "THRUST" | "SWEEP";
+export type ThreatKind = "skeleton" | "crawler" | "warden" | "rival" | "boss";
+
+export interface EnemyAttackPattern {
+  windup: number;
+  recovery: number;
+}
 
 export interface DamageInput {
   baseDamage: number;
@@ -16,4 +22,11 @@ export function attackDamage(input: DamageInput): number {
   if (input.ambush) damage *= 2;
   if (input.headshot) damage *= 1.35;
   return Math.round(damage);
+}
+
+export function enemyAttackPattern(kind: ThreatKind, enraged = false): EnemyAttackPattern {
+  if (kind === "boss") return enraged ? { windup: 0.34, recovery: 1.2 } : { windup: 0.62, recovery: 2.2 };
+  if (kind === "warden") return { windup: 0.48, recovery: 1.9 };
+  if (kind === "crawler") return { windup: 0.26, recovery: 1.25 };
+  return { windup: 0.36, recovery: 1.55 };
 }
