@@ -26,6 +26,18 @@ export interface LoadoutStats {
   undeadDamageMultiplier: number;
 }
 
+function flatModifier(modifier: string | undefined, suffix: string, maximum: number): number {
+  const match = modifier?.match(new RegExp(`^\\+(\\d+(?:\\.\\d+)?) ${suffix}$`));
+  if (!match) return 0;
+  return Math.min(maximum, Math.max(0, Number(match[1])));
+}
+
+function percentModifier(modifier: string | undefined, suffix: string, maximum: number): number {
+  const match = modifier?.match(new RegExp(`^\\+(\\d+(?:\\.\\d+)?)% ${suffix}$`));
+  if (!match) return 0;
+  return Math.min(maximum, Math.max(0, Number(match[1]))) / 100;
+}
+
 export function toggleEquippedItem(selectedIds: ReadonlySet<string>, stash: Item[], targetId: string, limit = 2): Set<string> {
   const available = new Map(stash.filter((item) => item.kind !== "treasure" && item.kind !== "sigil").map((item) => [item.id, item]));
   const next = new Set([...selectedIds].filter((id) => available.has(id)));
@@ -81,12 +93,12 @@ export function loadoutStats(items: Item[]): LoadoutStats {
   };
   for (const item of items) {
     if (item.kind !== "weapon" && item.kind !== "armor") continue;
-    if (item.modifier === "+3 edge damage") stats.damage += 3;
-    if (item.modifier === "+7 armor") stats.armor += 7;
-    if (item.modifier === "+8 maximum health") stats.health += 8;
-    if (item.modifier === "+6% movement speed") stats.movementMultiplier *= 1.06;
-    if (item.modifier === "+5% interaction speed") stats.interactionDurationMultiplier /= 1.05;
-    if (item.modifier === "+12% undead damage") stats.undeadDamageMultiplier *= 1.12;
+    stats.damage += flatModifier(item.modifier, "edge damage", 50);
+    stats.armor += flatModifier(item.modifier, "armor", 100);
+    stats.health += flatModifier(item.modifier, "maximum health", 100);
+    stats.movementMultiplier *= 1 + percentModifier(item.modifier, "movement speed", 30);
+    stats.interactionDurationMultiplier /= 1 + percentModifier(item.modifier, "interaction speed", 30);
+    stats.undeadDamageMultiplier *= 1 + percentModifier(item.modifier, "undead damage", 100);
   }
   const armorWeight = equippedPower(items, "armor");
   stats.movementMultiplier *= 1 - Math.min(0.18, armorWeight * 0.008);

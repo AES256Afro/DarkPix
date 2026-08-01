@@ -56,6 +56,14 @@ describe("risk loadout", () => {
     expect(loadoutStats([{ ...items[0]!, modifier: "+7 armor" }]).armor).toBe(7);
   });
 
+  it("applies merchant modifier magnitudes instead of treating their text as cosmetic", () => {
+    expect(loadoutStats([{ ...items[0]!, modifier: "+5 edge damage" }]).damage).toBe(5);
+    expect(loadoutStats([{ ...items[0]!, modifier: "+15 edge damage" }]).damage).toBe(15);
+    expect(loadoutStats([{ ...items[2]!, modifier: "+11 maximum health" }]).health).toBe(11);
+    expect(loadoutStats([{ ...items[2]!, modifier: "+999 maximum health" }]).health).toBe(100);
+    expect(loadoutStats([{ ...items[0]!, modifier: "gain arbitrary power" }]).damage).toBe(0);
+  });
+
   it("turns armor power into bounded encumbrance while preserving speed rolls", () => {
     expect(loadoutStats([{ ...items[2]!, power: 5 }]).movementMultiplier).toBeCloseTo(0.96);
     expect(loadoutStats([{ ...items[2]!, power: 50 }]).movementMultiplier).toBeCloseTo(0.82);
