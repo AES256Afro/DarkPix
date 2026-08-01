@@ -28,6 +28,8 @@ export interface DodgeStats {
   cooldown: number;
 }
 
+export const RIPOSTE_DURATION_SECONDS = 1.5;
+
 export function attackDamage(input: DamageInput): number {
   let damage = Math.max(0, input.baseDamage + input.weaponPower + input.progressionBonus);
   if (input.direction === "OVERHEAD") damage *= 1.18;
@@ -128,4 +130,9 @@ export function dodgeStats(classId: ClassId): DodgeStats {
   if (classId === "vanguard") return { distance: 1.3, stamina: 23, cooldown: 1.05 };
   if (classId === "reaver") return { distance: 1.2, stamina: 24, cooldown: 1.08 };
   return { distance: 1.55, stamina: 20, cooldown: 0.9 };
+}
+
+export function riposteDamageMultiplier(classId: ClassId, activeSeconds: number): number {
+  if (!Number.isFinite(activeSeconds) || activeSeconds <= 0 || classId === "hexbound" || classId === "ranger") return 1;
+  return 1.25;
 }

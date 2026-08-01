@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { escapeHtml } from "../html";
 import { AudioDirector } from "./audio";
-import { attackDamage, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
+import { RIPOSTE_DURATION_SECONDS, attackDamage, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, depthRules } from "./depth";
@@ -236,6 +236,7 @@ export class DarkPixGame {
   private blockAge = 0;
   private attackCooldown = 0;
   private dodgeCooldown = 0;
+  private riposteTimer = 0;
   private swingClock = 0;
   private swingDuration = 0.42;
   private footstepClock = 0;
@@ -1151,6 +1152,7 @@ export class DarkPixGame {
     this.elapsed += delta;
     this.attackCooldown = Math.max(0, this.attackCooldown - delta);
     this.dodgeCooldown = Math.max(0, this.dodgeCooldown - delta);
+    this.riposteTimer = Math.max(0, this.riposteTimer - delta);
     this.abilityCooldown = Math.max(0, this.abilityCooldown - delta);
     this.concealmentTimer = Math.max(0, this.concealmentTimer - delta);
     this.rageTimer = Math.max(0, this.rageTimer - delta);
@@ -1440,13 +1442,17 @@ export class DarkPixGame {
       limb: limbHit,
     });
     const spell = this.options.classId === "hexbound" ? HEX_SPELLS[this.selectedSpell] : undefined;
+    const riposteMultiplier = riposteDamageMultiplier(this.options.classId, this.riposteTimer);
+    const riposte = riposteMultiplier > 1;
+    if (riposte) this.riposteTimer = 0;
     const damage = Math.round(
       baseDamage
       * (best.kind === "rival" ? 1 : this.loadoutBonuses.undeadDamageMultiplier)
       * classAbilityDamageMultiplier(this.options.classId, this.options.classId === "shapeshifter" ? this.wildshapeTimer : this.rageTimer)
-      * (spell?.damageMultiplier ?? 1),
+      * (spell?.damageMultiplier ?? 1)
+      * riposteMultiplier,
     );
-    this.damageEnemy(best, damage, headshot, limbHit, Boolean(spell?.cripples && !headshot));
+    this.damageEnemy(best, damage, headshot, limbHit, Boolean(spell?.cripples && !headshot), riposte);
     if (this.options.classId === "hexbound") this.spawnSpellTrail(cameraPosition, forward, bestDistance, spell?.color ?? HEX_SPELLS.ash_bolt.color);
     if (this.options.classId === "ranger") this.spawnArrowTrail(cameraPosition, forward, bestDistance);
     this.mouseAccumulator.x = 0;
@@ -1511,7 +1517,7 @@ export class DarkPixGame {
     }, 130);
   }
 
-  private damageEnemy(enemy: Enemy, amount: number, headshot: boolean, limbHit: boolean, forcedCripple = false): void {
+  private damageEnemy(enemy: Enemy, amount: number, headshot: boolean, limbHit: boolean, forcedCripple = false, riposte = false): void {
     enemy.hp -= amount;
     enemy.alerted = true;
     enemy.stagger = 0.18;
@@ -1525,7 +1531,7 @@ export class DarkPixGame {
       enemy.crippled = true;
       enemy.speed *= 0.72;
     }
-    this.feed(`${headshot ? "HEADSHOT · " : forcedCripple ? "FROSTBITE · " : limbHit ? "LIMB HIT · " : ""}${enemy.name} takes ${amount}.${crippledNow ? " Its stride breaks." : ""}`, enemy.kind === "rival" ? "rival" : "combat");
+    this.feed(`${riposte ? "RIPOSTE · " : ""}${headshot ? "HEADSHOT · " : forcedCripple ? "FROSTBITE · " : limbHit ? "LIMB HIT · " : ""}${enemy.name} takes ${amount}.${crippledNow ? " Its stride breaks." : ""}`, enemy.kind === "rival" ? "rival" : "combat");
     enemy.group.scale.set(enemy.baseScale * 1.14, enemy.baseScale * 0.9, enemy.baseScale * 1.14);
     if (enemy.kind === "boss" && enemy.hp > 0 && enemy.hp <= enemy.maxHp / 2 && !enemy.group.userData.enraged) {
       enemy.group.userData.enraged = true;
@@ -1678,7 +1684,8 @@ export class DarkPixGame {
         if (parried) {
           enemy.stagger = 1.0;
           this.stamina = Math.max(0, this.stamina - 5);
-          this.feed(`PARRIED · ${enemy.name} is exposed`, "system");
+          if (riposteDamageMultiplier(this.options.classId, RIPOSTE_DURATION_SECONDS) > 1) this.riposteTimer = RIPOSTE_DURATION_SECONDS;
+          this.feed(`PARRIED · ${enemy.name} is exposed${this.riposteTimer > 0 ? " · riposte ready" : ""}`, "system");
           this.audio.tone(780, 0.12, "square", 0.13);
         } else {
           const reduction = guardingAttack ? (this.options.classId === "hexbound" ? 0.45 : 0.72) : 0;
@@ -2542,8 +2549,8 @@ export class DarkPixGame {
       ? `${selectedThrowable.name} · ${throwableDamage(selectedThrowable)} dmg · ${throwables.length} left · B cycle`
       : "No throwing weapon · B cycle";
     this.updateWayfinder();
-    this.directionHud.textContent = this.attackDirection;
-    this.directionHud.classList.toggle("active", this.mouseAccumulator.x !== 0 || this.mouseAccumulator.y !== 0);
+    this.directionHud.textContent = this.riposteTimer > 0 ? `RIPOSTE · ${this.riposteTimer.toFixed(1)}s` : this.attackDirection;
+    this.directionHud.classList.toggle("active", this.riposteTimer > 0 || this.mouseAccumulator.x !== 0 || this.mouseAccumulator.y !== 0);
     this.damageDirectionHud.classList.toggle("visible", this.damageDirectionTimer > 0);
     this.threatHud.classList.toggle("visible", this.threatTimer > 0);
     if (!this.portalAnnounced && this.phaseElapsed() > floorRules.duration * 0.43 && this.sigils < 2) {
