@@ -4,6 +4,7 @@ import { createSaveBackup, parseSaveBackup } from "./game/backup";
 import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses } from "./game/data";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
+import { persistBeforeClearingEscrow } from "./game/persistence";
 import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfile, loadRaidEscrow, purchaseItem, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
 import { rarityMark } from "./game/rarity";
@@ -34,8 +35,7 @@ if (interruptedRaid) {
   const recovered = settleInterruptedRaid(profile, interruptedRaid);
   profile = recovered.profile;
   selectedClass = profile.preferredClass;
-  clearRaidEscrow();
-  if (saveProfile(profile)) {
+  if (persistBeforeClearingEscrow(() => saveProfile(profile), clearRaidEscrow)) {
     merchantNotice = recovered.classXpLost > 0
       ? `Interrupted Iron Soul raid forfeited ${recovered.classXpLost} class XP and all risked gear.`
       : "Interrupted raid settled as an abandonment. Risked gear was left below.";
@@ -49,8 +49,10 @@ function loadGameModule(): Promise<typeof import("./game/game")> {
   return gameModulePromise;
 }
 
-function persistProfile(): void {
-  if (!saveProfile(profile)) persistenceWarning = "This browser refused local storage. Progress will last only until the page closes.";
+function persistProfile(): boolean {
+  const persisted = saveProfile(profile);
+  if (!persisted) persistenceWarning = "This browser refused local storage. Progress will last only until the page closes.";
+  return persisted;
 }
 
 function persistPreferences(): void {
@@ -596,7 +598,6 @@ async function startRaid(): Promise<void> {
 }
 
 function finishRaid(result: RaidResult): void {
-  clearRaidEscrow();
   activeGame?.destroy();
   activeGame = undefined;
   const extracted = result.reason === "extracted";
@@ -609,7 +610,7 @@ function finishRaid(result: RaidResult): void {
   const xpBreakdown = raidXpBreakdown(result);
   const settlement = settleRaid(profile, result);
   profile = settlement.profile;
-  persistProfile();
+  persistBeforeClearingEscrow(persistProfile, clearRaidEscrow);
   const recordedItems = extracted
     ? [
         ...returnedItems.map((item) => ({ item, outcome: "GEAR RETURNED" })),

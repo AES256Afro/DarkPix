@@ -25,7 +25,7 @@ Exit evidence: automated domain tests, production TypeScript build, container he
 Status: Complete for local-first play
 
 - Risked equipment leaves the stash only after a failed verdict
-- Active-raid escrow settles refreshes and interrupted tabs as abandonment
+- Active-raid escrow settles refreshes and interrupted tabs as abandonment, and clears only after the verdict is durably saved
 - Consumed packed items remain consumed after extraction or failure
 - Class XP, contracts, bestiary ledgers, survival streaks, raid history, settings, and backup import/export survive compatible profile migrations
 - Iron Soul failure clears the selected discipline's XP while preserving the rest of the profile
