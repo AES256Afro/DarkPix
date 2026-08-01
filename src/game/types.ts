@@ -6,6 +6,8 @@ export type ItemKind = "weapon" | "armor" | "treasure" | "consumable" | "sigil";
 
 export type StashSort = "recent" | "rarity" | "value" | "kind";
 
+export type RaidMode = "standard" | "high_toll";
+
 export interface Item {
   id: string;
   name: string;
@@ -55,6 +57,7 @@ export type RaidEndReason = "extracted" | "slain" | "darkness";
 
 export interface RaidResult {
   reason: RaidEndReason;
+  raidMode?: RaidMode;
   classId: ClassId;
   loot: Item[];
   equippedIds: string[];

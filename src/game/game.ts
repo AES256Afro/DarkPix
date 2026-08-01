@@ -5,9 +5,10 @@ import { CLASSES, RARITY_COLOR, classPerkBonuses, createBossLoot, createLoot, cr
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, type LoadoutStats } from "./loadout";
 import { cardinalDirection, circlesOverlap } from "./navigation";
+import { raidRules, type RaidRules } from "./raid";
 import { disposeSceneResources } from "./resources";
 import { continuousHold, targetDistanceInView } from "./targeting";
-import type { ClassId, GamePreferences, Item, RaidEndReason, RaidResult, Vec2 } from "./types";
+import type { ClassId, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, Vec2 } from "./types";
 import { distanceFromZoneCenter, zoneState } from "./zone";
 
 interface WallCollider {
@@ -64,6 +65,7 @@ interface FloorTrap {
 export interface DarkPixGameOptions {
   classId: ClassId;
   classLevel: number;
+  raidMode: RaidMode;
   equipped: Item[];
   preferences: GamePreferences;
   onFinish: (result: RaidResult) => void;
@@ -144,6 +146,7 @@ export class DarkPixGame {
   private readonly damageBonus: number;
   private readonly perkBonuses: ClassPerkBonuses;
   private readonly loadoutBonuses: LoadoutStats;
+  private readonly raidRules: RaidRules;
   private readonly maxSpellCharges: number;
   private healthFill!: HTMLElement;
   private staminaFill!: HTMLElement;
@@ -203,6 +206,7 @@ export class DarkPixGame {
     this.mount = mount;
     this.options = options;
     this.audio = new AudioDirector(!options.preferences.muted);
+    this.raidRules = raidRules(options.raidMode);
     this.definition = CLASSES[options.classId];
     const progression = progressionBonuses(options.classLevel);
     this.perkBonuses = classPerkBonuses(options.classId, options.classLevel);
@@ -230,7 +234,7 @@ export class DarkPixGame {
 
   private createShell(): void {
     this.mount.innerHTML = `
-      <div class="raid-shell ${this.options.preferences.reducedMotion ? "reduced-motion" : ""}" data-class="${this.options.classId}">
+      <div class="raid-shell ${this.options.preferences.reducedMotion ? "reduced-motion" : ""}" data-class="${this.options.classId}" data-raid-mode="${this.options.raidMode}">
         <div class="render-host"></div>
         <div class="pixel-grid" aria-hidden="true"></div>
         <div class="darkness-vignette" aria-hidden="true"></div>
@@ -238,7 +242,7 @@ export class DarkPixGame {
         <div class="raid-hud">
           <div class="hud-top">
             <section class="contract-panel">
-              <span class="eyebrow">CRYPT OF THE PALE TOLL</span>
+              <span class="eyebrow">${this.options.raidMode === "high_toll" ? "HIGH TOLL CONTRACT" : "CRYPT OF THE PALE TOLL"}</span>
               <strong class="raid-clock">3:30</strong>
               <span class="zone-copy">darkness dormant</span>
             </section>
@@ -586,7 +590,7 @@ export class DarkPixGame {
       object.userData.enemyId = id;
     });
     this.scene.add(group);
-    const stats = kind === "boss"
+    const baseStats = kind === "boss"
       ? { hp: 245, speed: 1.12, damage: 31, range: 2.15, name: "The Tollkeeper" }
       : kind === "warden"
       ? { hp: 115, speed: 1.35, damage: 24, range: 1.7, name: "Ossuary warden" }
@@ -595,6 +599,12 @@ export class DarkPixGame {
         : kind === "crawler"
           ? { hp: 38, speed: 2.65, damage: 12, range: 1.15, name: "Grave crawler" }
           : { hp: 64, speed: 1.55, damage: 17, range: 1.55, name: "Hollow legionary" };
+    const stats = {
+      ...baseStats,
+      hp: Math.round(baseStats.hp * this.raidRules.enemyHealthMultiplier),
+      speed: baseStats.speed * this.raidRules.enemySpeedMultiplier,
+      damage: Math.round(baseStats.damage * this.raidRules.enemyDamageMultiplier),
+    };
     this.enemies.push({
       id,
       group,
@@ -1016,8 +1026,8 @@ export class DarkPixGame {
     const drop = enemy.kind === "warden"
       ? createSigil()
       : enemy.kind === "boss"
-        ? createBossLoot()
-        : createLoot(Math.random, enemy.kind === "rival" ? 0.12 : 0.03);
+        ? createBossLoot(Math.random, this.raidRules.lootDepthBonus)
+        : createLoot(Math.random, (enemy.kind === "rival" ? 0.12 : 0.03) + this.raidRules.lootDepthBonus);
     this.spawnPickup(drop, enemy.group.position.clone());
     this.showThreatVitals(enemy);
   }
@@ -1342,8 +1352,9 @@ export class DarkPixGame {
       lid.position.z = -0.22;
     }
     const origin = chest.group.position.clone();
-    this.spawnPickup(createLoot(Math.random, chest.depthBonus), origin.clone().add(new THREE.Vector3(-0.45, 0, 0.7)));
-    this.spawnPickup(createLoot(Math.random, chest.depthBonus), origin.clone().add(new THREE.Vector3(0.45, 0, 0.7)));
+    const depthBonus = chest.depthBonus + this.raidRules.lootDepthBonus;
+    this.spawnPickup(createLoot(Math.random, depthBonus), origin.clone().add(new THREE.Vector3(-0.45, 0, 0.7)));
+    this.spawnPickup(createLoot(Math.random, depthBonus), origin.clone().add(new THREE.Vector3(0.45, 0, 0.7)));
     this.feed("The coffer coughs up two pieces.", "loot");
     this.audio.loot();
   }
@@ -1372,8 +1383,9 @@ export class DarkPixGame {
     const light = this.shrine.getObjectByName("shrineLight") as THREE.PointLight | undefined;
     if (light) light.intensity = 0;
     const origin = this.shrine.position.clone();
-    this.spawnPickup(createLoot(Math.random, 0.16), origin.clone().add(new THREE.Vector3(1, 0, -0.48)));
-    this.spawnPickup(createLoot(Math.random, 0.16), origin.clone().add(new THREE.Vector3(1, 0, 0.48)));
+    const depthBonus = 0.16 + this.raidRules.lootDepthBonus;
+    this.spawnPickup(createLoot(Math.random, depthBonus), origin.clone().add(new THREE.Vector3(1, 0, -0.48)));
+    this.spawnPickup(createLoot(Math.random, depthBonus), origin.clone().add(new THREE.Vector3(1, 0, 0.48)));
     for (const enemy of this.enemies) {
       if (enemy.alive && enemy.group.position.distanceTo(this.shrine.position) < 16) enemy.alerted = true;
     }
@@ -1491,6 +1503,7 @@ export class DarkPixGame {
     if (document.pointerLockElement === this.renderer.domElement) void document.exitPointerLock();
     const result: RaidResult = {
       reason,
+      raidMode: this.options.raidMode,
       classId: this.options.classId,
       loot: [...this.raidLoot],
       equippedIds: this.options.equipped.map((item) => item.id),

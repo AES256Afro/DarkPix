@@ -5,8 +5,9 @@ import { CLASSES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, 
 import { sortStash, toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { craftItem, loadProfile, purchaseItem, saveProfile, settleRaid } from "./game/profile";
+import { raidEntryStatus, raidRules } from "./game/raid";
 import type { DarkPixGame } from "./game/game";
-import type { ClassId, GamePreferences, Item, Profile, RaidResult } from "./game/types";
+import type { ClassId, GamePreferences, Item, Profile, RaidMode, RaidResult } from "./game/types";
 
 const foundApp = document.querySelector<HTMLDivElement>("#app");
 if (!foundApp) throw new Error("DarkPix application root is missing");
@@ -16,6 +17,7 @@ const release = import.meta.env.VITE_DARKPIX_VERSION || "dev";
 let profile: Profile = loadProfile();
 let preferences: GamePreferences = loadPreferences();
 let selectedClass: ClassId = profile.preferredClass;
+let selectedRaidMode: RaidMode = "standard";
 let equippedIds = new Set<string>();
 let activeGame: DarkPixGame | undefined;
 let merchantNotice = "";
@@ -56,7 +58,10 @@ function itemMarkup(item: Item, riskable = false): string {
 function renderLobby(): void {
   activeGame?.destroy();
   activeGame = undefined;
+  if (raidEntryStatus(selectedRaidMode, profile.extracts, profile.gold) !== "ready") selectedRaidMode = "standard";
   const chosen = CLASSES[selectedClass];
+  const selectedRaidRules = raidRules(selectedRaidMode);
+  const highTollStatus = raidEntryStatus("high_toll", profile.extracts, profile.gold);
   const classXp = profile.xp[selectedClass];
   const level = levelForXp(classXp);
   const bonuses = progressionBonuses(level);
@@ -87,11 +92,15 @@ function renderLobby(): void {
           <h1>DARK<span>PIX</span></h1>
           <p class="hero-decree">Descend empty-handed. Return legend-laden.</p>
           <div class="rule-line"><i></i><strong>DEATH TAKES WHAT YOU CARRY</strong><i></i></div>
+          <div class="raid-mode-picker" role="group" aria-label="Raid contract">
+            <button class="${selectedRaidMode === "standard" ? "selected" : ""}" data-raid-mode="standard" type="button"><small>NO ENTRY FEE</small><strong>PALE TOLL</strong></button>
+            <button class="high-toll ${selectedRaidMode === "high_toll" ? "selected" : ""}" data-raid-mode="high_toll" type="button" ${highTollStatus === "ready" ? "" : "disabled"}><small>${highTollStatus === "extract_required" ? "ESCAPE ONCE TO UNLOCK" : highTollStatus === "insufficient_gold" ? "50G REQUIRED" : "50G ENTRY FEE"}</small><strong>HIGH TOLL</strong></button>
+          </div>
           <button class="descend-button" type="button">
-            <span>DESCEND INTO THE PALE TOLL</span>
-            <small>Solo contract · 8 threats · 2 sigils · 1 keeper</small>
+            <span>DESCEND INTO THE ${selectedRaidMode === "high_toll" ? "HIGH TOLL" : "PALE TOLL"}</span>
+            <small>Solo contract · ${selectedRaidMode === "high_toll" ? "empowered threats · improved rarity · +35% XP" : "8 threats · 2 sigils · 1 keeper"}</small>
           </button>
-          <p class="raid-warning">Equipped items are lost on death. Class experience always persists.</p>
+          <p class="raid-warning">${selectedRaidRules.entryFee ? `${selectedRaidRules.entryFee}g is paid on entry. ` : ""}Equipped items are lost on death. Class experience always persists.</p>
         </div>
         <div class="hero-stats">
           <span><small>SUCCESSFUL EXTRACTS</small><strong>${profile.extracts}</strong></span>
@@ -207,6 +216,14 @@ function renderLobby(): void {
       selectedClass = button.dataset.classId as ClassId;
       profile.preferredClass = selectedClass;
       persistProfile();
+      renderLobby();
+    });
+  });
+  app.querySelectorAll<HTMLButtonElement>("[data-raid-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const mode = button.dataset.raidMode as RaidMode;
+      if (raidEntryStatus(mode, profile.extracts, profile.gold) !== "ready") return;
+      selectedRaidMode = mode;
       renderLobby();
     });
   });
@@ -349,6 +366,23 @@ async function startRaid(): Promise<void> {
     document.querySelector("#stash")?.scrollIntoView({ behavior: "smooth" });
     return;
   }
+  const rules = raidRules(selectedRaidMode);
+  const entryStatus = raidEntryStatus(selectedRaidMode, profile.extracts, profile.gold);
+  if (entryStatus !== "ready") {
+    merchantNotice = entryStatus === "extract_required"
+      ? "Escape the Pale Toll once before attempting the High Toll."
+      : `The High Toll requires its ${rules.entryFee}g entry fee.`;
+    selectedRaidMode = "standard";
+    renderLobby();
+    document.querySelector("#stash")?.scrollIntoView({ behavior: "smooth" });
+    return;
+  }
+  let chargedEntryFee = false;
+  if (rules.entryFee > 0) {
+    profile.gold -= rules.entryFee;
+    chargedEntryFee = true;
+    persistProfile();
+  }
   const equipped = profile.stash.filter((item) => equippedIds.has(item.id));
   app.innerHTML = `<main class="game-mount" aria-label="DarkPix dungeon raid"><div class="crypt-loading" role="status"><span>DP</span><strong>OPENING THE PALE TOLL</strong><small>Kindling the dungeon renderer</small></div></main>`;
   const mount = app.querySelector<HTMLElement>(".game-mount");
@@ -358,12 +392,17 @@ async function startRaid(): Promise<void> {
     activeGame = new GameRuntime(mount, {
       classId: selectedClass,
       classLevel: levelForXp(profile.xp[selectedClass]),
+      raidMode: selectedRaidMode,
       equipped,
       preferences,
       onFinish: finishRaid,
     });
   } catch (error) {
     console.error("DarkPix could not start the 3D raid", error);
+    if (chargedEntryFee) {
+      profile.gold += rules.entryFee;
+      persistProfile();
+    }
     mount.innerHTML = `<section class="runtime-error"><span>†</span><h1>THE PASSAGE FAILED</h1><p>The 3D renderer could not start. Update the browser, enable WebGL, or try the raid again.</p><button type="button">RETURN TO THE LAST LANTERN</button></section>`;
     mount.querySelector<HTMLButtonElement>("button")?.addEventListener("click", renderLobby);
   }
@@ -373,6 +412,7 @@ function finishRaid(result: RaidResult): void {
   activeGame?.destroy();
   activeGame = undefined;
   const extracted = result.reason === "extracted";
+  const rules = raidRules(result.raidMode);
   const settlement = settleRaid(profile, result);
   profile = settlement.profile;
   persistProfile();
@@ -387,8 +427,8 @@ function finishRaid(result: RaidResult): void {
       ];
   const headline = extracted ? "YOU RETURNED" : result.reason === "darkness" ? "THE DARK TOOK YOU" : "YOUR TORCH WENT OUT";
   const detail = extracted
-    ? `The blue passage seals behind you. ${settlement.overflow.length ? `${settlement.overflow.length} overflow item${settlement.overflow.length === 1 ? " was" : "s were"} sold by the porter for ${settlement.overflowGold}g.` : "Everything in your haul fits safely in the stash."}${settlement.firstContractPaid ? " The Taverner's 100g bounty is paid." : ""}${settlement.bossContractPaid ? " The 150g Tollkeeper bounty is paid." : ""}`
-    : "Your class remembers. Your carried gear and every unsecured find remain below.";
+    ? `The blue passage seals behind you. ${settlement.overflow.length ? `${settlement.overflow.length} overflow item${settlement.overflow.length === 1 ? " was" : "s were"} sold by the porter for ${settlement.overflowGold}g.` : "Everything in your haul fits safely in the stash."}${settlement.firstContractPaid ? " The Taverner's 100g bounty is paid." : ""}${settlement.bossContractPaid ? " The 150g Tollkeeper bounty is paid." : ""}${result.raidMode === "high_toll" ? " The High Toll veterancy bonus is recorded." : ""}`
+    : `Your class remembers. Your carried gear and every unsecured find remain below.${result.raidMode === "high_toll" ? ` The ${rules.entryFee}g entry fee is gone.` : ""}`;
   app.innerHTML = `
     <main class="result-screen ${extracted ? "success" : "failure"}">
       <div class="result-backdrop"></div>

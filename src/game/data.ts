@@ -224,8 +224,8 @@ export function createLoot(random = Math.random, depthBonus = 0): Item {
   };
 }
 
-export function createBossLoot(random = Math.random): Item {
-  const base = createLoot(random, 0.22);
+export function createBossLoot(random = Math.random, depthBonus = 0): Item {
+  const base = createLoot(random, 0.22 + depthBonus);
   const rarityIndex = Math.max(RARITIES.indexOf("Rare"), RARITIES.indexOf(base.rarity));
   const rarity = RARITIES[rarityIndex] ?? "Rare";
   return {

@@ -130,6 +130,18 @@ describe("persistent raid consequences", () => {
     expect(failed.goldGained).toBe(0);
   });
 
+  it("awards the High Toll XP multiplier without changing death persistence", () => {
+    const standard = settleRaid(createProfile(), {
+      reason: "slain", classId: "vanguard", loot: [], equippedIds: [], kills: 2, elapsed: 30, goldFound: 0,
+    });
+    const highToll = settleRaid(createProfile(), {
+      reason: "slain", raidMode: "high_toll", classId: "vanguard", loot: [], equippedIds: [], kills: 2, elapsed: 30, goldFound: 0,
+    });
+    expect(standard.xpGained).toBe(100);
+    expect(highToll.xpGained).toBe(135);
+    expect(highToll.profile.deaths).toBe(1);
+  });
+
   it("keeps a full stash intact and liquidates extraction overflow", () => {
     const profile = createProfile();
     const template = profile.stash[0]!;
