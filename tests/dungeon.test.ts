@@ -148,6 +148,9 @@ describe("deliberate interaction targeting", () => {
     expect(passiveAwarenessRange(false, false)).toBe(6.5);
     expect(passiveAwarenessRange(true, true)).toBeCloseTo(6.93);
     expect(passiveAwarenessRange(false, true)).toBeCloseTo(4.29);
+    expect(passiveAwarenessRange(true, false, true)).toBeCloseTo(14.175);
+    expect(passiveAwarenessRange(false, false, true)).toBeCloseTo(8.775);
+    expect(passiveAwarenessRange(true, true, true)).toBeCloseTo(6.93);
   });
 
   it("names the highest-priority channel interruption", () => {

@@ -264,6 +264,8 @@ export class DarkPixGame {
   private paused = true;
   private contextLost = false;
   private blocking = false;
+  private crouching = false;
+  private sprinting = false;
   private blockAge = 0;
   private guardBreakTimer = 0;
   private attackCooldown = 0;
@@ -356,7 +358,7 @@ export class DarkPixGame {
             <section class="objective-panel">
               <span class="eyebrow">CONTRACT</span>
               <strong class="objective-copy">WARDEN SIGILS 0 / 2</strong>
-              <span class="stealth-copy">unseal · unseen marks 0 / ${QUIET_KNIVES_TARGET}</span>
+              <span class="stealth-copy">unseen marks 0 / ${QUIET_KNIVES_TARGET} · steady</span>
             </section>
           </div>
           <div class="event-feed" role="status"></div>
@@ -991,6 +993,7 @@ export class DarkPixGame {
     if (event.code === "KeyQ" && !event.repeat) this.useClassAbility();
     if (event.code === "KeyT" && !event.repeat) this.toggleTorch();
     if ((event.code === "ControlLeft" || event.code === "ControlRight") && !event.repeat) this.feed("CROUCH · slower steps reduce passive detection", "system");
+    if ((event.code === "ShiftLeft" || event.code === "ShiftRight") && !event.repeat) this.feed("SPRINT · fast steps carry farther through the crypt", "system");
     if (event.code === "Space" && !event.repeat) {
       event.preventDefault();
       this.dodge();
@@ -1080,6 +1083,8 @@ export class DarkPixGame {
   private clearHeldInputs(): void {
     this.keys.clear();
     this.blocking = false;
+    this.crouching = false;
+    this.sprinting = false;
     this.blockAge = 0;
     this.interactHeld = false;
     this.descendHeld = false;
@@ -1316,7 +1321,9 @@ export class DarkPixGame {
     const moving = input.lengthSq() > 0;
     if (moving) input.normalize();
     const crouching = this.keys.has("ControlLeft") || this.keys.has("ControlRight");
-    const sprinting = moving && !crouching && this.keys.has("ShiftLeft") && this.stamina > 1 && !this.blocking && !this.remedyItemId;
+    const sprinting = moving && !crouching && (this.keys.has("ShiftLeft") || this.keys.has("ShiftRight")) && this.stamina > 1 && !this.blocking && !this.remedyItemId;
+    this.crouching = crouching;
+    this.sprinting = sprinting;
     const sprintMultiplier = sprinting ? (this.options.classId === "cutpurse" ? 1.65 : 1.48) : 1;
     const movementPenalty = (this.blocking ? 0.55 : this.guardBreakTimer > 0 ? 0.42 : this.remedyItemId ? 0.62 : 1) * (crouching ? 0.58 : 1);
     const speed = this.definition.speed * this.loadoutBonuses.movementMultiplier * classMovementMultiplier(this.options.classId, this.wildshapeTimer) * sprintMultiplier * movementPenalty;
@@ -1833,7 +1840,7 @@ export class DarkPixGame {
   private recordUnseenStrike(enemy: Enemy): boolean {
     if (!markUnseenStrike(this.markedUnseenThreats, enemy)) return false;
     this.unseenStrikes += 1;
-    this.stealthHud.textContent = `unseal · unseen marks ${Math.min(QUIET_KNIVES_TARGET, this.unseenStrikes)} / ${QUIET_KNIVES_TARGET}`;
+    this.updateStealthProgress();
     this.checkpointRaid();
     return true;
   }
@@ -1856,7 +1863,7 @@ export class DarkPixGame {
       const toPlayerX = player.x - enemy.group.position.x;
       const toPlayerZ = player.z - enemy.group.position.z;
       const distance = Math.hypot(toPlayerX, toPlayerZ);
-      const awareness = passiveAwarenessRange(this.torchLit, this.keys.has("ControlLeft") || this.keys.has("ControlRight"));
+      const awareness = passiveAwarenessRange(this.torchLit, this.crouching, this.sprinting);
       if (this.phaseElapsed() >= depthRules(this.depth).spawnGrace && this.concealmentTimer <= 0 && distance < awareness && dungeonLineOfSight(
         { x: player.x, z: player.z },
         { x: enemy.group.position.x, z: enemy.group.position.z },
@@ -3047,6 +3054,7 @@ export class DarkPixGame {
       ? `${selectedThrowable.name} · ${throwableDamage(selectedThrowable)} dmg · ${throwables.length} left · B cycle`
       : "No throwing weapon · B cycle";
     this.torchHud.textContent = `${this.torchLit ? "Hood" : "Unhood"} torch · ${Math.ceil(this.torchFuel)}s`;
+    this.updateStealthProgress();
     this.updateStealthCue(Math.max(this.definition.reach, selectedThrowable ? 10 : 0));
     this.updateWayfinder();
     const strikeStamina = attackStaminaCost(this.options.classId, this.attackDirection);
@@ -3067,6 +3075,11 @@ export class DarkPixGame {
       this.portalAnnounced = true;
       this.feed("The dark advances. Wardens carry what the passage needs.", "danger");
     }
+  }
+
+  private updateStealthProgress(): void {
+    const noise = this.sprinting ? "sprint loud" : this.crouching ? "crouch quiet" : "steady";
+    this.stealthHud.textContent = `unseen marks ${Math.min(QUIET_KNIVES_TARGET, this.unseenStrikes)} / ${QUIET_KNIVES_TARGET} · ${noise}`;
   }
 
   private updateStealthCue(maxReach: number): void {
