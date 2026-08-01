@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
+import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
 import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
 import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, enemyAttackPattern, guardBreakDuration, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat } from "../src/game/combat";
@@ -34,6 +34,16 @@ describe("loot generation", () => {
     expect(item.modifier).toContain("spell charges");
     expect(consumableEffect(item)).toMatchObject({ health: 20, stamina: 20, spellCharges: 2 });
     expect(consumableEffect({ name: "blade", kind: "weapon" })).toBeUndefined();
+  });
+
+  it("gives remedies deliberate item-specific treatment windows", () => {
+    expect(consumableUseDuration({ name: "Pitch bandage", kind: "consumable" })).toBe(1.35);
+    expect(consumableUseDuration({ name: "Camp ember", kind: "consumable" })).toBe(1.15);
+    expect(consumableUseDuration({ name: "Coagulation draught", kind: "consumable" })).toBe(1);
+    expect(consumableUseDuration({ name: "Smoked root", kind: "consumable" })).toBe(0.85);
+    expect(consumableUseDuration({ name: "Bluewax candle", kind: "consumable" })).toBe(0.75);
+    expect(consumableUseDuration({ name: "Unknown tonic", kind: "consumable" })).toBe(1);
+    expect(consumableUseDuration({ name: "Riveted falchion", kind: "weapon" })).toBe(0);
   });
 
   it("generates finite throwing weapons with bounded damage", () => {

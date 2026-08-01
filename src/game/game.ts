@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { escapeHtml } from "../html";
 import { AudioDirector } from "./audio";
 import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, enemyAttackPattern, guardBreakDuration, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
-import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
+import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
 import { HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGoldTotal } from "./haul";
@@ -230,6 +230,9 @@ export class DarkPixGame {
   private spellCharges: number;
   private selectedSpell: HexSpellId = "ash_bolt";
   private selectedConsumableId?: string;
+  private remedyItemId?: string;
+  private remedyName = "";
+  private remedyTimer = 0;
   private selectedThrowableId?: string;
   private kills = 0;
   private readonly killsByKind: Record<ThreatKind, number> = { skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 };
@@ -949,8 +952,8 @@ export class DarkPixGame {
   private onKeyDown = (event: KeyboardEvent): void => {
     if (this.paused || this.ended) return;
     this.keys.add(event.code);
-    if (event.code === "KeyE" && !event.repeat) this.interactHeld = true;
-    if (event.code === "KeyR" && !event.repeat) this.descendHeld = true;
+    if (event.code === "KeyE" && !event.repeat && !this.remedyBlocks("INTERACT")) this.interactHeld = true;
+    if (event.code === "KeyR" && !event.repeat && !this.remedyBlocks("INTERACT")) this.descendHeld = true;
     if (event.code === "KeyF" && !event.repeat) this.useConsumable();
     if (event.code === "KeyC" && !event.repeat) this.cycleConsumable();
     if (event.code === "KeyV" && !event.repeat) this.throwItem();
@@ -1001,6 +1004,7 @@ export class DarkPixGame {
     if (this.paused || this.ended) return;
     if (event.button === 0) this.attack();
     if (event.button === 2) {
+      if (this.remedyBlocks("GUARD")) return;
       if (this.guardBreakTimer > 0) {
         this.feed(`GUARD BROKEN · ${this.guardBreakTimer.toFixed(1)}s`, "danger");
         return;
@@ -1211,6 +1215,10 @@ export class DarkPixGame {
     this.attackCooldown = Math.max(0, this.attackCooldown - delta);
     this.dodgeCooldown = Math.max(0, this.dodgeCooldown - delta);
     this.guardBreakTimer = Math.max(0, this.guardBreakTimer - delta);
+    if (this.remedyItemId) {
+      this.remedyTimer = Math.max(0, this.remedyTimer - delta);
+      if (this.remedyTimer <= 0) this.completeConsumableUse();
+    }
     this.riposteTimer = Math.max(0, this.riposteTimer - delta);
     this.abilityCooldown = Math.max(0, this.abilityCooldown - delta);
     this.concealmentTimer = Math.max(0, this.concealmentTimer - delta);
@@ -1247,10 +1255,10 @@ export class DarkPixGame {
     );
     const moving = input.lengthSq() > 0;
     if (moving) input.normalize();
-    const sprinting = moving && this.keys.has("ShiftLeft") && this.stamina > 1 && !this.blocking;
+    const sprinting = moving && this.keys.has("ShiftLeft") && this.stamina > 1 && !this.blocking && !this.remedyItemId;
     const sprintMultiplier = sprinting ? (this.options.classId === "cutpurse" ? 1.65 : 1.48) : 1;
-    const blockMultiplier = this.blocking ? 0.55 : this.guardBreakTimer > 0 ? 0.42 : 1;
-    const speed = this.definition.speed * this.loadoutBonuses.movementMultiplier * classMovementMultiplier(this.options.classId, this.wildshapeTimer) * sprintMultiplier * blockMultiplier;
+    const movementPenalty = this.blocking ? 0.55 : this.guardBreakTimer > 0 ? 0.42 : this.remedyItemId ? 0.62 : 1;
+    const speed = this.definition.speed * this.loadoutBonuses.movementMultiplier * classMovementMultiplier(this.options.classId, this.wildshapeTimer) * sprintMultiplier * movementPenalty;
     const sin = Math.sin(this.yaw);
     const cos = Math.cos(this.yaw);
     const dx = (input.x * cos - input.y * sin) * speed * delta;
@@ -1261,7 +1269,7 @@ export class DarkPixGame {
     } else if (this.blocking) {
       this.drainGuard(delta * guardDrainPerSecond(this.options.classId) * this.perkBonuses.guardUpkeepMultiplier);
     } else {
-      const recovering = this.attackCooldown > 0 || this.swingClock > 0 || this.dodgeCooldown > 0 || this.guardBreakTimer > 0;
+      const recovering = this.attackCooldown > 0 || this.swingClock > 0 || this.dodgeCooldown > 0 || this.guardBreakTimer > 0 || Boolean(this.remedyItemId);
       this.stamina = Math.min(this.definition.maxStamina, this.stamina + delta * staminaRecoveryPerSecond(moving, recovering));
     }
 
@@ -1276,6 +1284,7 @@ export class DarkPixGame {
 
   private dodge(): void {
     if (this.paused || this.ended || this.blocking || this.attackCooldown > 0 || this.swingClock > 0 || this.interactionHold > 0) return;
+    if (this.remedyBlocks("SIDESTEP")) return;
     if (this.guardBreakTimer > 0) {
       this.feed(`SIDESTEP DENIED · guard broken ${this.guardBreakTimer.toFixed(1)}s`, "danger");
       return;
@@ -1323,6 +1332,7 @@ export class DarkPixGame {
 
   private toggleTorch(): void {
     if (this.paused || this.ended) return;
+    if (this.remedyBlocks("TORCH")) return;
     this.torchLit = !this.torchLit;
     this.delverTorch.intensity = this.torchLit ? 5.2 : 0;
     this.feed(this.torchLit ? "Torch unhooded. You see farther, and so do they." : "Torch hooded. Stay close to the stones.", "system");
@@ -1504,6 +1514,7 @@ export class DarkPixGame {
 
   private attack(): void {
     if (this.attackCooldown > 0 || this.blocking) return;
+    if (this.remedyBlocks("ATTACK")) return;
     if (this.guardBreakTimer > 0) {
       this.feed(`ATTACK DENIED · guard broken ${this.guardBreakTimer.toFixed(1)}s`, "danger");
       return;
@@ -1990,12 +2001,14 @@ export class DarkPixGame {
   private hurt(amount: number, source: string, physical = true, sourcePosition?: Vec2): void {
     if (this.damageCooldown > 0 || this.ended) return;
     const channelBroken = this.interactionHold > 0;
+    const remedyInterrupted = Boolean(this.remedyItemId);
     this.damageCooldown = 0.18;
     if (channelBroken) {
       this.resetInteractionChannel();
       this.interactHeld = false;
       this.descendHeld = false;
     }
+    if (remedyInterrupted) this.resetRemedyUse();
     const appliedDamage = physicalDamageAfterArmor(amount, physical ? this.loadoutBonuses.armor : 0);
     this.health = Math.max(0, this.health - appliedDamage);
     this.vignette = 1;
@@ -2004,7 +2017,7 @@ export class DarkPixGame {
     this.damageOverlay.classList.add("pulse");
     if (sourcePosition) this.showDirectionalCue(sourcePosition, "IMPACT", 1.15, "impact");
     this.audio.danger();
-    this.feed(`${source} wounds you for ${Math.round(appliedDamage)}.${channelBroken ? " CHANNEL BROKEN." : ""}`, "danger");
+    this.feed(`${source} wounds you for ${Math.round(appliedDamage)}.${channelBroken ? " CHANNEL BROKEN." : ""}${remedyInterrupted ? " REMEDY INTERRUPTED." : ""}`, "danger");
     if (this.health <= 0) this.finish(source === "the dark" ? "darkness" : "slain");
   }
 
@@ -2036,15 +2049,11 @@ export class DarkPixGame {
 
   private useConsumable(): void {
     if (this.paused || this.ended) return;
-    const canBenefit = (item: Item): boolean => {
-      const effect = consumableEffect(item);
-      return Boolean(effect && (
-        this.health < this.maxHealth ||
-        (effect.stamina > 0 && this.stamina < this.definition.maxStamina) ||
-        (effect.spellCharges > 0 && this.options.classId === "hexbound" && this.spellCharges < this.maxSpellCharges) ||
-        (effect.rekindleTorch && !this.torchLit)
-      ));
-    };
+    if (this.remedyBlocks("REMEDY")) return;
+    if (this.blocking || this.attackCooldown > 0 || this.swingClock > 0 || this.dodgeCooldown > 0 || this.guardBreakTimer > 0 || this.interactionHold > 0) {
+      this.feed("REMEDY BLOCKED · free your hands and recover first", "system");
+      return;
+    }
     const items = this.availableConsumables();
     this.selectedConsumableId = resolveConsumableId(items, this.selectedConsumableId);
     const selected = items.find((item) => item.id === this.selectedConsumableId);
@@ -2052,20 +2061,47 @@ export class DarkPixGame {
       this.feed("No remedy in your unsecured haul.", "danger");
       return;
     }
-    if (!canBenefit(selected)) {
+    if (!this.consumableCanBenefit(selected)) {
       this.feed(`${selected.name} cannot restore anything right now. Press C to choose another remedy.`, "system");
       return;
     }
-    const nextId = items.length > 1 ? nextConsumableId(items, selected.id) : undefined;
-    const recoveredIndex = this.raidLoot.findIndex((item) => item.id === selected.id && item.kind === "consumable");
-    const packedIndex = recoveredIndex >= 0 ? -1 : this.carriedConsumables.findIndex((item) => item.id === selected.id);
+    this.remedyItemId = selected.id;
+    this.remedyName = selected.name;
+    this.remedyTimer = Math.max(0.2, consumableUseDuration(selected) * this.loadoutBonuses.interactionDurationMultiplier);
+    this.concealmentTimer = 0;
+    this.feed(`TREATING · ${selected.name} · ${this.remedyTimer.toFixed(1)}s`, "system");
+    this.audio.tone(205, 0.08, "sine", 0.045);
+  }
+
+  private consumableCanBenefit(item: Item): boolean {
+    const effect = consumableEffect(item);
+    return Boolean(effect && (
+      this.health < this.maxHealth ||
+      (effect.stamina > 0 && this.stamina < this.definition.maxStamina) ||
+      (effect.spellCharges > 0 && this.options.classId === "hexbound" && this.spellCharges < this.maxSpellCharges) ||
+      (effect.rekindleTorch && !this.torchLit)
+    ));
+  }
+
+  private completeConsumableUse(): void {
+    const itemId = this.remedyItemId;
+    const items = this.availableConsumables();
+    const consumable = items.find((item) => item.id === itemId);
+    this.resetRemedyUse();
+    if (!consumable) {
+      this.feed("REMEDY LOST · the treatment could not finish", "danger");
+      return;
+    }
+    const nextId = items.length > 1 ? nextConsumableId(items, consumable.id) : undefined;
+    const recoveredIndex = this.raidLoot.findIndex((item) => item.id === consumable.id && item.kind === "consumable");
+    const packedIndex = recoveredIndex >= 0 ? -1 : this.carriedConsumables.findIndex((item) => item.id === consumable.id);
     const recovered = recoveredIndex >= 0 ? this.raidLoot.splice(recoveredIndex, 1)[0] : undefined;
     const packed = packedIndex >= 0 ? this.carriedConsumables.splice(packedIndex, 1)[0] : undefined;
-    const consumable = recovered ?? packed;
-    if (!consumable) return;
+    const spent = recovered ?? packed;
+    if (!spent) return;
     this.selectedConsumableId = nextId;
     if (packed) this.consumedIds.push(packed.id);
-    const effect = consumableEffect(consumable);
+    const effect = consumableEffect(spent);
     if (!effect) return;
     this.health = Math.min(this.maxHealth, this.health + effect.health);
     this.stamina = Math.min(this.definition.maxStamina, this.stamina + effect.stamina);
@@ -2074,8 +2110,20 @@ export class DarkPixGame {
       this.torchLit = true;
       this.delverTorch.intensity = 5.2;
     }
-    this.feed(`${consumable.name} · ${effect.description.toLowerCase()}.`, "loot");
+    this.feed(`${spent.name} · ${effect.description.toLowerCase()}.`, "loot");
     this.audio.loot();
+  }
+
+  private resetRemedyUse(): void {
+    this.remedyItemId = undefined;
+    this.remedyName = "";
+    this.remedyTimer = 0;
+  }
+
+  private remedyBlocks(action: string): boolean {
+    if (!this.remedyItemId) return false;
+    this.feed(`${action} BLOCKED · treating ${this.remedyName} · ${this.remedyTimer.toFixed(1)}s`, "system");
+    return true;
   }
 
   private availableConsumables(): Item[] {
@@ -2083,6 +2131,7 @@ export class DarkPixGame {
   }
 
   private cycleConsumable(): void {
+    if (this.remedyBlocks("REMEDY")) return;
     const items = this.availableConsumables();
     this.selectedConsumableId = nextConsumableId(items, this.selectedConsumableId);
     const selected = items.find((item) => item.id === this.selectedConsumableId);
@@ -2091,6 +2140,7 @@ export class DarkPixGame {
 
   private throwItem(): void {
     if (this.paused || this.ended || this.blocking || this.attackCooldown > 0) return;
+    if (this.remedyBlocks("THROW")) return;
     const items = this.availableThrowables();
     this.selectedThrowableId = resolveThrowableId(items, this.selectedThrowableId);
     const selected = items.find((item) => item.id === this.selectedThrowableId);
@@ -2152,6 +2202,7 @@ export class DarkPixGame {
   }
 
   private cycleThrowable(): void {
+    if (this.remedyBlocks("THROW")) return;
     const items = this.availableThrowables();
     this.selectedThrowableId = nextThrowableId(items, this.selectedThrowableId);
     const selected = items.find((item) => item.id === this.selectedThrowableId);
@@ -2172,6 +2223,7 @@ export class DarkPixGame {
   }
 
   private useClassAbility(): void {
+    if (this.remedyBlocks("ABILITY")) return;
     if (this.interactionHold > 0) {
       this.feed("ABILITY BLOCKED · finish or release the ritual", "system");
       return;
@@ -2382,7 +2434,7 @@ export class DarkPixGame {
       targeted: activeTargeted,
       moving,
       guarding: this.blocking,
-      recovering: this.attackCooldown > 0 || this.swingClock > 0 || this.guardBreakTimer > 0,
+      recovering: this.attackCooldown > 0 || this.swingClock > 0 || this.guardBreakTimer > 0 || Boolean(this.remedyItemId),
       damaged: this.damageCooldown > 0,
     }) : undefined;
     if (this.interactionHold > 0 && activeInterruption) this.breakInteractionChannel(activeInterruption);
@@ -2397,7 +2449,7 @@ export class DarkPixGame {
       targeted: true,
       moving,
       guarding: this.blocking,
-      recovering: this.attackCooldown > 0 || this.swingClock > 0 || this.guardBreakTimer > 0,
+      recovering: this.attackCooldown > 0 || this.swingClock > 0 || this.guardBreakTimer > 0 || Boolean(this.remedyItemId),
       damaged: this.damageCooldown > 0,
     }) : undefined;
     const channeling = Boolean(candidateInput && !candidateInterruption);
@@ -2459,7 +2511,7 @@ export class DarkPixGame {
           : reason === "guarding"
             ? "CHANNEL BROKEN · lower your guard"
             : reason === "recovering"
-              ? "CHANNEL BROKEN · finish the attack recovery"
+              ? "CHANNEL BROKEN · finish the current recovery"
               : "CHANNEL BROKEN · the wound breaks your focus";
     this.resetInteractionChannel();
     this.interactHeld = false;
@@ -2486,6 +2538,7 @@ export class DarkPixGame {
   }
 
   private dropLowestHaul(): void {
+    if (this.remedyBlocks("DROP")) return;
     const { kept, dropped } = dropLeastValuable(this.raidLoot);
     if (!dropped) {
       this.feed("There is no unsecured haul to drop.", "system");
@@ -2750,7 +2803,9 @@ export class DarkPixGame {
     const consumables = this.availableConsumables();
     this.selectedConsumableId = resolveConsumableId(consumables, this.selectedConsumableId);
     const selectedConsumable = consumables.find((item) => item.id === this.selectedConsumableId);
-    this.consumableHud.textContent = selectedConsumable
+    this.consumableHud.textContent = this.remedyItemId
+      ? `Treating ${this.remedyName} · ${this.remedyTimer.toFixed(1)}s`
+      : selectedConsumable
       ? `${selectedConsumable.name} · ${consumables.length} left · C cycle`
       : "No remedy · C cycle";
     const throwables = this.availableThrowables();
@@ -2762,8 +2817,10 @@ export class DarkPixGame {
     this.updateWayfinder();
     this.directionHud.textContent = this.guardBreakTimer > 0
       ? `GUARD BROKEN · ${this.guardBreakTimer.toFixed(1)}s`
+      : this.remedyItemId
+        ? `TREATING · ${this.remedyTimer.toFixed(1)}s`
       : this.riposteTimer > 0 ? `RIPOSTE · ${this.riposteTimer.toFixed(1)}s` : this.attackDirection;
-    this.directionHud.classList.toggle("active", this.guardBreakTimer > 0 || this.riposteTimer > 0 || this.mouseAccumulator.x !== 0 || this.mouseAccumulator.y !== 0);
+    this.directionHud.classList.toggle("active", this.guardBreakTimer > 0 || Boolean(this.remedyItemId) || this.riposteTimer > 0 || this.mouseAccumulator.x !== 0 || this.mouseAccumulator.y !== 0);
     this.directionHud.classList.toggle("danger", this.guardBreakTimer > 0);
     this.damageDirectionHud.classList.toggle("visible", this.damageDirectionTimer > 0);
     this.threatHud.classList.toggle("visible", this.threatTimer > 0);

@@ -484,6 +484,16 @@ export function consumableEffect(item: Pick<Item, "name" | "kind">): ConsumableE
   };
 }
 
+export function consumableUseDuration(item: Pick<Item, "name" | "kind">): number {
+  if (item.kind !== "consumable") return 0;
+  if (item.name === "Pitch bandage") return 1.35;
+  if (item.name === "Camp ember") return 1.15;
+  if (item.name === "Coagulation draught") return 1;
+  if (item.name === "Smoked root") return 0.85;
+  if (item.name === "Bluewax candle") return 0.75;
+  return 1;
+}
+
 export function rarityFromRoll(roll: number, depthBonus = 0): Rarity {
   const adjusted = Math.min(0.999, roll + depthBonus);
   if (adjusted > 0.992) return "Legendary";
