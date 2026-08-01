@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { escapeHtml } from "../html";
 import { AudioDirector } from "./audio";
-import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
+import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat, type AttackDirection, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
@@ -59,6 +59,14 @@ interface Enemy {
   tollWindup: number;
   tollWindupDuration: number;
   tollRing?: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
+}
+
+interface PendingStrike {
+  direction: AttackDirection;
+  spellId: HexSpellId;
+  riposteMultiplier: number;
+  abilityDamageMultiplier: number;
+  impactRemaining: number;
 }
 
 interface Pickup {
@@ -280,8 +288,9 @@ export class DarkPixGame {
   private descendHeld = false;
   private interactionHold = 0;
   private interactionInput?: "interact" | "descend";
-  private attackDirection: "OVERHEAD" | "THRUST" | "SWEEP" = "THRUST";
-  private swingDirection: "OVERHEAD" | "THRUST" | "SWEEP" = "THRUST";
+  private attackDirection: AttackDirection = "THRUST";
+  private swingDirection: AttackDirection = "THRUST";
+  private pendingStrike?: PendingStrike;
   private mouseAccumulator = { x: 0, y: 0 };
   private yaw = 0;
   private pitch = 0;
@@ -1301,6 +1310,14 @@ export class DarkPixGame {
     this.quickdrawTimer = Math.max(0, this.quickdrawTimer - delta);
     this.wildshapeTimer = Math.max(0, this.wildshapeTimer - delta);
     this.swingClock = Math.max(0, this.swingClock - delta);
+    if (this.pendingStrike) {
+      this.pendingStrike.impactRemaining = Math.max(0, this.pendingStrike.impactRemaining - delta);
+      if (this.pendingStrike.impactRemaining <= 0) {
+        const strike = this.pendingStrike;
+        this.pendingStrike = undefined;
+        this.resolveStrike(strike);
+      }
+    }
     this.damageCooldown = Math.max(0, this.damageCooldown - delta);
     this.damageDirectionTimer = Math.max(0, this.damageDirectionTimer - delta);
     this.messageTimer = Math.max(0, this.messageTimer - delta);
@@ -1624,9 +1641,20 @@ export class DarkPixGame {
     this.swingClock = this.swingDuration;
     this.stamina = Math.max(0, this.stamina - staminaCost);
     if (this.options.classId === "hexbound") this.spellCharges -= 1;
+    this.pendingStrike = {
+      direction: this.swingDirection,
+      spellId: this.selectedSpell,
+      riposteMultiplier: riposteDamageMultiplier(this.options.classId, this.riposteTimer),
+      abilityDamageMultiplier: classAbilityDamageMultiplier(this.options.classId, this.options.classId === "shapeshifter" ? this.wildshapeTimer : this.rageTimer),
+      impactRemaining: strikeImpactDelay(this.swingDuration),
+    };
+    this.mouseAccumulator.x = 0;
+    this.mouseAccumulator.y = 0;
     this.audio.attack();
+  }
 
-    const cameraPosition = this.camera.position;
+  private resolveStrike(strike: PendingStrike): void {
+    const cameraPosition = this.camera.position.clone();
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).normalize();
     let best: Enemy | undefined;
     let bestDistance = Number.POSITIVE_INFINITY;
@@ -1634,7 +1662,7 @@ export class DarkPixGame {
       if (!enemy.alive) continue;
       const toEnemy = enemy.group.position.clone().add(new THREE.Vector3(0, 1.1, 0)).sub(cameraPosition);
       const distance = toEnemy.length();
-      const cone = this.options.classId === "hexbound" ? 0.965 : this.options.classId === "ranger" ? 0.975 : this.attackDirection === "SWEEP" ? 0.72 : 0.86;
+      const cone = this.options.classId === "hexbound" ? 0.965 : this.options.classId === "ranger" ? 0.975 : strike.direction === "SWEEP" ? 0.72 : 0.86;
       const visible = dungeonLineOfSight(
         { x: cameraPosition.x, z: cameraPosition.z },
         { x: enemy.group.position.x, z: enemy.group.position.z },
@@ -1645,44 +1673,39 @@ export class DarkPixGame {
       }
     }
     if (!best) {
-      if (this.options.classId === "hexbound") this.spawnSpellTrail(cameraPosition, forward, this.definition.reach, HEX_SPELLS[this.selectedSpell].color);
+      if (this.options.classId === "hexbound") this.spawnSpellTrail(cameraPosition, forward, this.definition.reach, HEX_SPELLS[strike.spellId].color);
       if (this.options.classId === "ranger") this.spawnArrowTrail(cameraPosition, forward, this.definition.reach);
-      this.mouseAccumulator.x = 0;
-      this.mouseAccumulator.y = 0;
       return;
     }
 
     const headHeight = best.kind === "crawler" || best.kind === "mimic" ? 0.72 : best.kind === "boss" ? 2.35 : 1.82;
     const toHead = best.group.position.clone().add(new THREE.Vector3(0, headHeight, 0)).sub(cameraPosition).normalize();
     const headshot = toHead.dot(forward) > (this.options.classId === "hexbound" ? 0.992 : this.options.classId === "ranger" ? 0.988 : 0.975);
-    const limbHit = !headshot && this.attackDirection === "SWEEP" && this.options.classId !== "hexbound" && this.options.classId !== "ranger";
+    const limbHit = !headshot && strike.direction === "SWEEP" && this.options.classId !== "hexbound" && this.options.classId !== "ranger";
     const weaponPower = equippedPower(this.options.equipped, "weapon");
     const baseDamage = attackDamage({
       baseDamage: this.definition.damage,
       weaponPower,
       progressionBonus: this.damageBonus,
-      direction: this.attackDirection,
+      direction: strike.direction,
       ambush: this.options.classId === "cutpurse" && !best.alerted,
       headshot,
       limb: limbHit,
     });
-    const spell = this.options.classId === "hexbound" ? HEX_SPELLS[this.selectedSpell] : undefined;
-    const riposteMultiplier = riposteDamageMultiplier(this.options.classId, this.riposteTimer);
-    const riposte = riposteMultiplier > 1;
+    const spell = this.options.classId === "hexbound" ? HEX_SPELLS[strike.spellId] : undefined;
+    const riposte = strike.riposteMultiplier > 1;
     if (riposte) this.riposteTimer = 0;
     const damage = Math.round(
       baseDamage
       * (best.kind === "rival" ? 1 : this.loadoutBonuses.undeadDamageMultiplier)
-      * classAbilityDamageMultiplier(this.options.classId, this.options.classId === "shapeshifter" ? this.wildshapeTimer : this.rageTimer)
+      * strike.abilityDamageMultiplier
       * (spell?.damageMultiplier ?? 1)
-      * riposteMultiplier,
+      * strike.riposteMultiplier,
     );
     const unseenStrike = this.recordUnseenStrike(best);
     this.damageEnemy(best, damage, headshot, limbHit, Boolean(spell?.cripples && !headshot), riposte, true, true, true, unseenStrike);
     if (this.options.classId === "hexbound") this.spawnSpellTrail(cameraPosition, forward, bestDistance, spell?.color ?? HEX_SPELLS.ash_bolt.color);
     if (this.options.classId === "ranger") this.spawnArrowTrail(cameraPosition, forward, bestDistance);
-    this.mouseAccumulator.x = 0;
-    this.mouseAccumulator.y = 0;
   }
 
   private spawnSpellTrail(start: THREE.Vector3, forward: THREE.Vector3, distance: number, color: number): void {
@@ -3097,6 +3120,8 @@ export class DarkPixGame {
       ? `GUARD BROKEN · ${this.guardBreakTimer.toFixed(1)}s`
       : this.remedyItemId
         ? `TREATING · ${this.remedyTimer.toFixed(1)}s`
+      : this.pendingStrike
+        ? `${this.pendingStrike.direction} COMMITTED · ${this.pendingStrike.impactRemaining.toFixed(1)}s TO IMPACT`
       : this.attackCooldown > 0
         ? `ACTION RECOVERY · ${this.attackCooldown.toFixed(1)}s · GUARD LOCKED`
       : this.dodgeCooldown > 0

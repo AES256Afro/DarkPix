@@ -68,6 +68,11 @@ export function delverRecoveryActive(
     .some((remaining) => Number.isFinite(remaining) && remaining > 0);
 }
 
+export function strikeImpactDelay(swingDuration: number): number {
+  if (!Number.isFinite(swingDuration)) return 0.12;
+  return Math.min(0.24, Math.max(0.08, swingDuration * 0.5));
+}
+
 export function attackDamage(input: DamageInput): number {
   let damage = Math.max(0, input.baseDamage + input.weaponPower + input.progressionBonus);
   if (input.direction === "OVERHEAD") damage *= 1.18;
