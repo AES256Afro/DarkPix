@@ -637,6 +637,8 @@ export class DarkPixGame {
     document.addEventListener("mousedown", this.onMouseDown);
     document.addEventListener("mouseup", this.onMouseUp);
     document.addEventListener("pointerlockchange", this.onPointerLockChange);
+    document.addEventListener("visibilitychange", this.onVisibilityChange);
+    window.addEventListener("blur", this.onWindowBlur);
     this.renderer.domElement.addEventListener("webglcontextlost", this.onContextLost);
     this.renderer.domElement.addEventListener("webglcontextrestored", this.onContextRestored);
     this.renderer.domElement.addEventListener("click", this.requestPointerLock);
@@ -694,11 +696,36 @@ export class DarkPixGame {
       return;
     }
     this.paused = document.pointerLockElement !== this.renderer.domElement;
+    if (this.paused) this.clearHeldInputs();
     this.lockOverlay.classList.toggle("hidden", !this.paused || this.ended);
     if (!this.paused) {
       this.audio.start();
       this.clock.getDelta();
     }
+  };
+
+  private clearHeldInputs(): void {
+    this.keys.clear();
+    this.blocking = false;
+    this.blockAge = 0;
+    this.interactHeld = false;
+    this.interactionHold = 0;
+    this.mouseAccumulator.x = 0;
+    this.mouseAccumulator.y = 0;
+  }
+
+  private pauseForFocusLoss(): void {
+    if (this.ended) return;
+    this.paused = true;
+    this.clearHeldInputs();
+    this.lockOverlay.classList.remove("hidden");
+    if (document.pointerLockElement === this.renderer.domElement) void document.exitPointerLock();
+  }
+
+  private onWindowBlur = (): void => this.pauseForFocusLoss();
+
+  private onVisibilityChange = (): void => {
+    if (document.hidden) this.pauseForFocusLoss();
   };
 
   private setLockOverlayCopy(title: string, detail: string): void {
@@ -713,10 +740,7 @@ export class DarkPixGame {
     if (this.ended) return;
     this.contextLost = true;
     this.paused = true;
-    this.blocking = false;
-    this.keys.clear();
-    this.interactHeld = false;
-    this.interactionHold = 0;
+    this.clearHeldInputs();
     this.setLockOverlayCopy("REKINDLING THE CRYPT", "The renderer was interrupted. Waiting for the torch to return.");
     this.lockOverlay.classList.remove("hidden");
     if (document.pointerLockElement === this.renderer.domElement) void document.exitPointerLock();
@@ -970,10 +994,15 @@ export class DarkPixGame {
       enemy.cooldown = Math.max(0, enemy.cooldown - delta);
       enemy.stagger = Math.max(0, enemy.stagger - delta);
       enemy.pathTimer = Math.max(0, enemy.pathTimer - delta);
-      enemy.group.scale.lerp(new THREE.Vector3(enemy.baseScale, enemy.baseScale, enemy.baseScale), delta * 7);
+      enemy.group.scale.set(
+        THREE.MathUtils.lerp(enemy.group.scale.x, enemy.baseScale, delta * 7),
+        THREE.MathUtils.lerp(enemy.group.scale.y, enemy.baseScale, delta * 7),
+        THREE.MathUtils.lerp(enemy.group.scale.z, enemy.baseScale, delta * 7),
+      );
       enemy.group.rotation.x = THREE.MathUtils.lerp(enemy.group.rotation.x, 0, delta * 8);
-      const toPlayer = new THREE.Vector3(player.x - enemy.group.position.x, 0, player.z - enemy.group.position.z);
-      const distance = toPlayer.length();
+      const toPlayerX = player.x - enemy.group.position.x;
+      const toPlayerZ = player.z - enemy.group.position.z;
+      const distance = Math.hypot(toPlayerX, toPlayerZ);
       const awareness = this.torchLit ? 10.5 : 6.5;
       if (this.elapsed >= SPAWN_GRACE && distance < awareness && dungeonLineOfSight(
         { x: player.x, z: player.z },
@@ -1035,16 +1064,15 @@ export class DarkPixGame {
         ) < 0.4) enemy.path.shift();
         const waypoint = hasSight ? { x: player.x, z: player.z } : enemy.path[0];
         if (!waypoint) continue;
-        const movement = new THREE.Vector3(
-          waypoint.x - enemy.group.position.x,
-          0,
-          waypoint.z - enemy.group.position.z,
-        );
+        const movementX = waypoint.x - enemy.group.position.x;
+        const movementZ = waypoint.z - enemy.group.position.z;
+        const movementLength = Math.hypot(movementX, movementZ);
+        if (movementLength <= 0.001) continue;
         enemy.group.lookAt(waypoint.x, enemy.group.position.y, waypoint.z);
-        const step = movement.normalize().multiplyScalar(enemy.speed * delta);
-        const nextX = enemy.group.position.x + step.x;
+        const stepScale = (enemy.speed * delta) / movementLength;
+        const nextX = enemy.group.position.x + movementX * stepScale;
         if (!this.collidesEnemy(enemy, nextX, enemy.group.position.z)) enemy.group.position.x = nextX;
-        const nextZ = enemy.group.position.z + step.z;
+        const nextZ = enemy.group.position.z + movementZ * stepScale;
         if (!this.collidesEnemy(enemy, enemy.group.position.x, nextZ)) enemy.group.position.z = nextZ;
         enemy.group.position.y = Math.sin(this.elapsed * 7 + enemy.phase) * 0.025;
       } else if (enemy.cooldown <= 0 && enemy.stagger <= 0) {
@@ -1414,6 +1442,8 @@ export class DarkPixGame {
     document.removeEventListener("mousedown", this.onMouseDown);
     document.removeEventListener("mouseup", this.onMouseUp);
     document.removeEventListener("pointerlockchange", this.onPointerLockChange);
+    document.removeEventListener("visibilitychange", this.onVisibilityChange);
+    window.removeEventListener("blur", this.onWindowBlur);
     this.renderer.domElement.removeEventListener("webglcontextlost", this.onContextLost);
     this.renderer.domElement.removeEventListener("webglcontextrestored", this.onContextRestored);
     this.renderer.domElement.removeEventListener("click", this.requestPointerLock);
