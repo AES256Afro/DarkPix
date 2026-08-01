@@ -31,3 +31,17 @@ export function relativeDirectionToSource(yaw: number, origin: Vec2, source: Vec
   if (angle <= -Math.PI / 4 && angle > -Math.PI * 3 / 4) return "LEFT";
   return "BACK";
 }
+
+export function movementOffset(yaw: number, strafe: number, forward: number, distance: number): Vec2 {
+  const safeYaw = Number.isFinite(yaw) ? yaw : 0;
+  const safeStrafe = Number.isFinite(strafe) ? strafe : 0;
+  const safeForward = Number.isFinite(forward) ? forward : 0;
+  const length = Math.hypot(safeStrafe, safeForward);
+  const scale = length > 0.001 && Number.isFinite(distance) ? Math.max(0, distance) / Math.max(1, length) : 0;
+  const x = (safeStrafe * Math.cos(safeYaw) - safeForward * Math.sin(safeYaw)) * scale;
+  const z = (-safeStrafe * Math.sin(safeYaw) - safeForward * Math.cos(safeYaw)) * scale;
+  return {
+    x: x === 0 ? 0 : x,
+    z: z === 0 ? 0 : z,
+  };
+}

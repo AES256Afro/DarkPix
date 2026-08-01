@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
 import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, RAID_HISTORY_LIMIT, applyRaidResult, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
-import { attackDamage, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat } from "../src/game/combat";
+import { attackDamage, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat } from "../src/game/combat";
 
 describe("loot generation", () => {
   it("maps rarity thresholds deterministically", () => {
@@ -630,6 +630,13 @@ describe("directional combat damage", () => {
     expect(guardDrainPerSecond("cleric")).toBe(11);
     expect(guardDrainPerSecond("shapeshifter")).toBe(11);
     expect(guardDrainPerSecond("minstrel")).toBe(11);
+  });
+
+  it("keeps sidesteps short, costly, and class-weighted", () => {
+    expect(dodgeStats("cutpurse")).toEqual({ distance: 1.8, stamina: 17, cooldown: 0.78 });
+    expect(dodgeStats("vanguard")).toEqual({ distance: 1.3, stamina: 23, cooldown: 1.05 });
+    expect(dodgeStats("reaver")).toEqual({ distance: 1.2, stamina: 24, cooldown: 1.08 });
+    expect(dodgeStats("minstrel")).toEqual({ distance: 1.55, stamina: 20, cooldown: 0.9 });
   });
 
   it("bounds Blood Rage to the Reaver's active damage window", () => {

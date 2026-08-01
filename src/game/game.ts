@@ -1,13 +1,13 @@
 import * as THREE from "three";
 import { escapeHtml } from "../html";
 import { AudioDirector } from "./audio";
-import { attackDamage, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
+import { attackDamage, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, depthRules } from "./depth";
 import { HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGold } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, pickupDecision, type LoadoutStats } from "./loadout";
-import { cardinalDirection, circlesOverlap, relativeDirectionToSource } from "./navigation";
+import { cardinalDirection, circlesOverlap, movementOffset, relativeDirectionToSource } from "./navigation";
 import { raidRules, type RaidRules } from "./raid";
 import { consumablesInUseOrder, nextConsumableId, nextThrowableId, resolveConsumableId, resolveThrowableId, throwablesInUseOrder } from "./quickslots";
 import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./resolution";
@@ -234,6 +234,7 @@ export class DarkPixGame {
   private blocking = false;
   private blockAge = 0;
   private attackCooldown = 0;
+  private dodgeCooldown = 0;
   private swingClock = 0;
   private swingDuration = 0.42;
   private footstepClock = 0;
@@ -355,7 +356,7 @@ export class DarkPixGame {
             <button class="resume-raid" type="button">BIND CURSOR / RESUME</button>
             <button class="abandon-raid" type="button">ABANDON RAID</button>
           </span>
-          <span class="control-line">WASD move · mouse look · LMB strike · RMB guard · 1/2 spells · E interact · R red descent · F use remedy · C cycle remedy · V throw · B cycle throw · G drop · T torch · Shift sprint</span>
+          <span class="control-line">WASD move · mouse look · LMB strike · RMB guard · Space sidestep · 1/2 spells · E interact · R red descent · F use remedy · C cycle remedy · V throw · B cycle throw · G drop · T torch · Shift sprint</span>
         </div>
       </div>`;
     const host = this.mount.querySelector<HTMLElement>(".render-host");
@@ -906,6 +907,10 @@ export class DarkPixGame {
     if (event.code === "KeyG" && !event.repeat) this.dropLowestHaul();
     if (event.code === "KeyQ" && !event.repeat) this.useClassAbility();
     if (event.code === "KeyT" && !event.repeat) this.toggleTorch();
+    if (event.code === "Space" && !event.repeat) {
+      event.preventDefault();
+      this.dodge();
+    }
     if (event.code === "Digit1" && !event.repeat) this.selectSpell("ash_bolt");
     if (event.code === "Digit2" && !event.repeat) this.selectSpell("frost_hex");
   };
@@ -1144,6 +1149,7 @@ export class DarkPixGame {
   private update(delta: number): void {
     this.elapsed += delta;
     this.attackCooldown = Math.max(0, this.attackCooldown - delta);
+    this.dodgeCooldown = Math.max(0, this.dodgeCooldown - delta);
     this.abilityCooldown = Math.max(0, this.abilityCooldown - delta);
     this.concealmentTimer = Math.max(0, this.concealmentTimer - delta);
     this.rageTimer = Math.max(0, this.rageTimer - delta);
@@ -1208,6 +1214,36 @@ export class DarkPixGame {
       this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, PLAYER_HEIGHT, delta * 7);
     }
     this.camera.rotation.set(this.pitch, this.yaw, 0);
+  }
+
+  private dodge(): void {
+    if (this.paused || this.ended || this.blocking || this.attackCooldown > 0 || this.swingClock > 0 || this.interactionHold > 0) return;
+    const stats = dodgeStats(this.options.classId);
+    if (this.dodgeCooldown > 0) {
+      this.feed(`SIDESTEP RECOVERING · ${this.dodgeCooldown.toFixed(1)}s`, "system");
+      return;
+    }
+    if (this.stamina < stats.stamina) {
+      this.feed(`SIDESTEP NEEDS ${stats.stamina} STAMINA`, "danger");
+      return;
+    }
+    const strafe = Number(this.keys.has("KeyD")) - Number(this.keys.has("KeyA"));
+    let forward = Number(this.keys.has("KeyW")) - Number(this.keys.has("KeyS"));
+    if (strafe === 0 && forward === 0) forward = -1;
+    const offset = movementOffset(this.yaw, strafe, forward, stats.distance);
+    const startX = this.camera.position.x;
+    const startZ = this.camera.position.z;
+    for (let step = 0; step < 5; step += 1) this.tryMove(offset.x / 5, offset.z / 5);
+    const moved = Math.hypot(this.camera.position.x - startX, this.camera.position.z - startZ);
+    if (moved < 0.1) {
+      this.feed("SIDESTEP BLOCKED · the masonry holds", "system");
+      return;
+    }
+    this.stamina = Math.max(0, this.stamina - stats.stamina);
+    this.dodgeCooldown = stats.cooldown;
+    this.concealmentTimer = 0;
+    this.audio.tone(170, 0.09, "sawtooth", 0.055);
+    this.feed(`SIDESTEP · ${moved.toFixed(1)}m`, "system");
   }
 
   private tryMove(dx: number, dz: number): void {

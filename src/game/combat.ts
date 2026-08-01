@@ -22,6 +22,12 @@ export interface DamageInput {
   limb?: boolean;
 }
 
+export interface DodgeStats {
+  distance: number;
+  stamina: number;
+  cooldown: number;
+}
+
 export function attackDamage(input: DamageInput): number {
   let damage = Math.max(0, input.baseDamage + input.weaponPower + input.progressionBonus);
   if (input.direction === "OVERHEAD") damage *= 1.18;
@@ -115,4 +121,11 @@ export function sanctuaryDamage(kind: ThreatKind): number {
 
 export function minstrelStagger(kind: ThreatKind): number {
   return kind === "boss" ? 0.45 : kind === "rival" ? 1.35 : 2.1;
+}
+
+export function dodgeStats(classId: ClassId): DodgeStats {
+  if (classId === "cutpurse") return { distance: 1.8, stamina: 17, cooldown: 0.78 };
+  if (classId === "vanguard") return { distance: 1.3, stamina: 23, cooldown: 1.05 };
+  if (classId === "reaver") return { distance: 1.2, stamina: 24, cooldown: 1.08 };
+  return { distance: 1.55, stamina: 20, cooldown: 0.9 };
 }

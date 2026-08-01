@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DUNGEON, dartTrapTargetDistance, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists, encounterPosition, selectRaidVariation } from "../src/game/dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES } from "../src/game/depth";
 import { continuousHold, targetDistanceInView } from "../src/game/targeting";
-import { cardinalDirection, circlesOverlap, relativeDirectionToSource } from "../src/game/navigation";
+import { cardinalDirection, circlesOverlap, movementOffset, relativeDirectionToSource } from "../src/game/navigation";
 import { directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "../src/game/zone";
 import type { Vec2 } from "../src/game/types";
 
@@ -149,6 +149,15 @@ describe("contract wayfinding", () => {
     expect(relativeDirectionToSource(Math.PI / 2, origin, { x: -4, z: 0 })).toBe("FRONT");
     expect(relativeDirectionToSource(0, origin, origin)).toBe("CENTER");
     expect(relativeDirectionToSource(Number.NaN, origin, { x: 0, z: -4 })).toBe("FRONT");
+  });
+
+  it("turns local sidestep input into a bounded world offset", () => {
+    expect(movementOffset(0, 0, 1, 1.5)).toEqual({ x: 0, z: -1.5 });
+    expect(movementOffset(0, 1, 0, 1.5)).toEqual({ x: 1.5, z: 0 });
+    expect(movementOffset(Math.PI / 2, 0, 1, 2).x).toBeCloseTo(-2);
+    expect(Math.hypot(...Object.values(movementOffset(0, 1, 1, 1.5)))).toBeCloseTo(1.5);
+    expect(movementOffset(0, Number.NaN, 0, 2)).toEqual({ x: 0, z: 0 });
+    expect(movementOffset(0, 1, 0, -2)).toEqual({ x: 0, z: 0 });
   });
 
   it("keeps physical threat circles from stacking", () => {
