@@ -21,5 +21,11 @@ describe("save backups", () => {
   it("rejects malformed and unrelated JSON", () => {
     expect(parseSaveBackup("not json")).toBeUndefined();
     expect(parseSaveBackup(JSON.stringify({ format: "some-other-game" }))).toBeUndefined();
+    expect(parseSaveBackup(JSON.stringify({ format: SAVE_BACKUP_FORMAT, profile: {}, preferences: {} }))).toBeUndefined();
+    expect(parseSaveBackup(JSON.stringify({
+      format: SAVE_BACKUP_FORMAT,
+      profile: { version: 14, gold: 75, xp: {}, stash: "not-an-array", preferredClass: "vanguard" },
+      preferences: DEFAULT_PREFERENCES,
+    }))).toBeUndefined();
   });
 });

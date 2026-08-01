@@ -12,6 +12,33 @@ export interface SaveBackup {
   preferences: GamePreferences;
 }
 
+function record(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
+}
+
+function recognizableProfile(value: unknown): boolean {
+  const candidate = record(value);
+  return Boolean(
+    candidate &&
+    typeof candidate.version === "number" && Number.isFinite(candidate.version) &&
+    typeof candidate.gold === "number" && Number.isFinite(candidate.gold) &&
+    record(candidate.xp) &&
+    Array.isArray(candidate.stash) &&
+    typeof candidate.preferredClass === "string",
+  );
+}
+
+function recognizablePreferences(value: unknown): boolean {
+  const candidate = record(value);
+  return Boolean(
+    candidate &&
+    typeof candidate.mouseSensitivity === "number" && Number.isFinite(candidate.mouseSensitivity) &&
+    typeof candidate.brightness === "number" && Number.isFinite(candidate.brightness) &&
+    typeof candidate.volume === "number" && Number.isFinite(candidate.volume) &&
+    typeof candidate.muted === "boolean",
+  );
+}
+
 export function createSaveBackup(
   profile: Profile,
   preferences: GamePreferences,
@@ -30,8 +57,8 @@ export function createSaveBackup(
 
 export function parseSaveBackup(serialized: string): Pick<SaveBackup, "profile" | "preferences"> | undefined {
   try {
-    const candidate = JSON.parse(serialized) as Partial<SaveBackup>;
-    if (!candidate || candidate.format !== SAVE_BACKUP_FORMAT || !candidate.profile || !candidate.preferences) return undefined;
+    const candidate = record(JSON.parse(serialized));
+    if (!candidate || candidate.format !== SAVE_BACKUP_FORMAT || !recognizableProfile(candidate.profile) || !recognizablePreferences(candidate.preferences)) return undefined;
     return {
       profile: normalizeProfile(candidate.profile),
       preferences: normalizePreferences(candidate.preferences),
