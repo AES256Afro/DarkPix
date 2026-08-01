@@ -144,6 +144,14 @@ describe("persistent raid consequences", () => {
     expect(highToll.profile.deaths).toBe(1);
   });
 
+  it("records red-depth veterancy on both escape and death", () => {
+    const base = { classId: "vanguard" as const, loot: [], equippedIds: [], kills: 0, elapsed: 220, goldFound: 0, depthReached: 2 as const };
+    const escaped = settleRaid(createProfile(), { ...base, reason: "extracted" });
+    const fallen = settleRaid(createProfile(), { ...base, reason: "slain" });
+    expect(escaped.xpGained).toBe(350);
+    expect(fallen.xpGained).toBe(90);
+  });
+
   it("pays the first successful High Toll contract once and never for standard or failed raids", () => {
     const result = {
       reason: "extracted" as const,

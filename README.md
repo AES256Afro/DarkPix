@@ -26,6 +26,7 @@ Open `http://127.0.0.1:4173` on a desktop browser. Click **Enter the Crypt** to 
 | `E` | Loot, search, rest, or hold to extract |
 | `F` | Use a recovered consumable |
 | `G` | Drop the least valuable unsecured haul item |
+| `R` | Hold at an awakened passage to descend red |
 | `T` | Hood or unhood the torch |
 | `Escape` | Release the cursor and pause |
 
@@ -50,6 +51,7 @@ Mouse sensitivity, crypt brightness, audio, reduced camera motion, and stash ord
 - Break the AI rival's sightline or react to its telegraphed throwing knife; a fresh guard can parry the projectile.
 - Find the unmarked blood reliquary in the southwest dead chamber, if the extra loot is worth 18 vigor and the noise it makes.
 - Survive the Tollkeeper in the extraction chamber. Its heavy attacks cannot be parried, it enrages below half vigor, and it always drops a named Rare-or-better chain trophy.
+- Killing the first Tollkeeper awakens a red breach in the extraction arch. Hold `E` to bank the run or hold `R` to abandon the safe exit and enter the Ashen Depth: a 135-second second floor with no resource reset, fresh wardens, stronger threats, a new closing darkness, +0.16 loot depth, and extra class XP even if the deeper run fails.
 - Hold `E` while facing the blue passage in the southeast reliquary to bank the haul. Looking away or taking damage breaks the extraction channel.
 - Read the shrinking safe reach in the raid HUD. Its center migrates southeast so the final refuge includes the extraction chamber.
 - Death discards all raid loot and equipped risk items. The player can always return with base class equipment.

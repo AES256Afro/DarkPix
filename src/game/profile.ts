@@ -1,6 +1,7 @@
 import type { ClassId, Item, Profile, RaidResult } from "./types";
 import type { CraftingRecipe } from "./data";
 import { raidRules } from "./raid";
+import { depthXpBonus } from "./depth";
 
 const PROFILE_KEY = "darkpix-profile-v1";
 
@@ -126,7 +127,10 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
   const next = normalizeProfile(profile);
   const consumed = new Set(result.consumedIds ?? []);
   if (consumed.size) next.stash = next.stash.filter((item) => !consumed.has(item.id));
-  const baseXpGain = 30 + Math.min(1_000, nonnegativeInteger(result.kills)) * 35 + (result.reason === "extracted" ? 140 : 0);
+  const baseXpGain = 30
+    + Math.min(1_000, nonnegativeInteger(result.kills)) * 35
+    + (result.reason === "extracted" ? 140 : 0)
+    + depthXpBonus(result.depthReached, result.reason === "extracted");
   const xpGain = Math.round(baseXpGain * raidRules(result.raidMode).xpMultiplier);
   next.xp[result.classId] = Math.min(Number.MAX_SAFE_INTEGER, next.xp[result.classId] + xpGain);
   next.preferredClass = result.classId;

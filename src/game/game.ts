@@ -3,6 +3,7 @@ import { AudioDirector } from "./audio";
 import { attackDamage, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat, type ThreatKind } from "./combat";
 import { CLASSES, CLASS_ABILITIES, RARITY_COLOR, classPerkBonuses, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, type ClassPerkBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
+import { depthRules } from "./depth";
 import { HAUL_CAPACITY, canAddToHaul, dropLeastValuable, haulCount, treasureGold } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, type LoadoutStats } from "./loadout";
 import { cardinalDirection, circlesOverlap } from "./navigation";
@@ -10,7 +11,7 @@ import { raidRules, type RaidRules } from "./raid";
 import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./resolution";
 import { disposeSceneResources } from "./resources";
 import { continuousHold, targetDistanceInView } from "./targeting";
-import type { ClassId, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, Vec2 } from "./types";
+import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, Vec2 } from "./types";
 import { distanceFromZoneCenter, zoneState } from "./zone";
 
 interface WallCollider {
@@ -75,8 +76,6 @@ export interface DarkPixGameOptions {
   onFinish: (result: RaidResult) => void;
 }
 
-const RAID_DURATION = 210;
-const SPAWN_GRACE = 8;
 const PLAYER_HEIGHT = 1.67;
 const PLAYER_RADIUS = 0.38;
 
@@ -143,6 +142,10 @@ export class DarkPixGame {
   private readonly delverTorch = new THREE.SpotLight(0xffb267, 5.2, 18, Math.PI / 3.8, 0.7, 1.25);
   private readonly portal = new THREE.Group();
   private readonly portalCore = new THREE.Mesh();
+  private readonly redDepthRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.76, 0.055, 4, 16),
+    new THREE.MeshBasicMaterial({ color: 0xe04438, transparent: true, opacity: 0 }),
+  );
   private readonly campfire = new THREE.Group();
   private readonly shrine = new THREE.Group();
   private readonly resizeObserver: ResizeObserver;
@@ -197,6 +200,7 @@ export class DarkPixGame {
   private footstepClock = 0;
   private damageCooldown = 0;
   private interactHeld = false;
+  private descendHeld = false;
   private interactionHold = 0;
   private attackDirection: "OVERHEAD" | "THRUST" | "SWEEP" = "THRUST";
   private mouseAccumulator = { x: 0, y: 0 };
@@ -212,6 +216,8 @@ export class DarkPixGame {
   private frameTimeTotal = 0;
   private frameSamples = 0;
   private resolutionTimer = 0;
+  private depth: DungeonDepth = 1;
+  private depthStartedAt = 0;
 
   constructor(mount: HTMLElement, options: DarkPixGameOptions) {
     this.mount = mount;
@@ -297,7 +303,7 @@ export class DarkPixGame {
           <span class="sigil-mark">DP</span>
           <strong>ENTER THE CRYPT</strong>
           <small>Click to bind the cursor</small>
-          <span class="control-line">WASD move · mouse look · LMB strike · RMB guard · E interact · F heal · G drop · T torch · Shift sprint</span>
+          <span class="control-line">WASD move · mouse look · LMB strike · RMB guard · E interact · R red descent · F heal · G drop · T torch · Shift sprint</span>
         </button>
       </div>`;
     const host = this.mount.querySelector<HTMLElement>(".render-host");
@@ -522,7 +528,8 @@ export class DarkPixGame {
     this.portalCore.geometry = new THREE.CircleGeometry(1.05, 16);
     this.portalCore.material = new THREE.MeshBasicMaterial({ color: 0x4adbd1, transparent: true, opacity: 0.05, side: THREE.DoubleSide });
     this.portalCore.position.z = 0.05;
-    this.portal.add(this.portalCore);
+    this.redDepthRing.position.z = 0.08;
+    this.portal.add(this.portalCore, this.redDepthRing);
     const portalLight = new THREE.PointLight(0x43e0d5, 0, 8);
     portalLight.name = "portalLight";
     portalLight.position.z = 0.5;
@@ -622,11 +629,13 @@ export class DarkPixGame {
         : kind === "crawler"
           ? { hp: 38, speed: 2.65, damage: 12, range: 1.15, name: "Grave crawler" }
           : { hp: 64, speed: 1.55, damage: 17, range: 1.55, name: "Hollow legionary" };
+    const floorRules = depthRules(this.depth);
     const stats = {
       ...baseStats,
-      hp: Math.round(baseStats.hp * this.raidRules.enemyHealthMultiplier),
-      speed: baseStats.speed * this.raidRules.enemySpeedMultiplier,
-      damage: Math.round(baseStats.damage * this.raidRules.enemyDamageMultiplier),
+      name: this.depth === 2 && kind === "boss" ? "The Ash Tollkeeper" : baseStats.name,
+      hp: Math.round(baseStats.hp * this.raidRules.enemyHealthMultiplier * floorRules.enemyHealthMultiplier),
+      speed: baseStats.speed * this.raidRules.enemySpeedMultiplier * floorRules.enemySpeedMultiplier,
+      damage: Math.round(baseStats.damage * this.raidRules.enemyDamageMultiplier * floorRules.enemyDamageMultiplier),
     };
     this.enemies.push({
       id,
@@ -687,6 +696,7 @@ export class DarkPixGame {
     if (this.paused || this.ended) return;
     this.keys.add(event.code);
     if (event.code === "KeyE") this.interactHeld = true;
+    if (event.code === "KeyR") this.descendHeld = true;
     if (event.code === "KeyF" && !event.repeat) this.usePotion();
     if (event.code === "KeyG" && !event.repeat) this.dropLowestHaul();
     if (event.code === "KeyQ" && !event.repeat) this.useClassAbility();
@@ -697,6 +707,10 @@ export class DarkPixGame {
     this.keys.delete(event.code);
     if (event.code === "KeyE") {
       this.interactHeld = false;
+      this.interactionHold = 0;
+    }
+    if (event.code === "KeyR") {
+      this.descendHeld = false;
       this.interactionHold = 0;
     }
   };
@@ -755,6 +769,7 @@ export class DarkPixGame {
     this.blocking = false;
     this.blockAge = 0;
     this.interactHeld = false;
+    this.descendHeld = false;
     this.interactionHold = 0;
     this.mouseAccumulator.x = 0;
     this.mouseAccumulator.y = 0;
@@ -877,7 +892,11 @@ export class DarkPixGame {
     this.updateInteraction(delta);
     this.updateHud();
 
-    if (this.elapsed >= RAID_DURATION) this.finish("darkness");
+    if (this.phaseElapsed() >= depthRules(this.depth).duration) this.finish("darkness");
+  }
+
+  private phaseElapsed(): number {
+    return Math.max(0, this.elapsed - this.depthStartedAt);
   }
 
   private updateMovement(delta: number): void {
@@ -1083,7 +1102,10 @@ export class DarkPixGame {
       return;
     }
     enemy.alive = false;
-    if (enemy.kind === "boss") this.bossKilled = true;
+    if (enemy.kind === "boss") {
+      this.bossKilled = true;
+      if (this.depth === 1) this.revealRedDepth();
+    }
     this.kills += 1;
     enemy.group.rotation.z = 1.2;
     enemy.group.position.y = -0.55;
@@ -1091,10 +1113,14 @@ export class DarkPixGame {
     const drop = enemy.kind === "warden"
       ? createSigil()
       : enemy.kind === "boss"
-        ? createBossLoot(Math.random, this.raidRules.lootDepthBonus)
-        : createLoot(Math.random, (enemy.kind === "rival" ? 0.12 : enemy.kind === "mimic" ? 0.18 : 0.03) + this.raidRules.lootDepthBonus);
+        ? createBossLoot(Math.random, this.raidRules.lootDepthBonus + depthRules(this.depth).lootDepthBonus)
+        : createLoot(Math.random, (enemy.kind === "rival" ? 0.12 : enemy.kind === "mimic" ? 0.18 : 0.03) + this.raidRules.lootDepthBonus + depthRules(this.depth).lootDepthBonus);
     this.spawnPickup(drop, enemy.group.position.clone());
     this.showThreatVitals(enemy);
+    if (enemy.kind === "boss" && this.depth === 1) {
+      this.feed("RED BREACH AWAKENED · extract with E or descend with R", "danger");
+      this.audio.portal();
+    }
   }
 
   private showThreatVitals(enemy: Enemy): void {
@@ -1129,7 +1155,7 @@ export class DarkPixGame {
       const toPlayerZ = player.z - enemy.group.position.z;
       const distance = Math.hypot(toPlayerX, toPlayerZ);
       const awareness = this.torchLit ? 10.5 : 6.5;
-      if (this.elapsed >= SPAWN_GRACE && this.concealmentTimer <= 0 && distance < awareness && dungeonLineOfSight(
+      if (this.phaseElapsed() >= depthRules(this.depth).spawnGrace && this.concealmentTimer <= 0 && distance < awareness && dungeonLineOfSight(
         { x: player.x, z: player.z },
         { x: enemy.group.position.x, z: enemy.group.position.z },
       )) enemy.alerted = true;
@@ -1335,17 +1361,19 @@ export class DarkPixGame {
   }
 
   private updateZone(_delta: number): void {
-    const zone = zoneState(this.elapsed, RAID_DURATION);
+    const floorRules = depthRules(this.depth);
+    const floorElapsed = this.phaseElapsed();
+    const zone = zoneState(floorElapsed, floorRules.duration);
     const distance = distanceFromZoneCenter({ x: this.camera.position.x, z: this.camera.position.z }, zone);
     const zoneCopy = this.mount.querySelector<HTMLElement>(".zone-copy");
     if (zoneCopy) {
-      zoneCopy.textContent = this.elapsed < SPAWN_GRACE
-        ? `warding veil ${Math.ceil(SPAWN_GRACE - this.elapsed)}s`
+      zoneCopy.textContent = floorElapsed < floorRules.spawnGrace
+        ? `warding veil ${Math.ceil(floorRules.spawnGrace - floorElapsed)}s`
         : zone.progress === 0
           ? "darkness dormant"
           : `safe reach ${Math.round(zone.radius)}m`;
     }
-    if (!this.spawnGraceAnnounced && this.elapsed >= SPAWN_GRACE) {
+    if (!this.spawnGraceAnnounced && floorElapsed >= floorRules.spawnGrace) {
       this.spawnGraceAnnounced = true;
       this.feed("The warding veil gutters. The crypt can hear you now.", "danger");
     }
@@ -1413,17 +1441,21 @@ export class DarkPixGame {
     if (interactive === "chest") prompt = "[ E ] SEARCH IRONBOUND COFFER";
     if (interactive === "campfire") prompt = "[ HOLD E ] REST · RESTORE VIGOR AND SPELL MEMORY";
     if (interactive === "shrine") prompt = "[ E ] PAY 18 VIGOR TO THE BLOOD RELIQUARY";
-    if (interactive === "portal") prompt = "[ HOLD E ] OPEN THE BLUE PASSAGE";
+    const redDepthAvailable = interactive === "portal" && this.depth === 1 && this.bossKilled;
+    if (interactive === "portal") prompt = redDepthAvailable
+      ? "[ HOLD E ] EXTRACT BLUE · [ HOLD R ] DESCEND RED"
+      : "[ HOLD E ] OPEN THE BLUE PASSAGE";
     this.promptHud.textContent = prompt;
     this.promptHud.classList.toggle("visible", Boolean(prompt));
 
-    const channeling = this.interactHeld && (interactive === "portal" || interactive === "campfire");
-    const channelDuration = (interactive === "campfire" ? 2.2 : 1.8) * this.loadoutBonuses.interactionDurationMultiplier;
+    const descending = redDepthAvailable && this.descendHeld;
+    const channeling = descending || (this.interactHeld && (interactive === "portal" || interactive === "campfire"));
+    const channelDuration = (descending ? 2.4 : interactive === "campfire" ? 2.2 : 1.8) * this.loadoutBonuses.interactionDurationMultiplier;
     this.interactionHold = continuousHold(this.interactionHold, delta, channeling);
     this.extractProgress.style.width = `${Math.min(100, (this.interactionHold / channelDuration) * 100)}%`;
     this.extractProgress.parentElement?.classList.toggle("visible", channeling);
 
-    if (!this.interactHeld) return;
+    if (!this.interactHeld && !this.descendHeld) return;
     if (interactive === "pickup" && targetPickup) {
       this.collectPickup(targetPickup);
       this.interactHeld = false;
@@ -1439,7 +1471,10 @@ export class DarkPixGame {
       this.useShrine();
       this.interactHeld = false;
     } else if (interactive === "portal") {
-      if (this.interactionHold >= channelDuration) this.finish("extracted");
+      if (this.interactionHold >= channelDuration) {
+        if (descending) this.descendDeeper();
+        else if (this.interactHeld) this.finish("extracted");
+      }
     }
   }
 
@@ -1497,7 +1532,7 @@ export class DarkPixGame {
       lid.position.z = -0.22;
     }
     const origin = chest.group.position.clone();
-    const depthBonus = chest.depthBonus + this.raidRules.lootDepthBonus;
+    const depthBonus = chest.depthBonus + this.raidRules.lootDepthBonus + depthRules(this.depth).lootDepthBonus;
     this.spawnPickup(createLoot(Math.random, depthBonus), origin.clone().add(new THREE.Vector3(-0.45, 0, 0.7)));
     this.spawnPickup(createLoot(Math.random, depthBonus), origin.clone().add(new THREE.Vector3(0.45, 0, 0.7)));
     this.feed("The coffer coughs up two pieces.", "loot");
@@ -1528,7 +1563,7 @@ export class DarkPixGame {
     const light = this.shrine.getObjectByName("shrineLight") as THREE.PointLight | undefined;
     if (light) light.intensity = 0;
     const origin = this.shrine.position.clone();
-    const depthBonus = 0.16 + this.raidRules.lootDepthBonus;
+    const depthBonus = 0.16 + this.raidRules.lootDepthBonus + depthRules(this.depth).lootDepthBonus;
     this.spawnPickup(createLoot(Math.random, depthBonus), origin.clone().add(new THREE.Vector3(1, 0, -0.48)));
     this.spawnPickup(createLoot(Math.random, depthBonus), origin.clone().add(new THREE.Vector3(1, 0, 0.48)));
     for (const enemy of this.enemies) {
@@ -1541,12 +1576,81 @@ export class DarkPixGame {
   private unlockPortal(): void {
     this.portalUnlocked = true;
     this.audio.portal();
-    this.feed("BLUE PASSAGE UNSEALED · southeast reliquary", "system");
+    this.feed(`${this.depth === 2 ? "ASHEN" : "BLUE"} PASSAGE UNSEALED · southeast reliquary`, "system");
     this.portalAnnounced = true;
     const portalMaterial = this.portalCore.material as THREE.MeshBasicMaterial;
     portalMaterial.opacity = 0.72;
     const light = this.portal.getObjectByName("portalLight") as THREE.PointLight | undefined;
     if (light) light.intensity = 2.8;
+  }
+
+  private revealRedDepth(): void {
+    const ringMaterial = this.redDepthRing.material as THREE.MeshBasicMaterial;
+    ringMaterial.opacity = 0.72;
+  }
+
+  private descendDeeper(): void {
+    if (this.depth !== 1 || !this.bossKilled || !this.portalUnlocked) return;
+    this.depth = 2;
+    this.depthStartedAt = this.elapsed;
+    this.sigils = 0;
+    this.portalUnlocked = false;
+    this.portalAnnounced = false;
+    this.spawnGraceAnnounced = false;
+    this.interactionHold = 0;
+    this.interactHeld = false;
+    this.descendHeld = false;
+    this.clearHeldInputs();
+
+    for (const enemy of this.enemies) {
+      if (!enemy.alive) continue;
+      enemy.alive = false;
+      enemy.group.visible = false;
+    }
+    for (const pickup of this.pickups) {
+      if (pickup.collected) continue;
+      pickup.collected = true;
+      pickup.group.visible = false;
+    }
+    for (const chest of this.chests) {
+      chest.opened = true;
+      chest.group.visible = false;
+    }
+    for (const trap of this.traps) {
+      trap.cooldown = 0;
+      trap.active = 0;
+    }
+
+    const portalMaterial = this.portalCore.material as THREE.MeshBasicMaterial;
+    portalMaterial.opacity = 0.05;
+    (this.redDepthRing.material as THREE.MeshBasicMaterial).opacity = 0;
+    const portalLight = this.portal.getObjectByName("portalLight") as THREE.PointLight | undefined;
+    if (portalLight) portalLight.intensity = 0;
+
+    this.camera.position.set(DUNGEON.playerStart.x, PLAYER_HEIGHT, DUNGEON.playerStart.z);
+    this.yaw = 0;
+    this.pitch = 0;
+    this.camera.rotation.set(0, 0, 0);
+    this.scene.background = new THREE.Color(0x100504);
+    this.scene.fog = new THREE.FogExp2(0x150807, 0.052);
+    this.renderer.setClearColor(0x100504);
+    this.delverTorch.color.setHex(0xff8a55);
+
+    const wave: Array<{ kind: ThreatKind; x: number; z: number }> = [
+      { kind: "skeleton", x: -5, z: 12 },
+      { kind: "mimic", x: -16, z: 10 },
+      { kind: "warden", x: -16, z: -11 },
+      { kind: "warden", x: 15, z: 2 },
+      { kind: "skeleton", x: 4, z: -11 },
+      { kind: "crawler", x: -4, z: -17 },
+      { kind: "boss", x: 16, z: -14 },
+    ];
+    for (const enemy of wave) this.spawnEnemy(enemy.kind, enemy.x, enemy.z);
+
+    const contractLabel = this.mount.querySelector<HTMLElement>(".contract-panel .eyebrow");
+    if (contractLabel) contractLabel.textContent = "ASHEN DEPTH · RED DESCENT";
+    this.feed("ASHEN DEPTH · the old floor seals above you", "danger");
+    this.audio.danger();
   }
 
   private animateWorld(delta: number): void {
@@ -1565,6 +1669,10 @@ export class DarkPixGame {
       pickup.group.position.y = 0.54 + Math.sin(this.elapsed * 2.5 + pickup.phase) * 0.08;
     });
     this.portal.rotation.z += delta * (this.portalUnlocked ? 0.24 : 0.035);
+    this.redDepthRing.rotation.z -= delta * 0.65;
+    if (this.depth === 1 && this.bossKilled) {
+      (this.redDepthRing.material as THREE.MeshBasicMaterial).opacity = 0.52 + Math.sin(this.elapsed * 4.2) * 0.18;
+    }
     if (this.portalUnlocked) {
       const portalMaterial = this.portalCore.material as THREE.MeshBasicMaterial;
       portalMaterial.opacity = 0.58 + Math.sin(this.elapsed * 3.5) * 0.14;
@@ -1590,18 +1698,22 @@ export class DarkPixGame {
     this.staminaFill.style.width = `${(this.stamina / this.definition.maxStamina) * 100}%`;
     this.spellFill.style.width = `${this.options.classId === "hexbound" ? (this.spellCharges / this.maxSpellCharges) * 100 : 100}%`;
     this.spellFill.parentElement?.classList.toggle("inactive", this.options.classId !== "hexbound");
-    this.raidClock.textContent = formatTime(RAID_DURATION - this.elapsed);
-    this.raidClock.classList.toggle("urgent", RAID_DURATION - this.elapsed < 45);
+    const floorRules = depthRules(this.depth);
+    const remaining = floorRules.duration - this.phaseElapsed();
+    this.raidClock.textContent = formatTime(remaining);
+    this.raidClock.classList.toggle("urgent", remaining < 45);
     const carried = haulCount(this.raidLoot);
     this.lootHud.textContent = `${carried} / ${HAUL_CAPACITY} slots · ${this.goldFound}g`;
-    this.objectiveHud.textContent = this.portalUnlocked ? "BLUE PASSAGE OPEN" : `WARDEN SIGILS ${this.sigils} / 2`;
+    this.objectiveHud.textContent = this.portalUnlocked
+      ? this.depth === 2 ? "ASHEN PASSAGE OPEN" : "BLUE PASSAGE OPEN"
+      : `${this.depth === 2 ? "ASHEN" : "WARDEN"} SIGILS ${this.sigils} / 2`;
     const ability = CLASS_ABILITIES[this.options.classId];
     this.abilityHud.textContent = this.abilityCooldown > 0 ? `${ability.name} · ${Math.ceil(this.abilityCooldown)}s` : ability.name;
     this.updateWayfinder();
     this.directionHud.textContent = this.attackDirection;
     this.directionHud.classList.toggle("active", this.mouseAccumulator.x !== 0 || this.mouseAccumulator.y !== 0);
     this.threatHud.classList.toggle("visible", this.threatTimer > 0);
-    if (!this.portalAnnounced && this.elapsed > 90 && this.sigils < 2) {
+    if (!this.portalAnnounced && this.phaseElapsed() > floorRules.duration * 0.43 && this.sigils < 2) {
       this.portalAnnounced = true;
       this.feed("The dark advances. Wardens carry what the passage needs.", "danger");
     }
@@ -1652,6 +1764,7 @@ export class DarkPixGame {
     const result: RaidResult = {
       reason,
       raidMode: this.options.raidMode,
+      depthReached: this.depth,
       classId: this.options.classId,
       loot: [...this.raidLoot],
       equippedIds: this.options.equipped.map((item) => item.id),
