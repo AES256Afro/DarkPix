@@ -7,6 +7,7 @@ import { HAUL_CAPACITY, canAddToHaul, dropLeastValuable, haulCount, treasureGold
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, type LoadoutStats } from "./loadout";
 import { cardinalDirection, circlesOverlap } from "./navigation";
 import { raidRules, type RaidRules } from "./raid";
+import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./resolution";
 import { disposeSceneResources } from "./resources";
 import { continuousHold, targetDistanceInView } from "./targeting";
 import type { ClassId, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, Vec2 } from "./types";
@@ -202,6 +203,10 @@ export class DarkPixGame {
   private threatTimer = 0;
   private vignette = 0;
   private torchLit = true;
+  private renderScale = 0;
+  private frameTimeTotal = 0;
+  private frameSamples = 0;
+  private resolutionTimer = 0;
 
   constructor(mount: HTMLElement, options: DarkPixGameOptions) {
     this.mount = mount;
@@ -815,9 +820,26 @@ export class DarkPixGame {
     this.animationFrame = requestAnimationFrame(this.frame);
     const delta = Math.min(this.clock.getDelta(), 0.05);
     if (!this.paused && !this.ended) this.update(delta);
+    this.updateAdaptiveResolution(delta);
     this.animateWorld(delta);
     this.renderer.render(this.scene, this.camera);
   };
+
+  private updateAdaptiveResolution(delta: number): void {
+    if (document.hidden || this.contextLost) return;
+    this.frameTimeTotal += delta;
+    this.frameSamples += 1;
+    this.resolutionTimer += delta;
+    if (this.resolutionTimer < 2.5 || this.frameSamples < 30) return;
+    const averageFrameMs = (this.frameTimeTotal / this.frameSamples) * 1_000;
+    const nextScale = adaptiveRenderScale(this.renderScale, averageFrameMs, this.mount.clientWidth);
+    this.frameTimeTotal = 0;
+    this.frameSamples = 0;
+    this.resolutionTimer = 0;
+    if (nextScale === this.renderScale) return;
+    this.renderScale = nextScale;
+    this.resize();
+  }
 
   private update(delta: number): void {
     this.elapsed += delta;
@@ -1549,8 +1571,9 @@ export class DarkPixGame {
   private resize(): void {
     const width = Math.max(1, this.mount.clientWidth);
     const height = Math.max(1, this.mount.clientHeight);
-    const renderScale = width < 700 ? 0.72 : 0.82;
-    this.renderer.setSize(Math.floor(width * renderScale), Math.floor(height * renderScale), false);
+    if (this.renderScale === 0) this.renderScale = initialRenderScale(width);
+    this.renderScale = Math.min(maximumRenderScale(width), this.renderScale);
+    this.renderer.setSize(Math.floor(width * this.renderScale), Math.floor(height * this.renderScale), false);
     this.renderer.domElement.style.width = `${width}px`;
     this.renderer.domElement.style.height = `${height}px`;
     this.camera.aspect = width / height;
