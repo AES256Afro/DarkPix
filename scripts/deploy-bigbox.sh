@@ -74,17 +74,21 @@ check_public_release() {
   local public_headers
   local health_body
   local health_headers
+  local missing_asset_status
   if command -v curl >/dev/null 2>&1; then
     observed_release="$(curl -fsS --max-time 8 "$public_url/version.txt" 2>/dev/null)" || return 1
     public_headers="$(curl -fsSI --max-time 8 "$public_url/" 2>/dev/null)" || return 1
     health_body="$(curl -fsS --max-time 8 "$public_url/healthz" 2>/dev/null)" || return 1
     health_headers="$(curl -fsSI --max-time 8 "$public_url/healthz" 2>/dev/null)" || return 1
+    missing_asset_status="$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' "$public_url/assets/missing-$darkpix_release.js" 2>/dev/null)" || return 1
     curl -fsSI --max-time 8 "$public_url/sw.js?v=$darkpix_release" 2>/dev/null | grep -qi '^cache-control:.*no-store' || return 1
   elif command -v wget >/dev/null 2>&1; then
     observed_release="$(wget -q -T 8 -O - "$public_url/version.txt" 2>/dev/null)" || return 1
     public_headers="$(wget -q -T 8 --server-response --spider "$public_url/" 2>&1)" || return 1
     health_body="$(wget -q -T 8 -O - "$public_url/healthz" 2>/dev/null)" || return 1
     health_headers="$(wget -q -T 8 --server-response --spider "$public_url/healthz" 2>&1)" || return 1
+    missing_asset_status="$(wget -T 8 --server-response --spider "$public_url/assets/missing-$darkpix_release.js" 2>&1 || true)"
+    grep -Eq 'HTTP/[0-9.]+ 404' <<<"$missing_asset_status" || return 1
     wget -q -T 8 --server-response --spider "$public_url/sw.js?v=$darkpix_release" 2>&1 | grep -qi 'cache-control:.*no-store' || return 1
   else
     echo "curl or wget is required to verify the public release." >&2
@@ -99,6 +103,7 @@ check_public_release() {
   grep -qi 'cross-origin-opener-policy: same-origin' <<<"$public_headers" || return 1
   grep -qi 'cross-origin-resource-policy: same-origin' <<<"$public_headers" || return 1
   [[ "$health_body" == "ok" ]] || return 1
+  if command -v curl >/dev/null 2>&1; then [[ "$missing_asset_status" == "404" ]] || return 1; fi
   grep -qi 'cache-control:.*no-store' <<<"$health_headers" || return 1
   if grep -qi 'cf-cache-status: *HIT' <<<"$health_headers"; then return 1; fi
   [[ "$observed_release" == "$darkpix_release" ]]
