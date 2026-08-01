@@ -127,6 +127,22 @@ export function createLoot(random = Math.random, depthBonus = 0): Item {
   };
 }
 
+export function createBossLoot(random = Math.random): Item {
+  const base = createLoot(random, 0.22);
+  const rarityIndex = Math.max(RARITIES.indexOf("Rare"), RARITIES.indexOf(base.rarity));
+  const rarity = RARITIES[rarityIndex] ?? "Rare";
+  return {
+    ...base,
+    id: `toll-${base.id}`,
+    name: "Tollkeeper's severed chain",
+    kind: "treasure",
+    rarity,
+    power: Math.max(base.power, 10 + rarityIndex * 2),
+    value: Math.max(base.value, 72 + rarityIndex * 18),
+    modifier: "Proof that the Pale Toll was paid",
+  };
+}
+
 export function createSigil(): Item {
   return {
     id: `sigil-${Date.now().toString(36)}-${Math.floor(Math.random() * 9999)}`,

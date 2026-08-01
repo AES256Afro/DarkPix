@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
 import { attackDamage, enemyAttackPattern, guardDrainPerSecond, type ThreatKind } from "./combat";
-import { CLASSES, RARITY_COLOR, createLoot, createSigil, formatTime, progressionBonuses } from "./data";
+import { CLASSES, RARITY_COLOR, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { cardinalDirection, circlesOverlap } from "./navigation";
 import { disposeSceneResources } from "./resources";
@@ -852,7 +852,11 @@ export class DarkPixGame {
     enemy.group.rotation.z = 1.2;
     enemy.group.position.y = -0.55;
     this.feed(`${enemy.name} falls.`, enemy.kind === "rival" ? "rival" : "loot");
-    const drop = enemy.kind === "warden" ? createSigil() : createLoot(Math.random, enemy.kind === "boss" ? 0.22 : enemy.kind === "rival" ? 0.12 : 0.03);
+    const drop = enemy.kind === "warden"
+      ? createSigil()
+      : enemy.kind === "boss"
+        ? createBossLoot()
+        : createLoot(Math.random, enemy.kind === "rival" ? 0.12 : 0.03);
     this.spawnPickup(drop, enemy.group.position.clone());
   }
 

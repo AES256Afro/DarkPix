@@ -40,7 +40,7 @@ Mouse sensitivity, crypt brightness, audio, and reduced camera motion can be adj
 - Defeat two Ossuary Wardens and take their sigils.
 - Follow the contract wayfinder toward the nearest living Warden, loose sigil, or unlocked blue passage.
 - Search four coffers across an interconnected dungeon while fighting monsters and one AI rival delver.
-- Survive the Tollkeeper in the extraction chamber. Its heavy attacks cannot be parried, and it enrages below half vigor.
+- Survive the Tollkeeper in the extraction chamber. Its heavy attacks cannot be parried, it enrages below half vigor, and it always drops a named Rare-or-better chain trophy.
 - Hold `E` while facing the blue passage in the southeast reliquary to bank the haul. Looking away or taking damage breaks the extraction channel.
 - Read the shrinking safe reach in the raid HUD. Its center migrates southeast so the final refuge includes the extraction chamber.
 - Death discards all raid loot and equipped risk items. The player can always return with base class equipment.

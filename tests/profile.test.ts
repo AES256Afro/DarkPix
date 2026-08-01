@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createLoot, formatTime, levelForXp, progressionBonuses, rarityFromRoll } from "../src/game/data";
+import { createBossLoot, createLoot, formatTime, levelForXp, progressionBonuses, rarityFromRoll } from "../src/game/data";
 import { applyRaidResult, createProfile, normalizeProfile, purchaseItem, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
 import { attackDamage, enemyAttackPattern, guardDrainPerSecond } from "../src/game/combat";
@@ -24,6 +24,14 @@ describe("loot generation", () => {
     expect(item.kind).toBe("treasure");
     expect(item.rarity).toBe("Uncommon");
     expect(item.value).toBeGreaterThan(0);
+  });
+
+  it("guarantees a named rare-or-better Tollkeeper trophy", () => {
+    const trophy = createBossLoot(() => 0);
+    expect(trophy.name).toBe("Tollkeeper's severed chain");
+    expect(trophy.kind).toBe("treasure");
+    expect(["Rare", "Epic", "Legendary"]).toContain(trophy.rarity);
+    expect(trophy.value).toBeGreaterThanOrEqual(126);
   });
 });
 
