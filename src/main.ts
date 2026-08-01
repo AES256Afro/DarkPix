@@ -1,5 +1,6 @@
 import "./style.css";
 import { escapeHtml } from "./html";
+import { createSaveBackup, parseSaveBackup } from "./game/backup";
 import { CLASSES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, progressionBonuses } from "./game/data";
 import { toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
@@ -159,6 +160,11 @@ function renderLobby(): void {
               <label class="setting-line"><span>Crypt brightness <output data-output="brightness">${Math.round(preferences.brightness * 100)}%</output></span><input type="range" aria-label="Crypt brightness" data-preference="brightness" min="0.75" max="1.4" step="0.05" value="${preferences.brightness}"></label>
               <label class="setting-toggle"><input type="checkbox" data-preference="muted" ${preferences.muted ? "checked" : ""}><span>Mute dungeon audio</span></label>
               <label class="setting-toggle"><input type="checkbox" data-preference="reducedMotion" ${preferences.reducedMotion ? "checked" : ""}><span>Reduce camera motion</span></label>
+              <div class="save-actions">
+                <button type="button" data-save-action="export">Export save</button>
+                <button type="button" data-save-action="import">Import save</button>
+                <input type="file" data-save-file accept="application/json,.json" hidden>
+              </div>
             </section>
           </aside>
         </div>
@@ -229,6 +235,49 @@ function renderLobby(): void {
       if (output) output.textContent = key === "brightness" ? `${Math.round(Number(input.value) * 100)}%` : `${Number(input.value).toFixed(1)}x`;
     });
   });
+  app.querySelector<HTMLButtonElement>('[data-save-action="export"]')?.addEventListener("click", () => {
+    const backup = createSaveBackup(profile, preferences, release);
+    const url = URL.createObjectURL(new Blob([backup], { type: "application/json" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `darkpix-save-${new Date().toISOString().slice(0, 10)}.json`;
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    const notice = app.querySelector<HTMLElement>(".merchant-notice");
+    if (notice) notice.textContent = "Save exported. Keep the JSON file somewhere safe.";
+  });
+  const saveFileInput = app.querySelector<HTMLInputElement>("[data-save-file]");
+  app.querySelector<HTMLButtonElement>('[data-save-action="import"]')?.addEventListener("click", () => saveFileInput?.click());
+  saveFileInput?.addEventListener("change", () => void (async () => {
+    const file = saveFileInput.files?.[0];
+    if (!file) return;
+    if (file.size > 1_000_000) {
+      merchantNotice = "That save file is too large to be a DarkPix backup.";
+      renderLobby();
+      return;
+    }
+    let imported: ReturnType<typeof parseSaveBackup>;
+    try {
+      imported = parseSaveBackup(await file.text());
+    } catch {
+      imported = undefined;
+    }
+    saveFileInput.value = "";
+    if (!imported) {
+      merchantNotice = "That file is not a valid DarkPix save backup.";
+      renderLobby();
+      return;
+    }
+    if (!window.confirm("Replace this browser's DarkPix profile and settings with the selected backup?")) return;
+    profile = imported.profile;
+    preferences = imported.preferences;
+    selectedClass = profile.preferredClass;
+    equippedIds = new Set();
+    merchantNotice = "Save imported. The Last Lantern remembers you again.";
+    persistProfile();
+    persistPreferences();
+    renderLobby();
+  })());
   const descendButton = app.querySelector<HTMLButtonElement>(".descend-button");
   descendButton?.addEventListener("pointerenter", () => void loadGameModule());
   descendButton?.addEventListener("focus", () => void loadGameModule());

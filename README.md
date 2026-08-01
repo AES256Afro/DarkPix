@@ -31,7 +31,7 @@ Moving the mouse vertically before a strike selects an overhead attack. Horizont
 
 Light is tactical. Hooding the torch shortens passive enemy detection range, while unhooding it restores the player spotlight. Walls block passive acquisition and attacks, but alerted enemies route through the dungeon to pursue prey they can no longer see. Threats have physical spacing and slide along corners instead of stacking into one hitbox. Four pressure-plate spike traps punish careless routes through the crypt.
 
-Mouse sensitivity, crypt brightness, audio, and reduced camera motion can be adjusted from the lobby. These preferences stay local to the browser. Each raid begins with an eight-second warding veil so the player can orient before passive enemies acquire them. Attacking during the veil still alerts the target.
+Mouse sensitivity, crypt brightness, audio, and reduced camera motion can be adjusted from the lobby. Progress and preferences stay local to the browser, with a versioned JSON export/import backup in the settings panel. Each raid begins with an eight-second warding veil so the player can orient before passive enemies acquire them. Attacking during the veil still alerts the target.
 
 ## Extraction loop
 

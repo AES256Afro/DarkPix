@@ -181,6 +181,9 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .setting-line input { width: 100%; accent-color: #9a5c39; }
 .setting-toggle { display: flex; align-items: center; gap: 9px; margin-top: 15px; color: #817a70; font: 9px ui-monospace, monospace; cursor: pointer; }
 .setting-toggle input { accent-color: #9a5c39; }
+.save-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 18px; }
+.save-actions button { padding: 9px 7px; border: 1px solid #3c342c; background: #17130f; color: #8d8173; font: 700 7px ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+.save-actions button:hover, .save-actions button:focus-visible { border-color: #765039; color: #ceb08d; }
 .site-footer { display: flex; justify-content: space-between; padding: 18px clamp(22px, 5vw, 76px); border-top: 1px solid #211f1b; color: #514d47; font: 700 8px ui-monospace, monospace; letter-spacing: .13em; }
 
 .game-mount { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
