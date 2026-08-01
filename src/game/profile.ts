@@ -225,11 +225,14 @@ export function contractRecordSummary(profile: Pick<Profile, "extracts" | "death
   };
 }
 
-function boundedRaidThreatKills(result: RaidResult): Record<ThreatKind, number> {
+function boundedThreatKills(
+  kills: number,
+  killsByKind?: Partial<Record<ThreatKind, number>>,
+): Record<ThreatKind, number> {
   const bounded: Record<ThreatKind, number> = { skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 };
-  let remaining = Math.min(1_000, nonnegativeInteger(result.kills));
+  let remaining = Math.min(1_000, nonnegativeInteger(kills));
   for (const kind of THREAT_KINDS) {
-    const count = Math.min(remaining, nonnegativeInteger(result.killsByKind?.[kind], 1_000));
+    const count = Math.min(remaining, nonnegativeInteger(killsByKind?.[kind], 1_000));
     bounded[kind] = count;
     remaining -= count;
   }
@@ -261,6 +264,7 @@ export interface RaidEscrow {
   startedAt: number;
   depthReached: 1 | 2;
   kills: number;
+  killsByKind: Record<ThreatKind, number>;
   entryFee: number;
   goldBeforeEntry?: number;
   goldAfterEntry?: number;
@@ -274,6 +278,7 @@ export function createRaidEscrow(
   depthReached: 1 | 2 = 1,
   kills = 0,
   goldBeforeEntry?: number,
+  killsByKind: Partial<Record<ThreatKind, number>> = {},
 ): RaidEscrow {
   const entryFee = raidRules(raidMode).entryFee;
   const safeGoldBeforeEntry = Number.isFinite(goldBeforeEntry) ? nonnegativeInteger(goldBeforeEntry, MAX_GOLD) : undefined;
@@ -285,6 +290,7 @@ export function createRaidEscrow(
     startedAt: Number.isFinite(startedAt) ? Math.max(0, Math.floor(startedAt)) : 0,
     depthReached: depthReached === 2 ? 2 : 1,
     kills: Math.min(1_000, nonnegativeInteger(kills)),
+    killsByKind: boundedThreatKills(kills, killsByKind),
     entryFee,
     ...(safeGoldBeforeEntry === undefined ? {} : {
       goldBeforeEntry: safeGoldBeforeEntry,
@@ -305,6 +311,7 @@ export function normalizeRaidEscrow(value: unknown): RaidEscrow | undefined {
     candidate.depthReached,
     candidate.kills,
     candidate.goldBeforeEntry,
+    candidate.killsByKind,
   );
 }
 
@@ -350,6 +357,7 @@ export function settleInterruptedRaid(profile: Profile, escrow: RaidEscrow): Rai
     loot: [],
     equippedIds: escrow.equippedIds,
     kills: escrow.kills,
+    killsByKind: escrow.killsByKind,
     elapsed: 0,
     goldFound: 0,
   });
@@ -415,7 +423,7 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
   const xpGain = raidXpBreakdown(result).total;
   next.xp[result.classId] = Math.min(MAX_CLASS_XP, next.xp[result.classId] + xpGain);
   next.preferredClass = result.classId;
-  const raidThreatKills = boundedRaidThreatKills(result);
+  const raidThreatKills = boundedThreatKills(result.kills, result.killsByKind);
   for (const kind of THREAT_KINDS) next.threatKills[kind] = Math.min(MAX_OUTCOME_COUNT, next.threatKills[kind] + raidThreatKills[kind]);
   const settlement: RaidSettlement = {
     profile: next,

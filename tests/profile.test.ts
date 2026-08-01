@@ -134,10 +134,11 @@ describe("persistent raid consequences", () => {
     expect(settlement.profile.deaths).toBe(1);
     expect(settlement.lost.map((item) => item.id).sort()).toEqual(["starter-blade", "starter-jack"]);
 
-    const checkpoint = createRaidEscrow("ranger", "standard", [], 123, 2, 3);
+    const checkpoint = createRaidEscrow("ranger", "standard", [], 123, 2, 3, undefined, { skeleton: 2, rival: 1 });
     const recoveredCheckpoint = settleInterruptedRaid(createProfile(), checkpoint);
-    expect(checkpoint).toMatchObject({ startedAt: 123, depthReached: 2, kills: 3 });
+    expect(checkpoint).toMatchObject({ startedAt: 123, depthReached: 2, kills: 3, killsByKind: { skeleton: 2, rival: 1 } });
     expect(recoveredCheckpoint.xpGained).toBe(165);
+    expect(recoveredCheckpoint.profile.threatKills).toMatchObject({ skeleton: 2, rival: 1 });
 
     const standardProfile = createProfile();
     standardProfile.xp.ranger = 700;
@@ -176,6 +177,8 @@ describe("persistent raid consequences", () => {
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: "blade" })).toBeUndefined();
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "high_toll", equippedIds: [], goldBeforeEntry: 200, entryFee: 0 })).toMatchObject({ entryFee: 50, goldAfterEntry: 150 });
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], startedAt: Number.NaN })?.startedAt).toBe(0);
+    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], kills: 2, killsByKind: { skeleton: 99, rival: 99 } })?.killsByKind).toEqual({ skeleton: 2, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 });
+    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], kills: 2 })?.killsByKind).toEqual({ skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 });
   });
 
   it("banks unsecured loot and gold only after extraction", () => {
