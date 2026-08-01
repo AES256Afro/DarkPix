@@ -1,4 +1,5 @@
 import type { DungeonDepth } from "./types";
+import type { ChestSpec, EnemySpec } from "./dungeon";
 
 export interface DepthRules {
   depth: DungeonDepth;
@@ -32,6 +33,23 @@ const ASHEN_DEPTH: DepthRules = {
   enemySpeedMultiplier: 1.05,
   lootDepthBonus: 0.16,
 };
+
+export const ASHEN_CHESTS = [
+  { x: -16, z: 11, depthBonus: 0.18 },
+  { x: 16, z: 12, depthBonus: 0.2 },
+  { x: 4, z: -16, depthBonus: 0.24, mimic: true },
+] satisfies ChestSpec[];
+
+export const ASHEN_ENEMIES = [
+  { kind: "skeleton", x: -5, z: 12 },
+  { kind: "mimic", x: -16, z: 10 },
+  { kind: "warden", x: -16, z: -11 },
+  { kind: "warden", x: 15, z: 2 },
+  { kind: "skeleton", x: 4, z: -11 },
+  { kind: "crawler", x: -4, z: -17 },
+  { kind: "rival", x: 14, z: -9 },
+  { kind: "boss", x: 16, z: -14 },
+] satisfies EnemySpec[];
 
 export function depthRules(depth: DungeonDepth | undefined): DepthRules {
   return depth === 2 ? ASHEN_DEPTH : PALE_TOLL;

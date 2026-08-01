@@ -3,7 +3,7 @@ import { AudioDirector } from "./audio";
 import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat, type ThreatKind } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
-import { depthRules } from "./depth";
+import { ASHEN_CHESTS, ASHEN_ENEMIES, depthRules } from "./depth";
 import { HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGold } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, type LoadoutStats } from "./loadout";
 import { cardinalDirection, circlesOverlap } from "./navigation";
@@ -1874,16 +1874,8 @@ export class DarkPixGame {
     this.renderer.setClearColor(0x100504);
     this.delverTorch.color.setHex(0xff8a55);
 
-    const wave: Array<{ kind: ThreatKind; x: number; z: number }> = [
-      { kind: "skeleton", x: -5, z: 12 },
-      { kind: "mimic", x: -16, z: 10 },
-      { kind: "warden", x: -16, z: -11 },
-      { kind: "warden", x: 15, z: 2 },
-      { kind: "skeleton", x: 4, z: -11 },
-      { kind: "crawler", x: -4, z: -17 },
-      { kind: "boss", x: 16, z: -14 },
-    ];
-    for (const enemy of wave) this.spawnEnemy(enemy.kind, enemy.x, enemy.z);
+    for (const enemy of ASHEN_ENEMIES) this.spawnEnemy(enemy.kind, enemy.x, enemy.z);
+    for (const chest of ASHEN_CHESTS) this.createChest(chest.x, chest.z, chest.depthBonus, chest.mimic ?? false);
 
     const contractLabel = this.mount.querySelector<HTMLElement>(".contract-panel .eyebrow");
     if (contractLabel) contractLabel.textContent = "ASHEN DEPTH · RED DESCENT";
