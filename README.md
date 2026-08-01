@@ -4,6 +4,8 @@ DarkPix is a browser-playable, first-person pixel dungeon extraction crawler. En
 
 Play the current BigBox build at [ne-gro.com](https://ne-gro.com/).
 
+See [MILESTONES.md](MILESTONES.md) for the verified public-slice status, completed exit criteria, and the explicit boundary between the current AI rival and future server-authoritative human PvPvE.
+
 The production build is installable as a standalone web app. After one complete online visit, its lobby and loaded game assets can reopen offline. Commit-scoped worker URLs and origin CDN controls prevent stale update scripts; updates wait for player consent and refuse to reload while a raid is active.
 
 ## Play the slice
