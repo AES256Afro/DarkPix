@@ -641,11 +641,13 @@ export class DarkPixGame {
     window.addEventListener("blur", this.onWindowBlur);
     this.renderer.domElement.addEventListener("webglcontextlost", this.onContextLost);
     this.renderer.domElement.addEventListener("webglcontextrestored", this.onContextRestored);
+    this.renderer.domElement.addEventListener("contextmenu", this.onContextMenu);
     this.renderer.domElement.addEventListener("click", this.requestPointerLock);
     this.lockOverlay.addEventListener("click", this.requestPointerLock);
   }
 
   private onKeyDown = (event: KeyboardEvent): void => {
+    if (this.paused || this.ended) return;
     this.keys.add(event.code);
     if (event.code === "KeyE") this.interactHeld = true;
     if (event.code === "KeyF" && !event.repeat) this.usePotion();
@@ -688,6 +690,8 @@ export class DarkPixGame {
   private onMouseUp = (event: MouseEvent): void => {
     if (event.button === 2) this.blocking = false;
   };
+
+  private onContextMenu = (event: MouseEvent): void => event.preventDefault();
 
   private onPointerLockChange = (): void => {
     if (this.contextLost) {
@@ -1446,6 +1450,7 @@ export class DarkPixGame {
     window.removeEventListener("blur", this.onWindowBlur);
     this.renderer.domElement.removeEventListener("webglcontextlost", this.onContextLost);
     this.renderer.domElement.removeEventListener("webglcontextrestored", this.onContextRestored);
+    this.renderer.domElement.removeEventListener("contextmenu", this.onContextMenu);
     this.renderer.domElement.removeEventListener("click", this.requestPointerLock);
     this.lockOverlay.removeEventListener("click", this.requestPointerLock);
     this.audio.stop();
