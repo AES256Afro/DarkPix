@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { AudioDirector } from "./audio";
 import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
-import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition } from "./dungeon";
+import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, depthRules } from "./depth";
 import { HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGold } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, pickupDecision, type LoadoutStats } from "./loadout";
@@ -171,8 +171,9 @@ export class DarkPixGame {
   private readonly perkBonuses: ClassPerkBonuses;
   private readonly loadoutBonuses: LoadoutStats;
   private readonly raidRules: RaidRules;
-  private readonly encountersMirrored = Math.random() >= 0.5;
-  private readonly portalSite = DUNGEON.portalSites[Math.random() >= 0.5 ? 1 : 0] ?? DUNGEON.portal;
+  private readonly variation = selectRaidVariation(Math.floor(Math.random() * 8));
+  private readonly encountersMirrored = this.variation.encountersMirrored;
+  private readonly portalSite = DUNGEON.portalSites[this.variation.portalSiteIndex] ?? DUNGEON.portal;
   private readonly maxSpellCharges: number;
   private healthFill!: HTMLElement;
   private staminaFill!: HTMLElement;
@@ -433,8 +434,10 @@ export class DarkPixGame {
       const position = encounterPosition(chest, this.encountersMirrored);
       this.createChest(position.x, position.z, chest.depthBonus, chest.mimic ?? false);
     });
-    DUNGEON.traps.forEach((trap) => this.createTrap(trap.x, trap.z, trap.damage));
-    DUNGEON.dartTraps.forEach((trap) => this.createDartTrap(trap.x, trap.z, trap.direction, trap.range, trap.damage, trap.delay));
+    const trapLayout = DUNGEON.trapLayouts[this.variation.trapLayoutIndex] ?? DUNGEON.trapLayouts[0];
+    const dartTrapLayout = DUNGEON.dartTrapLayouts[this.variation.trapLayoutIndex] ?? DUNGEON.dartTrapLayouts[0];
+    trapLayout.forEach((trap) => this.createTrap(trap.x, trap.z, trap.damage));
+    dartTrapLayout.forEach((trap) => this.createDartTrap(trap.x, trap.z, trap.direction, trap.range, trap.damage, trap.delay));
     DUNGEON.enemies.forEach((enemy) => {
       const position = encounterPosition(enemy, this.encountersMirrored);
       this.spawnEnemy(enemy.kind, position.x, position.z);

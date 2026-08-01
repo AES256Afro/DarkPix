@@ -29,6 +29,12 @@ export interface DartTrapSpec extends Vec2 {
   delay: number;
 }
 
+export interface RaidVariation {
+  encountersMirrored: boolean;
+  portalSiteIndex: number;
+  trapLayoutIndex: number;
+}
+
 export const DUNGEON = {
   name: "Crypt of the Pale Toll",
   size: 44,
@@ -85,16 +91,30 @@ export const DUNGEON = {
     { x: -16, z: -15, depthBonus: 0.08 },
     { x: 4, z: -16, depthBonus: 0.12, mimic: true },
   ] satisfies ChestSpec[],
-  traps: [
-    { x: 0, z: 8, damage: 16 },
-    { x: -15, z: 4, damage: 18 },
-    { x: 14, z: -4, damage: 20 },
-    { x: 0, z: -13, damage: 22 },
-  ] satisfies TrapSpec[],
-  dartTraps: [
-    { x: -9.35, z: 11, direction: { x: 1, z: 0 }, range: 8, damage: 14, delay: 0.4 },
-    { x: 9.35, z: -10, direction: { x: -1, z: 0 }, range: 8, damage: 16, delay: 1.8 },
-  ] satisfies DartTrapSpec[],
+  trapLayouts: [
+    [
+      { x: 0, z: 8, damage: 16 },
+      { x: -15, z: 4, damage: 18 },
+      { x: 14, z: -4, damage: 20 },
+      { x: 0, z: -13, damage: 22 },
+    ],
+    [
+      { x: 0, z: 8, damage: 16 },
+      { x: 15, z: 4, damage: 18 },
+      { x: -14, z: -4, damage: 20 },
+      { x: 0, z: -13, damage: 22 },
+    ],
+  ] satisfies TrapSpec[][],
+  dartTrapLayouts: [
+    [
+      { x: -9.35, z: 11, direction: { x: 1, z: 0 }, range: 8, damage: 14, delay: 0.4 },
+      { x: 9.35, z: -10, direction: { x: -1, z: 0 }, range: 8, damage: 16, delay: 1.8 },
+    ],
+    [
+      { x: 9.35, z: 11, direction: { x: -1, z: 0 }, range: 8, damage: 14, delay: 0.4 },
+      { x: -9.35, z: -10, direction: { x: 1, z: 0 }, range: 8, damage: 16, delay: 1.8 },
+    ],
+  ] satisfies DartTrapSpec[][],
   enemies: [
     { kind: "crawler", x: -5, z: 12 },
     { kind: "skeleton", x: 5, z: 9 },
@@ -106,6 +126,15 @@ export const DUNGEON = {
     { kind: "boss", x: 16, z: -14 },
   ] satisfies EnemySpec[],
 } as const;
+
+export function selectRaidVariation(seed: number): RaidVariation {
+  const normalized = Number.isFinite(seed) ? Math.abs(Math.floor(seed)) % 8 : 0;
+  return {
+    encountersMirrored: (normalized & 1) === 1,
+    portalSiteIndex: (normalized >> 1) & 1,
+    trapLayoutIndex: (normalized >> 2) & 1,
+  };
+}
 
 export function dungeonCollides(position: Vec2, radius = 0.38): boolean {
   const walls: WallSpec[] = [

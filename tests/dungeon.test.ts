@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DUNGEON, dartTrapTargetDistance, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists, encounterPosition } from "../src/game/dungeon";
+import { DUNGEON, dartTrapTargetDistance, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists, encounterPosition, selectRaidVariation } from "../src/game/dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES } from "../src/game/depth";
 import { continuousHold, targetDistanceInView } from "../src/game/targeting";
 import { cardinalDirection, circlesOverlap } from "../src/game/navigation";
@@ -59,17 +59,34 @@ describe("Crypt of the Pale Toll topology", () => {
     expect(dungeonLineOfSight(DUNGEON.playerStart, { x: -5, z: 12 })).toBe(true);
   });
 
-  it("places readable wall dart lanes in open corridors", () => {
-    expect(DUNGEON.dartTraps).toHaveLength(2);
-    for (const trap of DUNGEON.dartTraps) {
-      const target = {
-        x: trap.x + trap.direction.x * (trap.range - 0.5),
-        z: trap.z + trap.direction.z * (trap.range - 0.5),
-      };
-      expect(dungeonCollides(target, 0.2)).toBe(false);
-      expect(dungeonLineOfSight({ x: trap.x, z: trap.z }, target, 0.02)).toBe(true);
-      expect(dartTrapTargetDistance(trap, trap.direction, trap.range, target)).toBeCloseTo(trap.range - 0.5);
+  it("places both readable trap layouts in open corridors", () => {
+    expect(DUNGEON.trapLayouts).toHaveLength(2);
+    expect(DUNGEON.dartTrapLayouts).toHaveLength(2);
+    for (const floorLayout of DUNGEON.trapLayouts) {
+      expect(floorLayout).toHaveLength(4);
+      for (const trap of floorLayout) expect(dungeonCollides(trap, 0.2)).toBe(false);
     }
+    for (const dartLayout of DUNGEON.dartTrapLayouts) {
+      expect(dartLayout).toHaveLength(2);
+      for (const trap of dartLayout) {
+        const target = {
+          x: trap.x + trap.direction.x * (trap.range - 0.5),
+          z: trap.z + trap.direction.z * (trap.range - 0.5),
+        };
+        expect(dungeonCollides(target, 0.2)).toBe(false);
+        expect(dungeonLineOfSight({ x: trap.x, z: trap.z }, target, 0.02)).toBe(true);
+        expect(dartTrapTargetDistance(trap, trap.direction, trap.range, target)).toBeCloseTo(trap.range - 0.5);
+      }
+    }
+  });
+
+  it("derives all three raid-variation switches from one bounded seed", () => {
+    expect(selectRaidVariation(0)).toEqual({ encountersMirrored: false, portalSiteIndex: 0, trapLayoutIndex: 0 });
+    expect(selectRaidVariation(7)).toEqual({ encountersMirrored: true, portalSiteIndex: 1, trapLayoutIndex: 1 });
+    expect(selectRaidVariation(8)).toEqual(selectRaidVariation(0));
+    expect(selectRaidVariation(-7)).toEqual(selectRaidVariation(7));
+    expect(selectRaidVariation(Number.NaN)).toEqual(selectRaidVariation(0));
+    expect(new Set(Array.from({ length: 8 }, (_, seed) => JSON.stringify(selectRaidVariation(seed))))).toHaveLength(8);
   });
 
   it("rejects targets behind, beside, or beyond a wall dart lane", () => {
