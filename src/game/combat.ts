@@ -109,6 +109,11 @@ export function attackStaminaCost(classId: ClassId, direction: AttackDirection):
   return baseCost;
 }
 
+export function staminaRecoveryPerSecond(moving: boolean, recovering: boolean): number {
+  if (recovering) return 0;
+  return moving ? 12 : 19;
+}
+
 export function classMovementMultiplier(classId: ClassId, activeSeconds: number): number {
   return classId === "shapeshifter" && Number.isFinite(activeSeconds) && activeSeconds > 0 ? 1.15 : 1;
 }
