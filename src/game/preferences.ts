@@ -18,6 +18,35 @@ export const DEFAULT_PREFERENCES: GamePreferences = {
 
 const STASH_SORTS = new Set<StashSort>(["recent", "rarity", "value", "kind"]);
 
+export interface SystemPreferenceSignals {
+  reducedMotion: boolean;
+  highContrast: boolean;
+}
+
+export function firstRunPreferences(signals: Partial<SystemPreferenceSignals> = {}): GamePreferences {
+  return {
+    ...DEFAULT_PREFERENCES,
+    reducedMotion: signals.reducedMotion === true,
+    reducedFlashes: signals.reducedMotion === true,
+    highContrastHud: signals.highContrast === true,
+  };
+}
+
+function mediaMatches(query: string): boolean {
+  try {
+    return typeof matchMedia === "function" && matchMedia(query).matches;
+  } catch {
+    return false;
+  }
+}
+
+function systemPreferenceSignals(): SystemPreferenceSignals {
+  return {
+    reducedMotion: mediaMatches("(prefers-reduced-motion: reduce)"),
+    highContrast: mediaMatches("(prefers-contrast: more)") || mediaMatches("(forced-colors: active)"),
+  };
+}
+
 function clampNumber(value: unknown, minimum: number, maximum: number, fallback: number): number {
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
@@ -43,10 +72,12 @@ export function normalizePreferences(value: unknown): GamePreferences {
 }
 
 export function loadPreferences(): GamePreferences {
+  const firstRun = firstRunPreferences(systemPreferenceSignals());
   try {
-    return normalizePreferences(JSON.parse(localStorage.getItem(PREFERENCES_KEY) ?? "null"));
+    const serialized = localStorage.getItem(PREFERENCES_KEY);
+    return serialized === null ? firstRun : normalizePreferences(JSON.parse(serialized));
   } catch {
-    return { ...DEFAULT_PREFERENCES };
+    return firstRun;
   }
 }
 

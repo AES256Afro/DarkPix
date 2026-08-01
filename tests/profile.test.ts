@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
 import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
-import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
+import { DEFAULT_PREFERENCES, firstRunPreferences, normalizePreferences } from "../src/game/preferences";
 import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, enemyAttackPattern, guardBreakDuration, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat } from "../src/game/combat";
 
 describe("loot generation", () => {
@@ -638,6 +638,20 @@ describe("display helpers", () => {
 });
 
 describe("local game preferences", () => {
+  it("adopts system accessibility signals only for a first run", () => {
+    expect(firstRunPreferences({ reducedMotion: true, highContrast: true })).toMatchObject({
+      reducedMotion: true,
+      reducedFlashes: true,
+      highContrastHud: true,
+    });
+    expect(firstRunPreferences()).toEqual(DEFAULT_PREFERENCES);
+    expect(normalizePreferences({ reducedMotion: false, reducedFlashes: false, highContrastHud: false })).toMatchObject({
+      reducedMotion: false,
+      reducedFlashes: false,
+      highContrastHud: false,
+    });
+  });
+
   it("clamps numeric settings and rejects malformed toggles", () => {
     expect(normalizePreferences({ mouseSensitivity: 20, brightness: 0, fieldOfView: 120, crosshairScale: 5, volume: -5, muted: "yes", reducedMotion: true, reducedFlashes: true, highContrastHud: true, invertY: true })).toEqual({
       mouseSensitivity: 2,
