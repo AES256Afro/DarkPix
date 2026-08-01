@@ -69,6 +69,7 @@ Mouse sensitivity, inverted vertical look, 60 to 95 degree field of view, crypt 
 - Forge a recovered Tollkeeper chain into the Epic Chainbreaker's ward, a Saint's broken seal into the Rare Saintless edge, or a Sepulcher ruby into the Epic Ruby cantor. Every recipe replaces its material in place, so it remains safe at the stash limit.
 - The first successful extraction pays a one-time 100g contract bounty. The first raid that kills the Tollkeeper and still extracts pays a separate 150g bounty and records a persistent boss victory. Class levels grant bounded veterancy bonuses through level seven plus discipline-specific perks at levels 2, 4, and 6.
 - The bestiary persists bounded kills by threat type across every outcome. Twelve cryptborn kills and three rival-delver kills complete separate guild ledgers, each paid once on a later successful extraction.
+- Defeating a threat once reveals its name, persistent kill count, and a tactical note in the lobby bestiary; undiscovered pages remain obscured.
 
 The current vertical slice simulates the PvP side with a hostile AI rival. Server-authoritative solo, duo, and trio matchmaking, proximity voice, merchant reputation, and additional maps are future systems, not part of this build.
 

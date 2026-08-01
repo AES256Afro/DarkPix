@@ -1,7 +1,7 @@
 import "./style.css";
 import { escapeHtml } from "./html";
 import { createSaveBackup, parseSaveBackup } from "./game/backup";
-import { CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses } from "./game/data";
+import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses } from "./game/data";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, craftItem, createRaidEscrow, loadProfile, loadRaidEscrow, purchaseItem, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
@@ -277,6 +277,19 @@ function renderLobby(): void {
               <span class="wax-seal">VI</span>
               <div><small>KNIVES OF THE GUILDLESS</small><strong>${profile.rivalBountyPaid ? "Rival ledger settled" : profile.threatKills.rival >= RIVAL_BOUNTY_TARGET ? "Return alive to claim" : "Defeat rival delvers"}</strong><p>${profile.rivalBountyPaid ? "The guild paid 225g for three hostile delver marks." : "Kill three rival delvers across any contracts. Reward: 225g on extraction."}</p></div>
               <b>${profile.rivalBountyPaid ? "PAID" : `${Math.min(RIVAL_BOUNTY_TARGET, profile.threatKills.rival)} / ${RIVAL_BOUNTY_TARGET}`}</b>
+            </section>
+            <section class="bestiary-panel" aria-labelledby="bestiary-heading">
+              <div class="panel-heading"><span><small>PERSISTENT INTELLIGENCE</small><strong id="bestiary-heading">Crypt bestiary</strong></span><b>${Object.values(profile.threatKills).filter((count) => count > 0).length} / 6</b></div>
+              <div class="bestiary-list">
+                ${Object.values(BESTIARY).map((entry) => {
+                  const kills = profile.threatKills[entry.kind];
+                  return `<article class="bestiary-entry ${kills > 0 ? "discovered" : "unknown"}">
+                    <span>${kills > 0 ? entry.kind.slice(0, 1).toUpperCase() : "?"}</span>
+                    <div><small>${kills > 0 ? entry.title : "UNDISCOVERED THREAT"}</small><strong>${kills > 0 ? entry.name : "Ink-stained page"}</strong><p>${kills > 0 ? entry.tactic : "Defeat this threat once to preserve a tactical note."}</p></div>
+                    <b>${kills > 0 ? `${kills} KILLS` : "LOCKED"}</b>
+                  </article>`;
+                }).join("")}
+              </div>
             </section>
             <section class="settings-panel" aria-labelledby="settings-heading">
               <div class="panel-heading"><span><small>ACCESSIBILITY</small><strong id="settings-heading">Delver settings</strong></span><b>LOCAL</b></div>

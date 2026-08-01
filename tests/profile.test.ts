@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
+import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
 import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, applyRaidResult, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
 import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat } from "../src/game/combat";
@@ -654,6 +654,18 @@ describe("merchant reputation", () => {
     expect(merchantOfferUnlocked(rare, 2)).toBe(false);
     expect(merchantOfferUnlocked(rare, 3)).toBe(true);
     expect(merchantOfferUnlocked(rare, Number.POSITIVE_INFINITY)).toBe(false);
+  });
+});
+
+describe("persistent bestiary intelligence", () => {
+  it("gives every tracked threat a useful discovery note", () => {
+    expect(Object.keys(BESTIARY).sort()).toEqual(["boss", "crawler", "mimic", "rival", "skeleton", "warden"]);
+    for (const [kind, entry] of Object.entries(BESTIARY)) {
+      expect(entry.kind).toBe(kind);
+      expect(entry.name.length).toBeGreaterThan(3);
+      expect(entry.title.length).toBeGreaterThan(3);
+      expect(entry.tactic.length).toBeGreaterThan(24);
+    }
   });
 });
 
