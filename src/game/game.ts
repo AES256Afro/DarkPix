@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
-import { attackDamage, enemyAttackPattern, guardDrainPerSecond, healthPercent, type ThreatKind } from "./combat";
+import { attackDamage, enemyAttackPattern, guardDrainPerSecond, healthPercent, rivalTactic, type ThreatKind } from "./combat";
 import { CLASSES, RARITY_COLOR, classPerkBonuses, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, type ClassPerkBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, type LoadoutStats } from "./loadout";
@@ -37,6 +37,7 @@ interface Enemy {
   baseScale: number;
   path: Vec2[];
   pathTimer: number;
+  attackStyle: "melee" | "ranged";
 }
 
 interface Pickup {
@@ -614,6 +615,7 @@ export class DarkPixGame {
       baseScale,
       path: [],
       pathTimer: 0,
+      attackStyle: "melee",
     });
   }
 
@@ -1056,9 +1058,10 @@ export class DarkPixGame {
         enemy.cooldown = pattern.recovery;
         enemy.group.rotation.x = 0.18;
         enemy.group.scale.set(enemy.baseScale * 1.12, enemy.baseScale * 0.9, enemy.baseScale * 1.12);
-        if (distance > enemy.range + 0.25 || !hasSight) continue;
+        const attackRange = enemy.kind === "rival" && enemy.attackStyle === "melee" ? 1.9 : enemy.range;
+        if (distance > attackRange + 0.25 || !hasSight) continue;
 
-        if (enemy.kind === "rival") this.spawnRivalKnife(enemy);
+        if (enemy.kind === "rival" && enemy.attackStyle === "ranged") this.spawnRivalKnife(enemy);
         const parried = enemy.kind !== "boss" && this.blocking && this.blockAge < 0.24;
         if (parried) {
           enemy.stagger = 1.0;
@@ -1067,9 +1070,33 @@ export class DarkPixGame {
           this.audio.tone(780, 0.12, "square", 0.13);
         } else {
           const reduction = this.blocking ? (this.options.classId === "hexbound" ? 0.45 : 0.72) : 0;
-          this.hurt(enemy.damage * (1 - reduction), enemy.name);
-          if (this.blocking) this.stamina = Math.max(0, this.stamina - enemy.damage * 0.75);
+          const attackDamage = enemy.kind === "rival" && enemy.attackStyle === "melee"
+            ? Math.round(enemy.damage * 0.75)
+            : enemy.damage;
+          this.hurt(attackDamage * (1 - reduction), enemy.name);
+          if (this.blocking) this.stamina = Math.max(0, this.stamina - attackDamage * 0.75);
         }
+        continue;
+      }
+      const tactic = enemy.kind === "rival" ? rivalTactic(distance, hasSight) : undefined;
+      if (tactic === "retreat" && enemy.stagger <= 0) {
+        enemy.path = [];
+        enemy.group.lookAt(player.x, enemy.group.position.y, player.z);
+        const step = enemy.speed * 0.82 * delta;
+        const retreatX = enemy.group.position.x - (toPlayerX / distance) * step;
+        const retreatZ = enemy.group.position.z - (toPlayerZ / distance) * step;
+        const movedX = !this.collidesEnemy(enemy, retreatX, enemy.group.position.z);
+        if (movedX) enemy.group.position.x = retreatX;
+        const movedZ = !this.collidesEnemy(enemy, enemy.group.position.x, retreatZ);
+        if (movedZ) enemy.group.position.z = retreatZ;
+        if (!movedX && !movedZ) {
+          const side = enemy.id % 2 === 0 ? 1 : -1;
+          const strafeX = enemy.group.position.x + (toPlayerZ / distance) * step * side;
+          const strafeZ = enemy.group.position.z - (toPlayerX / distance) * step * side;
+          if (!this.collidesEnemy(enemy, strafeX, enemy.group.position.z)) enemy.group.position.x = strafeX;
+          if (!this.collidesEnemy(enemy, enemy.group.position.x, strafeZ)) enemy.group.position.z = strafeZ;
+        }
+        enemy.group.position.y = Math.sin(this.elapsed * 7 + enemy.phase) * 0.025;
         continue;
       }
       if ((distance > enemy.range || !hasSight) && enemy.stagger <= 0) {
@@ -1101,6 +1128,10 @@ export class DarkPixGame {
         if (!this.collidesEnemy(enemy, enemy.group.position.x, nextZ)) enemy.group.position.z = nextZ;
         enemy.group.position.y = Math.sin(this.elapsed * 7 + enemy.phase) * 0.025;
       } else if (enemy.cooldown <= 0 && enemy.stagger <= 0) {
+        if (enemy.kind === "rival") {
+          if (tactic !== "throw" && tactic !== "melee") continue;
+          enemy.attackStyle = tactic === "throw" ? "ranged" : "melee";
+        }
         enemy.group.lookAt(player.x, enemy.group.position.y, player.z);
         const pattern = enemyAttackPattern(enemy.kind, Boolean(enemy.group.userData.enraged));
         enemy.windup = pattern.windup;

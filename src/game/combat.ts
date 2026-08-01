@@ -8,6 +8,8 @@ export interface EnemyAttackPattern {
   recovery: number;
 }
 
+export type RivalTactic = "approach" | "retreat" | "throw" | "melee";
+
 export interface DamageInput {
   baseDamage: number;
   weaponPower: number;
@@ -32,6 +34,13 @@ export function enemyAttackPattern(kind: ThreatKind, enraged = false): EnemyAtta
   if (kind === "crawler") return { windup: 0.26, recovery: 1.25 };
   if (kind === "rival") return { windup: 0.5, recovery: 1.8 };
   return { windup: 0.36, recovery: 1.55 };
+}
+
+export function rivalTactic(distance: number, hasSight: boolean): RivalTactic {
+  if (!Number.isFinite(distance) || distance < 0 || !hasSight || distance > 6.5) return "approach";
+  if (distance <= 1.75) return "melee";
+  if (distance < 3.1) return "retreat";
+  return "throw";
 }
 
 export function guardDrainPerSecond(classId: ClassId): number {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CRAFTING_RECIPES, MERCHANT_OFFERS, classPerkBonuses, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll } from "../src/game/data";
 import { applyRaidResult, craftItem, createProfile, normalizeProfile, purchaseItem, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
-import { attackDamage, enemyAttackPattern, guardDrainPerSecond, healthPercent } from "../src/game/combat";
+import { attackDamage, enemyAttackPattern, guardDrainPerSecond, healthPercent, rivalTactic } from "../src/game/combat";
 
 describe("loot generation", () => {
   it("maps rarity thresholds deterministically", () => {
@@ -253,6 +253,17 @@ describe("directional combat damage", () => {
     expect(enemyAttackPattern("boss").windup).toBeGreaterThan(enemyAttackPattern("rival").windup);
     expect(enemyAttackPattern("rival")).toEqual({ windup: 0.5, recovery: 1.8 });
     expect(enemyAttackPattern("boss", true)).toEqual({ windup: 0.34, recovery: 1.2 });
+  });
+
+  it("gives the rival distinct ranged, retreat, and cornered tactics", () => {
+    expect(rivalTactic(8, true)).toBe("approach");
+    expect(rivalTactic(4, false)).toBe("approach");
+    expect(rivalTactic(6.5, true)).toBe("throw");
+    expect(rivalTactic(3.1, true)).toBe("throw");
+    expect(rivalTactic(3.09, true)).toBe("retreat");
+    expect(rivalTactic(1.76, true)).toBe("retreat");
+    expect(rivalTactic(1.75, true)).toBe("melee");
+    expect(rivalTactic(Number.NaN, true)).toBe("approach");
   });
 
   it("makes sustained guards cost class-tuned stamina", () => {
