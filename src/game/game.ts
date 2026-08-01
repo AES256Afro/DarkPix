@@ -3,7 +3,7 @@ import { AudioDirector } from "./audio";
 import { attackDamage, enemyAttackPattern, guardDrainPerSecond, healthPercent, type ThreatKind } from "./combat";
 import { CLASSES, RARITY_COLOR, classPerkBonuses, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, type ClassPerkBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
-import { equippedPower } from "./loadout";
+import { equippedPower, loadoutStats, physicalDamageAfterArmor, type LoadoutStats } from "./loadout";
 import { cardinalDirection, circlesOverlap } from "./navigation";
 import { disposeSceneResources } from "./resources";
 import { continuousHold, targetDistanceInView } from "./targeting";
@@ -142,6 +142,7 @@ export class DarkPixGame {
   private readonly maxHealth: number;
   private readonly damageBonus: number;
   private readonly perkBonuses: ClassPerkBonuses;
+  private readonly loadoutBonuses: LoadoutStats;
   private readonly maxSpellCharges: number;
   private healthFill!: HTMLElement;
   private staminaFill!: HTMLElement;
@@ -203,9 +204,10 @@ export class DarkPixGame {
     this.definition = CLASSES[options.classId];
     const progression = progressionBonuses(options.classLevel);
     this.perkBonuses = classPerkBonuses(options.classId, options.classLevel);
+    this.loadoutBonuses = loadoutStats(options.equipped);
     const armorBonus = equippedPower(options.equipped, "armor");
-    this.maxHealth = this.definition.maxHealth + armorBonus + progression.health + this.perkBonuses.health;
-    this.damageBonus = progression.damage + this.perkBonuses.damage;
+    this.maxHealth = this.definition.maxHealth + armorBonus + progression.health + this.perkBonuses.health + this.loadoutBonuses.health;
+    this.damageBonus = progression.damage + this.perkBonuses.damage + this.loadoutBonuses.damage;
     this.maxSpellCharges = 6 + this.perkBonuses.spellCharges;
     this.spellCharges = this.maxSpellCharges;
     this.carriedConsumables = options.equipped.filter((item) => item.kind === "consumable").map((item) => ({ ...item }));
@@ -778,7 +780,7 @@ export class DarkPixGame {
     const sprinting = moving && this.keys.has("ShiftLeft") && this.stamina > 1 && !this.blocking;
     const sprintMultiplier = sprinting ? (this.options.classId === "cutpurse" ? 1.65 : 1.48) : 1;
     const blockMultiplier = this.blocking ? 0.55 : 1;
-    const speed = this.definition.speed * sprintMultiplier * blockMultiplier;
+    const speed = this.definition.speed * this.loadoutBonuses.movementMultiplier * sprintMultiplier * blockMultiplier;
     const sin = Math.sin(this.yaw);
     const cos = Math.cos(this.yaw);
     const dx = (input.x * cos - input.y * sin) * speed * delta;
@@ -883,7 +885,7 @@ export class DarkPixGame {
     const toHead = best.group.position.clone().add(new THREE.Vector3(0, headHeight, 0)).sub(cameraPosition).normalize();
     const headshot = toHead.dot(forward) > (this.options.classId === "hexbound" ? 0.992 : 0.975);
     const weaponPower = equippedPower(this.options.equipped, "weapon");
-    const damage = attackDamage({
+    const baseDamage = attackDamage({
       baseDamage: this.definition.damage,
       weaponPower,
       progressionBonus: this.damageBonus,
@@ -891,6 +893,7 @@ export class DarkPixGame {
       ambush: this.options.classId === "cutpurse" && !best.alerted,
       headshot,
     });
+    const damage = Math.round(baseDamage * (best.kind === "rival" ? 1 : this.loadoutBonuses.undeadDamageMultiplier));
     this.damageEnemy(best, damage, headshot);
     if (this.options.classId === "hexbound") this.spawnSpellTrail(cameraPosition, forward, bestDistance);
     this.mouseAccumulator.x = 0;
@@ -1069,17 +1072,18 @@ export class DarkPixGame {
     );
   }
 
-  private hurt(amount: number, source: string): void {
+  private hurt(amount: number, source: string, physical = true): void {
     if (this.damageCooldown > 0 || this.ended) return;
     this.damageCooldown = 0.18;
     this.interactionHold = 0;
-    this.health = Math.max(0, this.health - amount);
+    const appliedDamage = physicalDamageAfterArmor(amount, physical ? this.loadoutBonuses.armor : 0);
+    this.health = Math.max(0, this.health - appliedDamage);
     this.vignette = 1;
     this.damageOverlay.classList.remove("pulse");
     void this.damageOverlay.offsetWidth;
     this.damageOverlay.classList.add("pulse");
     this.audio.danger();
-    this.feed(`${source} wounds you for ${Math.round(amount)}.`, "danger");
+    this.feed(`${source} wounds you for ${Math.round(appliedDamage)}.`, "danger");
     if (this.health <= 0) this.finish(source === "the dark" ? "darkness" : "slain");
   }
 
@@ -1116,7 +1120,7 @@ export class DarkPixGame {
     }
     if (distance > zone.radius) {
       this.vignette = Math.max(this.vignette, 0.68);
-      if (this.damageCooldown <= 0) this.hurt(5, "the dark");
+      if (this.damageCooldown <= 0) this.hurt(5, "the dark", false);
     }
     const shell = this.mount.querySelector<HTMLElement>(".raid-shell");
     shell?.style.setProperty("--darkness", String(Math.max(this.vignette, distance > zone.radius ? 0.85 : zone.progress * 0.26)));
@@ -1181,7 +1185,7 @@ export class DarkPixGame {
     this.promptHud.classList.toggle("visible", Boolean(prompt));
 
     const channeling = this.interactHeld && (interactive === "portal" || interactive === "campfire");
-    const channelDuration = interactive === "campfire" ? 2.2 : 1.8;
+    const channelDuration = (interactive === "campfire" ? 2.2 : 1.8) * this.loadoutBonuses.interactionDurationMultiplier;
     this.interactionHold = continuousHold(this.interactionHold, delta, channeling);
     this.extractProgress.style.width = `${Math.min(100, (this.interactionHold / channelDuration) * 100)}%`;
     this.extractProgress.parentElement?.classList.toggle("visible", channeling);
@@ -1254,7 +1258,7 @@ export class DarkPixGame {
       return;
     }
     this.shrineUsed = true;
-    this.hurt(18, "the blood reliquary");
+    this.hurt(18, "the blood reliquary", false);
     const rune = this.shrine.getObjectByName("bloodRune") as THREE.Mesh | undefined;
     if (rune?.material instanceof THREE.MeshStandardMaterial) rune.material.emissiveIntensity = 0.08;
     const light = this.shrine.getObjectByName("shrineLight") as THREE.PointLight | undefined;
