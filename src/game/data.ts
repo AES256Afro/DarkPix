@@ -3,6 +3,7 @@ import type { ClassDefinition, ClassId, Item, Rarity } from "./types";
 export interface MerchantOffer {
   sku: string;
   price: number;
+  requiredExtracts: number;
   item: Omit<Item, "id">;
 }
 
@@ -112,19 +113,45 @@ export const MERCHANT_OFFERS: MerchantOffer[] = [
   {
     sku: "draught",
     price: 28,
+    requiredExtracts: 0,
     item: { name: "Coagulation draught", kind: "consumable", rarity: "Common", power: 0, value: 12, modifier: "Restores 36 vigor" },
   },
   {
     sku: "falchion",
     price: 46,
+    requiredExtracts: 0,
     item: { name: "Riveted falchion", kind: "weapon", rarity: "Common", power: 5, value: 27, modifier: "+5 edge damage" },
   },
   {
     sku: "jack",
     price: 58,
+    requiredExtracts: 0,
     item: { name: "Salvager jack", kind: "armor", rarity: "Common", power: 6, value: 34, modifier: "+6 maximum health" },
   },
+  {
+    sku: "oathblade",
+    price: 118,
+    requiredExtracts: 1,
+    item: { name: "Bluewax oathblade", kind: "weapon", rarity: "Uncommon", power: 9, value: 72, modifier: "+9 edge damage" },
+  },
+  {
+    sku: "tollcoat",
+    price: 142,
+    requiredExtracts: 1,
+    item: { name: "Toll-road coat", kind: "armor", rarity: "Uncommon", power: 11, value: 84, modifier: "+11 maximum health" },
+  },
+  {
+    sku: "reliquary-edge",
+    price: 248,
+    requiredExtracts: 3,
+    item: { name: "Reliquary edge", kind: "weapon", rarity: "Rare", power: 15, value: 156, modifier: "+15 edge damage" },
+  },
 ];
+
+export function merchantOfferUnlocked(offer: MerchantOffer, extracts: number): boolean {
+  const safeExtracts = Number.isFinite(extracts) ? Math.max(0, Math.floor(extracts)) : 0;
+  return safeExtracts >= offer.requiredExtracts;
+}
 
 const LOOT_NAMES = {
   weapon: ["Riveted falchion", "Bone-handled dirk", "Crypt maul", "Ashwood longbow", "Grave cantor"],

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classPerkBonuses, createBossLoot, createLoot, formatTime, levelForXp, progressionBonuses, rarityFromRoll } from "../src/game/data";
+import { MERCHANT_OFFERS, classPerkBonuses, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll } from "../src/game/data";
 import { applyRaidResult, createProfile, normalizeProfile, purchaseItem, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
 import { attackDamage, enemyAttackPattern, guardDrainPerSecond, healthPercent } from "../src/game/combat";
@@ -257,5 +257,17 @@ describe("class perk milestones", () => {
     expect(classPerkBonuses("vanguard", 2).guardUpkeepMultiplier).toBe(0.8);
     expect(classPerkBonuses("cutpurse", 4)).toMatchObject({ damage: 3, sprintCostMultiplier: 0.8 });
     expect(classPerkBonuses("hexbound", 6)).toMatchObject({ health: 8, damage: 4, spellCharges: 1 });
+  });
+});
+
+describe("merchant reputation", () => {
+  it("unlocks stronger stock only after the required extracts", () => {
+    const uncommon = MERCHANT_OFFERS.find((offer) => offer.sku === "oathblade")!;
+    const rare = MERCHANT_OFFERS.find((offer) => offer.sku === "reliquary-edge")!;
+    expect(merchantOfferUnlocked(uncommon, 0)).toBe(false);
+    expect(merchantOfferUnlocked(uncommon, 1)).toBe(true);
+    expect(merchantOfferUnlocked(rare, 2)).toBe(false);
+    expect(merchantOfferUnlocked(rare, 3)).toBe(true);
+    expect(merchantOfferUnlocked(rare, Number.POSITIVE_INFINITY)).toBe(false);
   });
 });

@@ -1,7 +1,7 @@
 import "./style.css";
 import { escapeHtml } from "./html";
 import { createSaveBackup, parseSaveBackup } from "./game/backup";
-import { CLASSES, CLASS_PERKS, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, progressionBonuses } from "./game/data";
+import { CLASSES, CLASS_PERKS, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses } from "./game/data";
 import { toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { loadProfile, purchaseItem, saveProfile, settleRaid } from "./game/profile";
@@ -126,14 +126,16 @@ function renderLobby(): void {
               ${profile.stash.length ? profile.stash.map((item) => itemMarkup(item, true)).join("") : `<div class="empty-stash"><strong>THE CHEST IS BARE</strong><span>You can still descend with class equipment.</span></div>`}
             </div>
             <div class="merchant-market" id="merchant">
-              <div class="panel-heading"><span><small>THE IRONMONGER</small><strong>Provision bench</strong></span><b>GOLD ACCEPTED</b></div>
-              <p class="panel-intro">Buy dependable supplies between raids. Purchased gear enters the stash and is still lost if packed into a failed delve.</p>
+              <div class="panel-heading"><span><small>THE IRONMONGER</small><strong>Provision bench</strong></span><b>${profile.extracts >= 3 ? "TRUSTED" : profile.extracts >= 1 ? "KNOWN" : "UNPROVEN"}</b></div>
+              <p class="panel-intro">Buy dependable supplies between raids. Successful extracts unlock stronger stock. Purchased gear enters the stash and is still lost if packed into a failed delve.</p>
               <div class="merchant-offers">
-                ${MERCHANT_OFFERS.map((offer) => `
-                  <article class="merchant-offer" style="--rarity:${RARITY_COLOR[offer.item.rarity]}">
+                ${MERCHANT_OFFERS.map((offer) => {
+                  const unlocked = merchantOfferUnlocked(offer, profile.extracts);
+                  return `<article class="merchant-offer ${unlocked ? "" : "locked"}" style="--rarity:${RARITY_COLOR[offer.item.rarity]}">
                     <i></i><span><strong>${offer.item.name}</strong><small>${offer.item.modifier ?? `${offer.item.rarity} ${offer.item.kind}`}</small></span>
-                    <button type="button" data-merchant-sku="${offer.sku}" aria-label="Buy ${offer.item.name} for ${offer.price} gold">${offer.price}g</button>
-                  </article>`).join("")}
+                    <button type="button" data-merchant-sku="${offer.sku}" aria-label="${unlocked ? `Buy ${offer.item.name} for ${offer.price} gold` : `Requires ${offer.requiredExtracts} successful extracts`}" ${unlocked ? "" : "disabled"}>${unlocked ? `${offer.price}g` : `${offer.requiredExtracts} EXT`}</button>
+                  </article>`;
+                }).join("")}
               </div>
               <p class="merchant-notice" role="status">${escapeHtml(merchantNotice || "The ironmonger does not offer refunds.")}</p>
             </div>
@@ -212,6 +214,11 @@ function renderLobby(): void {
     button.addEventListener("click", () => {
       const offer = MERCHANT_OFFERS.find((candidate) => candidate.sku === button.dataset.merchantSku);
       if (!offer) return;
+      if (!merchantOfferUnlocked(offer, profile.extracts)) {
+        merchantNotice = `${offer.item.name} requires ${offer.requiredExtracts} successful extracts.`;
+        renderLobby();
+        return;
+      }
       const purchaseId = globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.floor(Math.random() * 1_000_000).toString(36)}`;
       const item: Item = {
         ...offer.item,

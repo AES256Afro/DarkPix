@@ -45,7 +45,7 @@ Mouse sensitivity, crypt brightness, audio, and reduced camera motion can be adj
 - Hold `E` while facing the blue passage in the southeast reliquary to bank the haul. Looking away or taking damage breaks the extraction channel.
 - Read the shrinking safe reach in the raid HUD. Its center migrates southeast so the final refuge includes the extraction chamber.
 - Death discards all raid loot and equipped risk items. The player can always return with base class equipment.
-- Spend gold at the Ironmonger on consumables and common gear. Packed draughts are consumed when used, and a full stash sends extraction overflow to the porter for an automatic half-value sale.
+- Spend gold at the Ironmonger on consumables and gear. Successful extracts unlock Uncommon stock and, after three returns, a Rare weapon. Packed draughts are consumed when used, and a full stash sends extraction overflow to the porter for an automatic half-value sale.
 - The first successful extraction pays a one-time 100g contract bounty. Class levels grant bounded veterancy bonuses through level seven plus discipline-specific perks at levels 2, 4, and 6.
 
 The current vertical slice simulates the PvP side with a hostile AI rival. Networked solo, duo, and trio matchmaking, proximity voice, merchant reputation, crafting, and additional maps are future systems, not part of this build.
