@@ -2,7 +2,7 @@ import "./style.css";
 import { escapeHtml } from "./html";
 import { createSaveBackup, parseSaveBackup } from "./game/backup";
 import { CLASSES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses } from "./game/data";
-import { sortStash, toggleEquippedItem } from "./game/loadout";
+import { equippedPower, loadoutStats, sortStash, toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { craftItem, loadProfile, purchaseItem, saveProfile, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
@@ -69,6 +69,9 @@ function renderLobby(): void {
   const levelProgress = ((classXp % 350) / 350) * 100;
   const stashValue = profile.stash.reduce((sum, item) => sum + item.value, 0);
   const displayedStash = sortStash(profile.stash, preferences.stashSort);
+  const previewLoadout = profile.stash.filter((item) => equippedIds.has(item.id));
+  const previewStats = loadoutStats(previewLoadout);
+  const packedVigor = equippedPower(previewLoadout, "armor") + previewStats.health;
   app.innerHTML = `
     <main class="lobby">
       <header class="lobby-header">
@@ -177,6 +180,8 @@ function renderLobby(): void {
               <div class="sheet-line"><span>Raid weapon</span><strong>${chosen.weapon}</strong></div>
               <div class="sheet-line"><span>Class art</span><strong>${chosen.ability}</strong></div>
               <div class="sheet-line"><span>Veterancy</span><strong>+${bonuses.health} vigor · +${bonuses.damage} damage</strong></div>
+              <div class="sheet-line"><span>Packed vigor</span><strong>+${packedVigor}</strong></div>
+              <div class="sheet-line"><span>Loadout pace</span><strong>${Math.round(previewStats.movementMultiplier * 100)}%</strong></div>
               <div class="perk-list">
                 ${CLASS_PERKS[selectedClass].map((perk) => `<div class="${level >= perk.level ? "unlocked" : "locked"}"><b>LV ${perk.level}</b><span><strong>${perk.name}</strong><small>${perk.description}</small></span></div>`).join("")}
               </div>

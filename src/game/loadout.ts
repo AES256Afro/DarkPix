@@ -84,6 +84,8 @@ export function loadoutStats(items: Item[]): LoadoutStats {
     if (item.modifier === "+5% interaction speed") stats.interactionDurationMultiplier /= 1.05;
     if (item.modifier === "+12% undead damage") stats.undeadDamageMultiplier *= 1.12;
   }
+  const armorWeight = equippedPower(items, "armor");
+  stats.movementMultiplier *= 1 - Math.min(0.18, armorWeight * 0.008);
   return stats;
 }
 

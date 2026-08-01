@@ -49,11 +49,17 @@ describe("risk loadout", () => {
       { ...items[0]!, modifier: "+3 edge damage" },
       { ...items[2]!, modifier: "+6% movement speed" },
     ];
-    expect(loadoutStats(enchanted)).toMatchObject({ damage: 3, movementMultiplier: 1.06 });
+    expect(loadoutStats(enchanted)).toMatchObject({ damage: 3, movementMultiplier: 1.06 * 0.96 });
     expect(loadoutStats([{ ...items[0]!, modifier: "+5% interaction speed" }]).interactionDurationMultiplier).toBeCloseTo(1 / 1.05);
     expect(loadoutStats([{ ...items[0]!, modifier: "+12% undead damage" }]).undeadDamageMultiplier).toBeCloseTo(1.12);
     expect(loadoutStats([{ ...items[0]!, modifier: "+8 maximum health" }]).health).toBe(8);
     expect(loadoutStats([{ ...items[0]!, modifier: "+7 armor" }]).armor).toBe(7);
+  });
+
+  it("turns armor power into bounded encumbrance while preserving speed rolls", () => {
+    expect(loadoutStats([{ ...items[2]!, power: 5 }]).movementMultiplier).toBeCloseTo(0.96);
+    expect(loadoutStats([{ ...items[2]!, power: 50 }]).movementMultiplier).toBeCloseTo(0.82);
+    expect(loadoutStats([{ ...items[2]!, power: 10, modifier: "+6% movement speed" }]).movementMultiplier).toBeCloseTo(1.06 * 0.92);
   });
 
   it("turns armor into bounded physical damage mitigation", () => {
