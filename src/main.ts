@@ -7,7 +7,7 @@ import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERC
 import { itemValueTotal, raidValueSummary } from "./game/economy";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
-import { persistBeforeClearingEscrow } from "./game/persistence";
+import { browserStorageWritable, persistBeforeClearingEscrow } from "./game/persistence";
 import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfile, loadRaidEscrow, normalizeRaidResult, purchaseItem, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
 import { rarityMark } from "./game/rarity";
@@ -20,6 +20,7 @@ if (!foundApp) throw new Error("DarkPix application root is missing");
 const app = foundApp;
 const release = import.meta.env.VITE_DARKPIX_VERSION || "dev";
 const CLASS_RUNES: Record<ClassId, string> = { vanguard: "V", cutpurse: "C", hexbound: "H", reaver: "R", ranger: "A", cleric: "L", shapeshifter: "S", minstrel: "M" };
+const storageWritableAtStart = browserStorageWritable();
 
 let profile: Profile = loadProfile();
 let preferences: GamePreferences = loadPreferences();
@@ -29,7 +30,9 @@ let equippedIds = new Set<string>();
 let activeGame: DarkPixGame | undefined;
 let merchantNotice = "";
 let pendingSaleId: string | undefined;
-let persistenceWarning = "";
+let persistenceWarning = storageWritableAtStart
+  ? ""
+  : "Persistent browser storage is unavailable. Lobby changes may vanish, and no raid will start unless its risk journal can be secured.";
 let gameModulePromise: Promise<typeof import("./game/game")> | undefined;
 let updateRegistration: ServiceWorkerRegistration | undefined;
 let reloadForUpdate = false;
