@@ -60,7 +60,7 @@ The automated suite covers loot rarity, deterministic item creation, profile mig
 
 ## Production deployment
 
-The repository includes a hardened Docker and Nginx deployment for BigBox. It binds only to `127.0.0.1:8092` and joins the existing private Cloudflare Tunnel network without copying or exposing the tunnel token. See [DEPLOY_BIGBOX.md](./DEPLOY_BIGBOX.md) for health checks, Cloudflare routes, updates, and rollback.
+The repository includes a hardened Docker and Nginx deployment for BigBox. It binds only to `127.0.0.1:8092`, joins the existing private Cloudflare Tunnel network without copying or exposing the tunnel token, and requires the public version endpoint to match the deployed commit. See [DEPLOY_BIGBOX.md](./DEPLOY_BIGBOX.md) for health checks, Cloudflare routes, updates, and rollback.
 
 ## Technology
 
