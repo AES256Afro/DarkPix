@@ -5,6 +5,7 @@ const PREFERENCES_KEY = "darkpix-preferences-v1";
 export const DEFAULT_PREFERENCES: GamePreferences = {
   mouseSensitivity: 1,
   brightness: 1,
+  fieldOfView: 72,
   muted: false,
   reducedMotion: false,
   stashSort: "recent",
@@ -24,6 +25,7 @@ export function normalizePreferences(value: unknown): GamePreferences {
   return {
     mouseSensitivity: clampNumber(candidate.mouseSensitivity, 0.5, 2, DEFAULT_PREFERENCES.mouseSensitivity),
     brightness: clampNumber(candidate.brightness, 0.75, 1.4, DEFAULT_PREFERENCES.brightness),
+    fieldOfView: clampNumber(candidate.fieldOfView, 60, 95, DEFAULT_PREFERENCES.fieldOfView),
     muted: typeof candidate.muted === "boolean" ? candidate.muted : DEFAULT_PREFERENCES.muted,
     reducedMotion: typeof candidate.reducedMotion === "boolean" ? candidate.reducedMotion : DEFAULT_PREFERENCES.reducedMotion,
     stashSort: STASH_SORTS.has(candidate.stashSort as StashSort) ? candidate.stashSort as StashSort : DEFAULT_PREFERENCES.stashSort,

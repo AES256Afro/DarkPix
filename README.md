@@ -36,7 +36,7 @@ Moving the mouse vertically before a strike selects an overhead attack. Horizont
 
 Light is tactical. Hooding the torch shortens passive enemy detection range, while unhooding it restores the player spotlight. Walls block passive acquisition and attacks, but alerted enemies route through the dungeon to pursue prey they can no longer see. Threats have physical spacing and slide along corners instead of stacking into one hitbox. Four pressure-plate spike traps punish careless routes, interrupt threats, and can award normal kill drops when enemies are baited across them. The Tollkeeper takes reduced trap damage.
 
-Mouse sensitivity, crypt brightness, audio, reduced camera motion, and stash order can be adjusted from the lobby. Progress and preferences stay local to the browser, with a versioned JSON export/import backup in the settings panel. Each raid begins with an eight-second warding veil so the player can orient before passive enemies acquire them. Attacking during the veil still alerts the target. Pausing suspends the dungeon drone, and an unavailable or rejected pointer lock leaves the raid safely paused instead of consuming inputs.
+Mouse sensitivity, 60 to 95 degree field of view, crypt brightness, audio, reduced camera motion, and stash order can be adjusted from the lobby. Progress and preferences stay local to the browser, with a versioned JSON export/import backup in the settings panel. Each raid begins with an eight-second warding veil so the player can orient before passive enemies acquire them. Attacking during the veil still alerts the target. Pausing suspends the dungeon drone, and an unavailable or rejected pointer lock leaves the raid safely paused instead of consuming inputs.
 
 ## Extraction loop
 

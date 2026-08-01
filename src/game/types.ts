@@ -51,6 +51,7 @@ export interface Profile {
 export interface GamePreferences {
   mouseSensitivity: number;
   brightness: number;
+  fieldOfView: number;
   muted: boolean;
   reducedMotion: boolean;
   stashSort: StashSort;

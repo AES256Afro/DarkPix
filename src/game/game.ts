@@ -340,6 +340,7 @@ export class DarkPixGame {
     this.scene.background = new THREE.Color(0x050606);
     this.scene.fog = new THREE.FogExp2(0x050707, 0.04);
     this.camera.rotation.order = "YXZ";
+    this.camera.fov = this.options.preferences.fieldOfView;
     this.camera.position.set(DUNGEON.playerStart.x, PLAYER_HEIGHT, DUNGEON.playerStart.z);
     this.scene.add(this.camera);
     this.delverTorch.position.set(0.28, 0.05, 0.1);
