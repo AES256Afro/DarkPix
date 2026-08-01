@@ -36,6 +36,14 @@ export interface ClassAbilityDefinition {
   description: string;
 }
 
+export interface ConsumableEffect {
+  health: number;
+  stamina: number;
+  spellCharges: number;
+  rekindleTorch: boolean;
+  description: string;
+}
+
 export const CLASSES: Record<ClassId, ClassDefinition> = {
   vanguard: {
     id: "vanguard",
@@ -275,6 +283,25 @@ const MODIFIERS = [
   "+12% undead damage",
 ];
 
+const CONSUMABLE_EFFECTS: Record<string, ConsumableEffect> = {
+  "Coagulation draught": { health: 36, stamina: 0, spellCharges: 0, rekindleTorch: false, description: "Restores 36 vigor" },
+  "Pitch bandage": { health: 24, stamina: 0, spellCharges: 0, rekindleTorch: false, description: "Restores 24 vigor" },
+  "Smoked root": { health: 16, stamina: 38, spellCharges: 0, rekindleTorch: false, description: "Restores 16 vigor and 38 stamina" },
+  "Bluewax candle": { health: 12, stamina: 0, spellCharges: 0, rekindleTorch: true, description: "Restores 12 vigor and rekindles the torch" },
+  "Camp ember": { health: 20, stamina: 20, spellCharges: 2, rekindleTorch: false, description: "Restores 20 vigor, 20 stamina, and 2 spell charges" },
+};
+
+export function consumableEffect(item: Pick<Item, "name" | "kind">): ConsumableEffect | undefined {
+  if (item.kind !== "consumable") return undefined;
+  return CONSUMABLE_EFFECTS[item.name] ?? {
+    health: 18,
+    stamina: 0,
+    spellCharges: 0,
+    rekindleTorch: false,
+    description: "Restores 18 vigor",
+  };
+}
+
 export function rarityFromRoll(roll: number, depthBonus = 0): Rarity {
   const adjusted = Math.min(0.999, roll + depthBonus);
   if (adjusted > 0.992) return "Legendary";
@@ -292,6 +319,7 @@ export function createLoot(random = Math.random, depthBonus = 0): Item {
   const rarityIndex = RARITIES.indexOf(rarity);
   const names = LOOT_NAMES[kind];
   const name = names[Math.floor(random() * names.length)] ?? names[0];
+  const consumable = kind === "consumable" ? consumableEffect({ name, kind }) : undefined;
   return {
     id: `${Date.now().toString(36)}-${Math.floor(random() * 1_000_000).toString(36)}`,
     name,
@@ -299,7 +327,7 @@ export function createLoot(random = Math.random, depthBonus = 0): Item {
     rarity,
     power: 1 + rarityIndex * 3 + Math.floor(random() * 3),
     value: 8 + rarityIndex * rarityIndex * 13 + Math.floor(random() * 12),
-    modifier: rarityIndex >= 2 ? MODIFIERS[Math.floor(random() * MODIFIERS.length)] : undefined,
+    modifier: consumable?.description ?? (rarityIndex >= 2 ? MODIFIERS[Math.floor(random() * MODIFIERS.length)] : undefined),
   };
 }
 

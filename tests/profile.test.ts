@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CLASS_ABILITIES, CRAFTING_RECIPES, MERCHANT_OFFERS, classPerkBonuses, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll } from "../src/game/data";
+import { CLASS_ABILITIES, CRAFTING_RECIPES, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll } from "../src/game/data";
 import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, applyRaidResult, craftItem, createProfile, normalizeProfile, purchaseItem, sellStashItem, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
 import { attackDamage, bossTactic, classAbilityDamageMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat } from "../src/game/combat";
@@ -24,6 +24,16 @@ describe("loot generation", () => {
     expect(item.kind).toBe("treasure");
     expect(item.rarity).toBe("Uncommon");
     expect(item.value).toBeGreaterThan(0);
+  });
+
+  it("gives recovered consumables explicit utility instead of gear enchantments", () => {
+    const rolls = [0.9, 0.7, 0.99, 0.1, 0.1, 0.1];
+    const item = createLoot(() => rolls.shift() ?? 0.1);
+    expect(item.kind).toBe("consumable");
+    expect(item.name).toBe("Camp ember");
+    expect(item.modifier).toContain("spell charges");
+    expect(consumableEffect(item)).toMatchObject({ health: 20, stamina: 20, spellCharges: 2 });
+    expect(consumableEffect({ name: "blade", kind: "weapon" })).toBeUndefined();
   });
 
   it("guarantees a named rare-or-better Tollkeeper trophy", () => {

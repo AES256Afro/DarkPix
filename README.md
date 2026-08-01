@@ -24,7 +24,7 @@ Open `http://127.0.0.1:4173` on a desktop browser. Click **Enter the Crypt** to 
 | `Q` | Use the class active ability |
 | `Shift` | Sprint |
 | `E` | Loot, search, rest, or hold to extract |
-| `F` | Use a recovered consumable |
+| `F` | Use the first carried consumable that can help |
 | `G` | Drop the least valuable unsecured haul item |
 | `R` | Hold at an awakened passage to descend red |
 | `T` | Hood or unhood the torch |
@@ -55,7 +55,7 @@ Mouse sensitivity, 60 to 95 degree field of view, crypt brightness, audio, reduc
 - Hold `E` while facing the blue passage in the southeast reliquary to bank the haul. Looking away or taking damage breaks the extraction channel.
 - Read the shrinking safe reach in the raid HUD. Its center migrates southeast so the final refuge includes the extraction chamber.
 - Death discards all raid loot and equipped risk items. The player can always return with base class equipment.
-- Spend gold at the Ironmonger on consumables and gear. Successful extracts unlock Uncommon stock and, after three returns, a Rare weapon. Packed draughts are consumed when used, and a full stash sends extraction overflow to the porter for an automatic half-value sale.
+- Spend gold at the Ironmonger on consumables and gear. Successful extracts unlock Uncommon stock and, after three returns, a Rare weapon. Draughts and bandages restore vigor, smoked roots also restore stamina, bluewax candles can rekindle a hooded torch, and camp embers restore stamina plus Hexbound spell memory. Packed remedies are consumed when used, and a full stash sends extraction overflow to the porter for an automatic half-value sale.
 - Rare-or-better, crafted, and currently packed items require a second explicit confirmation before they can be sold from the stash.
 - Rolled and merchant gear modifiers directly affect edge damage, armor mitigation, maximum vigor, movement, interaction speed, or damage against undead threats. Persisted modifiers, item power, item value, progression counters, and coin totals are bounded before they affect runtime stats or the economy.
 - Forge a recovered Tollkeeper chain into the Epic Chainbreaker's ward, a Saint's broken seal into the Rare Saintless edge, or a Sepulcher ruby into the Epic Ruby cantor. Every recipe replaces its material in place, so it remains safe at the stash limit.

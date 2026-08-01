@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
 import { attackDamage, bossTactic, classAbilityDamageMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat, type ThreatKind } from "./combat";
-import { CLASSES, CLASS_ABILITIES, RARITY_COLOR, classPerkBonuses, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, type ClassPerkBonuses } from "./data";
+import { CLASSES, CLASS_ABILITIES, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, type ClassPerkBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { depthRules } from "./depth";
 import { HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGold } from "./haul";
@@ -292,7 +292,7 @@ export class DarkPixGame {
             </section>
             <section class="quick-slots">
               <div class="ability-slot"><kbd>Q</kbd><span class="slot-icon ability-icon"></span><small>${CLASS_ABILITIES[this.options.classId].name}</small></div>
-              <div><kbd>F</kbd><span class="slot-icon potion-icon"></span><small>${this.carriedConsumables.length ? `Packed draught ×${this.carriedConsumables.length}` : "Recovered draught"}</small></div>
+              <div><kbd>F</kbd><span class="slot-icon potion-icon"></span><small>${this.carriedConsumables.length ? `Packed remedy ×${this.carriedConsumables.length}` : "Recovered remedy"}</small></div>
               <div><kbd>G</kbd><span class="slot-icon hand-icon"></span><small>Drop lowest haul</small></div>
               <div><kbd>E</kbd><span class="slot-icon hand-icon"></span><small>Interact / extract</small></div>
               <div><kbd>T</kbd><span class="slot-icon torch-icon"></span><small>Hood the torch</small></div>
@@ -729,7 +729,7 @@ export class DarkPixGame {
     this.keys.add(event.code);
     if (event.code === "KeyE") this.interactHeld = true;
     if (event.code === "KeyR") this.descendHeld = true;
-    if (event.code === "KeyF" && !event.repeat) this.usePotion();
+    if (event.code === "KeyF" && !event.repeat) this.useConsumable();
     if (event.code === "KeyG" && !event.repeat) this.dropLowestHaul();
     if (event.code === "KeyQ" && !event.repeat) this.useClassAbility();
     if (event.code === "KeyT" && !event.repeat) this.toggleTorch();
@@ -1453,19 +1453,38 @@ export class DarkPixGame {
     if (this.health <= 0) this.finish(source === "the dark" ? "darkness" : "slain");
   }
 
-  private usePotion(): void {
-    if (this.paused || this.ended || this.health >= this.maxHealth) return;
-    const potionIndex = this.raidLoot.findIndex((item) => item.kind === "consumable");
-    const recoveredPotion = potionIndex >= 0 ? this.raidLoot.splice(potionIndex, 1)[0] : undefined;
-    const packedPotion = recoveredPotion ? undefined : this.carriedConsumables.shift();
-    const potion = recoveredPotion ?? packedPotion;
-    if (!potion) {
-      this.feed("No draught in your unsecured haul.", "danger");
+  private useConsumable(): void {
+    if (this.paused || this.ended) return;
+    const canBenefit = (item: Item): boolean => {
+      const effect = consumableEffect(item);
+      return Boolean(effect && (
+        this.health < this.maxHealth ||
+        (effect.stamina > 0 && this.stamina < this.definition.maxStamina) ||
+        (effect.spellCharges > 0 && this.options.classId === "hexbound" && this.spellCharges < this.maxSpellCharges) ||
+        (effect.rekindleTorch && !this.torchLit)
+      ));
+    };
+    const recoveredIndex = this.raidLoot.findIndex((item) => item.kind === "consumable" && canBenefit(item));
+    const packedIndex = recoveredIndex >= 0 ? -1 : this.carriedConsumables.findIndex(canBenefit);
+    const recovered = recoveredIndex >= 0 ? this.raidLoot.splice(recoveredIndex, 1)[0] : undefined;
+    const packed = packedIndex >= 0 ? this.carriedConsumables.splice(packedIndex, 1)[0] : undefined;
+    const consumable = recovered ?? packed;
+    if (!consumable) {
+      const hasAny = this.raidLoot.some((item) => item.kind === "consumable") || this.carriedConsumables.length > 0;
+      this.feed(hasAny ? "No carried remedy can restore anything right now." : "No remedy in your unsecured haul.", hasAny ? "system" : "danger");
       return;
     }
-    if (packedPotion) this.consumedIds.push(packedPotion.id);
-    this.health = Math.min(this.maxHealth, this.health + 36);
-    this.feed(`${potion.name} restores 36 vigor.`, "loot");
+    if (packed) this.consumedIds.push(packed.id);
+    const effect = consumableEffect(consumable);
+    if (!effect) return;
+    this.health = Math.min(this.maxHealth, this.health + effect.health);
+    this.stamina = Math.min(this.definition.maxStamina, this.stamina + effect.stamina);
+    if (this.options.classId === "hexbound") this.spellCharges = Math.min(this.maxSpellCharges, this.spellCharges + effect.spellCharges);
+    if (effect.rekindleTorch && !this.torchLit) {
+      this.torchLit = true;
+      this.delverTorch.intensity = 5.2;
+    }
+    this.feed(`${consumable.name} · ${effect.description.toLowerCase()}.`, "loot");
     this.audio.loot();
   }
 
