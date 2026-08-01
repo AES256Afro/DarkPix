@@ -1,10 +1,10 @@
 import "./style.css";
 import { escapeHtml } from "./html";
 import { createSaveBackup, parseSaveBackup } from "./game/backup";
-import { CLASSES, CLASS_PERKS, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses } from "./game/data";
+import { CLASSES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses } from "./game/data";
 import { toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
-import { loadProfile, purchaseItem, saveProfile, settleRaid } from "./game/profile";
+import { craftItem, loadProfile, purchaseItem, saveProfile, settleRaid } from "./game/profile";
 import type { DarkPixGame } from "./game/game";
 import type { ClassId, GamePreferences, Item, Profile, RaidResult } from "./game/types";
 
@@ -137,6 +137,16 @@ function renderLobby(): void {
                   </article>`;
                 }).join("")}
               </div>
+              <div class="forge-recipes">
+                ${CRAFTING_RECIPES.map((recipe) => {
+                  const hasMaterial = profile.stash.some((item) => item.name === recipe.ingredientName && item.kind === recipe.ingredientKind);
+                  const affordable = profile.gold >= recipe.goldCost;
+                  return `<article class="forge-recipe ${hasMaterial && affordable ? "ready" : ""}">
+                    <span><small>EMBERFORGE RECIPE</small><strong>${recipe.name}</strong><p>${recipe.ingredientName} + ${recipe.goldCost}g</p></span>
+                    <button type="button" data-recipe-id="${recipe.id}" ${hasMaterial && affordable ? "" : "disabled"}>${!hasMaterial ? "NEED CHAIN" : !affordable ? `NEED ${recipe.goldCost}g` : "FORGE"}</button>
+                  </article>`;
+                }).join("")}
+              </div>
               <p class="merchant-notice" role="status">${escapeHtml(merchantNotice || "The ironmonger does not offer refunds.")}</p>
             </div>
           </section>
@@ -232,6 +242,24 @@ function renderLobby(): void {
           ? "The stash is full. Sell something before buying."
           : `You need ${offer.price - profile.gold}g more for ${offer.item.name}.`;
       if (purchase.outcome === "purchased") persistProfile();
+      renderLobby();
+    });
+  });
+  app.querySelectorAll<HTMLButtonElement>("[data-recipe-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const recipe = CRAFTING_RECIPES.find((candidate) => candidate.id === button.dataset.recipeId);
+      if (!recipe) return;
+      const outputId = `crafted-${recipe.id}-${globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.floor(Math.random() * 1_000_000).toString(36)}`}`;
+      const craft = craftItem(profile, recipe, outputId);
+      profile = craft.profile;
+      merchantNotice = craft.outcome === "crafted"
+        ? `${recipe.name} forged and placed in the stash.`
+        : craft.outcome === "missing_material"
+          ? `Recover ${recipe.ingredientName} before attempting this recipe.`
+          : craft.outcome === "insufficient_gold"
+            ? `The forge requires ${recipe.goldCost}g.`
+            : "The forge refused a duplicate item mark.";
+      if (craft.outcome === "crafted") persistProfile();
       renderLobby();
     });
   });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { MERCHANT_OFFERS, classPerkBonuses, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll } from "../src/game/data";
-import { applyRaidResult, createProfile, normalizeProfile, purchaseItem, settleRaid } from "../src/game/profile";
+import { CRAFTING_RECIPES, MERCHANT_OFFERS, classPerkBonuses, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll } from "../src/game/data";
+import { applyRaidResult, craftItem, createProfile, normalizeProfile, purchaseItem, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
 import { attackDamage, enemyAttackPattern, guardDrainPerSecond, healthPercent } from "../src/game/combat";
 
@@ -269,5 +269,30 @@ describe("merchant reputation", () => {
     expect(merchantOfferUnlocked(rare, 2)).toBe(false);
     expect(merchantOfferUnlocked(rare, 3)).toBe(true);
     expect(merchantOfferUnlocked(rare, Number.POSITIVE_INFINITY)).toBe(false);
+  });
+});
+
+describe("Emberforge crafting", () => {
+  it("atomically consumes a boss trophy and gold for the crafted ward", () => {
+    const profile = createProfile();
+    profile.gold = 100;
+    profile.stash.push(createBossLoot(() => 0));
+    const recipe = CRAFTING_RECIPES[0]!;
+    const crafted = craftItem(profile, recipe, "crafted-ward");
+    expect(crafted.outcome).toBe("crafted");
+    expect(crafted.profile.gold).toBe(20);
+    expect(crafted.profile.stash.some((item) => item.name === recipe.ingredientName)).toBe(false);
+    expect(crafted.profile.stash.find((item) => item.id === "crafted-ward")).toMatchObject({ rarity: "Epic", power: 18 });
+  });
+
+  it("preserves the profile when material or funds are missing", () => {
+    const profile = createProfile();
+    const recipe = CRAFTING_RECIPES[0]!;
+    expect(craftItem(profile, recipe, "missing").outcome).toBe("missing_material");
+    profile.stash.push(createBossLoot(() => 0));
+    profile.gold = 0;
+    const refused = craftItem(profile, recipe, "poor");
+    expect(refused.outcome).toBe("insufficient_gold");
+    expect(refused.profile.stash.some((item) => item.name === recipe.ingredientName)).toBe(true);
   });
 });

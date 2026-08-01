@@ -1,4 +1,5 @@
 import type { ClassId, Item, Profile, RaidResult } from "./types";
+import type { CraftingRecipe } from "./data";
 
 const PROFILE_KEY = "darkpix-profile-v1";
 
@@ -178,4 +179,24 @@ export function purchaseItem(profile: Profile, item: Item, price: number): { pro
   next.gold -= safePrice;
   next.stash.push({ ...item });
   return { profile: next, outcome: "purchased" };
+}
+
+export type CraftOutcome = "crafted" | "missing_material" | "insufficient_gold" | "duplicate_id";
+
+export function craftItem(
+  profile: Profile,
+  recipe: CraftingRecipe,
+  outputId: string,
+): { profile: Profile; outcome: CraftOutcome } {
+  const next = normalizeProfile(profile);
+  const ingredientIndex = next.stash.findIndex(
+    (item) => item.name === recipe.ingredientName && item.kind === recipe.ingredientKind,
+  );
+  if (ingredientIndex < 0) return { profile: next, outcome: "missing_material" };
+  const safeCost = Number.isFinite(recipe.goldCost) ? Math.max(0, Math.floor(recipe.goldCost)) : Number.MAX_SAFE_INTEGER;
+  if (next.gold < safeCost) return { profile: next, outcome: "insufficient_gold" };
+  if (!outputId || next.stash.some((item) => item.id === outputId)) return { profile: next, outcome: "duplicate_id" };
+  next.gold -= safeCost;
+  next.stash.splice(ingredientIndex, 1, { ...recipe.output, id: outputId });
+  return { profile: next, outcome: "crafted" };
 }

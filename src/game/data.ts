@@ -7,6 +7,15 @@ export interface MerchantOffer {
   item: Omit<Item, "id">;
 }
 
+export interface CraftingRecipe {
+  id: string;
+  name: string;
+  ingredientName: string;
+  ingredientKind: Item["kind"];
+  goldCost: number;
+  output: Omit<Item, "id">;
+}
+
 export interface ClassPerk {
   level: number;
   name: string;
@@ -145,6 +154,24 @@ export const MERCHANT_OFFERS: MerchantOffer[] = [
     price: 248,
     requiredExtracts: 3,
     item: { name: "Reliquary edge", kind: "weapon", rarity: "Rare", power: 15, value: 156, modifier: "+15 edge damage" },
+  },
+];
+
+export const CRAFTING_RECIPES: CraftingRecipe[] = [
+  {
+    id: "chainward",
+    name: "Chainbreaker's ward",
+    ingredientName: "Tollkeeper's severed chain",
+    ingredientKind: "treasure",
+    goldCost: 80,
+    output: {
+      name: "Chainbreaker's ward",
+      kind: "armor",
+      rarity: "Epic",
+      power: 18,
+      value: 210,
+      modifier: "+7 armor",
+    },
   },
 ];
 
