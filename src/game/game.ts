@@ -4,7 +4,7 @@ import { attackDamage } from "./combat";
 import { CLASSES, RARITY_COLOR, createLoot, createSigil, formatTime, progressionBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { cardinalDirection } from "./navigation";
-import { targetDistanceInView } from "./targeting";
+import { extractionHold, targetDistanceInView } from "./targeting";
 import type { ClassId, GamePreferences, Item, RaidEndReason, RaidResult, Vec2 } from "./types";
 import { distanceFromZoneCenter, zoneState } from "./zone";
 
@@ -916,6 +916,7 @@ export class DarkPixGame {
   private hurt(amount: number, source: string): void {
     if (this.damageCooldown > 0 || this.ended) return;
     this.damageCooldown = 0.18;
+    this.extractHold = 0;
     this.health = Math.max(0, this.health - amount);
     this.vignette = 1;
     this.damageOverlay.classList.remove("pulse");
@@ -1004,7 +1005,9 @@ export class DarkPixGame {
       nearest = campfireDistance;
       interactive = "campfire";
     }
-    if (this.portalUnlocked && Number.isFinite(targetDistance(this.portal.position, 3.1))) {
+    const portalDistance = this.portalUnlocked ? targetDistance(this.portal.position, 3.1) : Number.POSITIVE_INFINITY;
+    if (Number.isFinite(portalDistance) && (interactive === undefined || portalDistance < nearest)) {
+      nearest = portalDistance;
       interactive = "portal";
     }
 
@@ -1014,6 +1017,11 @@ export class DarkPixGame {
     if (interactive === "portal") prompt = "[ HOLD E ] OPEN THE BLUE PASSAGE";
     this.promptHud.textContent = prompt;
     this.promptHud.classList.toggle("visible", Boolean(prompt));
+
+    const channelingPortal = interactive === "portal" && this.interactHeld;
+    this.extractHold = extractionHold(this.extractHold, delta, channelingPortal);
+    this.extractProgress.style.width = `${Math.min(100, (this.extractHold / 1.8) * 100)}%`;
+    this.extractProgress.parentElement?.classList.toggle("visible", channelingPortal);
 
     if (!this.interactHeld) return;
     if (interactive === "pickup" && targetPickup) {
@@ -1026,9 +1034,6 @@ export class DarkPixGame {
       this.useCampfire();
       this.interactHeld = false;
     } else if (interactive === "portal") {
-      this.extractHold += delta;
-      this.extractProgress.style.width = `${Math.min(100, (this.extractHold / 1.8) * 100)}%`;
-      this.extractProgress.parentElement?.classList.add("visible");
       if (this.extractHold >= 1.8) this.finish("extracted");
     }
   }

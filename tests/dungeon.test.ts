@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DUNGEON, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists } from "../src/game/dungeon";
-import { targetDistanceInView } from "../src/game/targeting";
+import { extractionHold, targetDistanceInView } from "../src/game/targeting";
 import { cardinalDirection } from "../src/game/navigation";
 import { distanceFromZoneCenter, zoneState } from "../src/game/zone";
 import type { Vec2 } from "../src/game/types";
@@ -48,6 +48,13 @@ describe("deliberate interaction targeting", () => {
     expect(targetDistanceInView(origin, facing, { x: 0.4, z: -2 }, 2.6)).toBeLessThan(2.6);
     expect(targetDistanceInView(origin, facing, { x: 0, z: 2 }, 2.6)).toBe(Number.POSITIVE_INFINITY);
     expect(targetDistanceInView(origin, facing, { x: 0, z: -3 }, 2.6)).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it("requires an uninterrupted extraction hold", () => {
+    const partial = extractionHold(0, 0.9, true);
+    expect(extractionHold(partial, 0.4, true)).toBeCloseTo(1.3);
+    expect(extractionHold(partial, 0.4, false)).toBe(0);
+    expect(extractionHold(Number.NaN, -1, true)).toBe(0);
   });
 });
 
