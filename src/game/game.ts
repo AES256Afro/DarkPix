@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { escapeHtml } from "../html";
 import { AudioDirector } from "./audio";
-import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
+import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, delverActionLock, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
@@ -2364,6 +2364,22 @@ export class DarkPixGame {
     return true;
   }
 
+  private occupiedHandsBlock(action: string): boolean {
+    const lock = delverActionLock(this.blocking, this.attackCooldown, this.dodgeCooldown, this.guardBreakTimer, this.interactionHold);
+    if (!lock) return false;
+    const reason = lock === "guard_broken"
+      ? `guard broken ${this.guardBreakTimer.toFixed(1)}s`
+      : lock === "guarding"
+        ? "lower your guard"
+        : lock === "action_recovery"
+          ? `action recovery ${this.attackCooldown.toFixed(1)}s`
+          : lock === "sidestep_recovery"
+            ? `sidestep recovery ${this.dodgeCooldown.toFixed(1)}s`
+            : "finish or release the ritual";
+    this.feed(`${action} BLOCKED · ${reason}`, "system");
+    return true;
+  }
+
   private availableConsumables(): Item[] {
     return consumablesInUseOrder(this.raidLoot, this.carriedConsumables);
   }
@@ -2377,8 +2393,9 @@ export class DarkPixGame {
   }
 
   private throwItem(): void {
-    if (this.paused || this.ended || this.blocking || this.attackCooldown > 0) return;
+    if (this.paused || this.ended) return;
     if (this.remedyBlocks("THROW")) return;
+    if (this.occupiedHandsBlock("THROW")) return;
     const items = this.availableThrowables();
     this.selectedThrowableId = resolveThrowableId(items, this.selectedThrowableId);
     const selected = items.find((item) => item.id === this.selectedThrowableId);
@@ -2463,10 +2480,7 @@ export class DarkPixGame {
 
   private useClassAbility(): void {
     if (this.remedyBlocks("ABILITY")) return;
-    if (this.interactionHold > 0) {
-      this.feed("ABILITY BLOCKED · finish or release the ritual", "system");
-      return;
-    }
+    if (this.occupiedHandsBlock("ABILITY")) return;
     if (this.abilityCooldown > 0) {
       this.feed(`${CLASS_ABILITIES[this.options.classId].name} returns in ${Math.ceil(this.abilityCooldown)}s.`, "system");
       return;
@@ -2761,6 +2775,7 @@ export class DarkPixGame {
   }
 
   private collectPickup(pickup: Pickup): void {
+    if (this.occupiedHandsBlock("LOOT")) return;
     if (!canAddToHaul(this.raidLoot, pickup.item)) {
       this.feed(`HAUL FULL · drop something before taking ${pickup.item.name}`, "danger");
       return;
@@ -2778,6 +2793,7 @@ export class DarkPixGame {
 
   private dropLowestHaul(): void {
     if (this.remedyBlocks("DROP")) return;
+    if (this.occupiedHandsBlock("DROP")) return;
     const { kept, dropped } = dropLeastValuable(this.raidLoot);
     if (!dropped) {
       this.feed("There is no unsecured haul to drop.", "system");
@@ -2792,6 +2808,7 @@ export class DarkPixGame {
   }
 
   private openChest(chest: Chest): void {
+    if (this.occupiedHandsBlock("COFFER")) return;
     chest.opened = true;
     if (chest.mimic) {
       chest.group.visible = false;
@@ -2835,6 +2852,7 @@ export class DarkPixGame {
   }
 
   private useShrine(offering: ShrineOffering): void {
+    if (this.occupiedHandsBlock("RELIQUARY")) return;
     const rules = shrineOfferingRules(offering);
     let surrendered: Item | undefined;
     if (offering === "exchange") {

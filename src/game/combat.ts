@@ -32,11 +32,27 @@ export interface DodgeStats {
 export const RIPOSTE_DURATION_SECONDS = 1.5;
 
 export type GuardDenialReason = "guard_broken" | "action_recovery" | "stamina" | undefined;
+export type DelverActionLock = "guard_broken" | "guarding" | "action_recovery" | "sidestep_recovery" | "channeling" | undefined;
 
 export function guardDenialReason(stamina: number, guardBreakRemaining: number, actionRecoveryRemaining: number): GuardDenialReason {
   if (Number.isFinite(guardBreakRemaining) && guardBreakRemaining > 0) return "guard_broken";
   if (Number.isFinite(actionRecoveryRemaining) && actionRecoveryRemaining > 0) return "action_recovery";
   if (!Number.isFinite(stamina) || stamina < 1) return "stamina";
+  return undefined;
+}
+
+export function delverActionLock(
+  blocking: boolean,
+  actionRecoveryRemaining: number,
+  sidestepRecoveryRemaining: number,
+  guardBreakRemaining: number,
+  channelProgress: number,
+): DelverActionLock {
+  if (Number.isFinite(guardBreakRemaining) && guardBreakRemaining > 0) return "guard_broken";
+  if (blocking) return "guarding";
+  if (Number.isFinite(actionRecoveryRemaining) && actionRecoveryRemaining > 0) return "action_recovery";
+  if (Number.isFinite(sidestepRecoveryRemaining) && sidestepRecoveryRemaining > 0) return "sidestep_recovery";
+  if (Number.isFinite(channelProgress) && channelProgress > 0) return "channeling";
   return undefined;
 }
 
