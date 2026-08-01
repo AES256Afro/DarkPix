@@ -5,6 +5,7 @@ import { DUNGEON, dungeonLineOfSight } from "./dungeon";
 import { cardinalDirection } from "./navigation";
 import { targetDistanceInView } from "./targeting";
 import type { ClassId, GamePreferences, Item, RaidEndReason, RaidResult } from "./types";
+import { distanceFromZoneCenter, zoneState } from "./zone";
 
 interface WallCollider {
   x: number;
@@ -885,28 +886,27 @@ export class DarkPixGame {
     this.audio.loot();
   }
 
-  private updateZone(delta: number): void {
-    const progress = THREE.MathUtils.clamp((this.elapsed - 20) / (RAID_DURATION - 20), 0, 1);
-    const safeRadius = THREE.MathUtils.lerp(31, 6.2, progress);
-    const distance = Math.hypot(this.camera.position.x, this.camera.position.z);
+  private updateZone(_delta: number): void {
+    const zone = zoneState(this.elapsed, RAID_DURATION);
+    const distance = distanceFromZoneCenter({ x: this.camera.position.x, z: this.camera.position.z }, zone);
     const zoneCopy = this.mount.querySelector<HTMLElement>(".zone-copy");
     if (zoneCopy) {
       zoneCopy.textContent = this.elapsed < SPAWN_GRACE
         ? `warding veil ${Math.ceil(SPAWN_GRACE - this.elapsed)}s`
-        : progress === 0
+        : zone.progress === 0
           ? "darkness dormant"
-          : `safe reach ${Math.round(safeRadius)}m`;
+          : `safe reach ${Math.round(zone.radius)}m`;
     }
     if (!this.spawnGraceAnnounced && this.elapsed >= SPAWN_GRACE) {
       this.spawnGraceAnnounced = true;
       this.feed("The warding veil gutters. The crypt can hear you now.", "danger");
     }
-    if (distance > safeRadius) {
+    if (distance > zone.radius) {
       this.vignette = Math.max(this.vignette, 0.68);
-      if (this.damageCooldown <= 0) this.hurt(delta * 23, "the dark");
+      if (this.damageCooldown <= 0) this.hurt(5, "the dark");
     }
     const shell = this.mount.querySelector<HTMLElement>(".raid-shell");
-    shell?.style.setProperty("--darkness", String(Math.max(this.vignette, distance > safeRadius ? 0.85 : progress * 0.26)));
+    shell?.style.setProperty("--darkness", String(Math.max(this.vignette, distance > zone.radius ? 0.85 : zone.progress * 0.26)));
   }
 
   private updateInteraction(delta: number): void {

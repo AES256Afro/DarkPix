@@ -39,6 +39,7 @@ Mouse sensitivity, crypt brightness, audio, and reduced camera motion can be adj
 - Follow the contract wayfinder toward the nearest living Warden, loose sigil, or unlocked blue passage.
 - Search four coffers across an interconnected dungeon while fighting monsters and one AI rival delver.
 - Hold `E` at the blue passage in the southeast reliquary to bank the haul.
+- Read the shrinking safe reach in the raid HUD. Its center migrates southeast so the final refuge includes the extraction chamber.
 - Death discards all raid loot and equipped risk items. The player can always return with base class equipment.
 - Spend gold at the Ironmonger on consumables and common gear. Packed draughts are consumed when used, and a full stash sends extraction overflow to the porter for an automatic half-value sale.
 - The first successful extraction pays a one-time 100g contract bounty. Class levels grant bounded vigor and damage bonuses through level seven.

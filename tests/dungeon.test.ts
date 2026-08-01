@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DUNGEON, dungeonCollides, dungeonLineOfSight, dungeonPathExists } from "../src/game/dungeon";
 import { targetDistanceInView } from "../src/game/targeting";
 import { cardinalDirection } from "../src/game/navigation";
+import { distanceFromZoneCenter, zoneState } from "../src/game/zone";
 
 describe("Crypt of the Pale Toll topology", () => {
   it("keeps every contract-critical location reachable from the player start", () => {
@@ -40,5 +41,17 @@ describe("contract wayfinding", () => {
     expect(cardinalDirection({ x: 1, z: 0 })).toBe("E");
     expect(cardinalDirection({ x: -1, z: 1 })).toBe("SW");
     expect(cardinalDirection({ x: 0, z: 0 })).toBe("HERE");
+  });
+});
+
+describe("migrating darkness", () => {
+  it("closes over time but keeps the final blue passage barely inside", () => {
+    const dormant = zoneState(0);
+    const middle = zoneState(115);
+    const final = zoneState(210);
+    expect(dormant.radius).toBe(31);
+    expect(middle.radius).toBeLessThan(dormant.radius);
+    expect(final.radius).toBeLessThan(middle.radius);
+    expect(distanceFromZoneCenter(DUNGEON.portal, final)).toBeLessThan(final.radius);
   });
 });
