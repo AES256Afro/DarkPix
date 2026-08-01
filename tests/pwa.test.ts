@@ -19,4 +19,12 @@ describe("installable offline shell", () => {
     const installHandler = worker.slice(worker.indexOf('addEventListener("install"'), worker.indexOf('addEventListener("activate"'));
     expect(installHandler).not.toContain("skipWaiting");
   });
+
+  it("stages each release in an isolated cache before activation", () => {
+    expect(worker).toContain('const CACHE_PREFIX = "darkpix-runtime-"');
+    expect(worker).toContain('new URL(self.location.href).searchParams.get("v")');
+    expect(worker).toContain('const CACHE_NAME = `${CACHE_PREFIX}${RELEASE_ID}`');
+    expect(worker).toContain("key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME");
+    expect(worker).not.toContain('const CACHE_NAME = "darkpix-runtime-v1"');
+  });
 });

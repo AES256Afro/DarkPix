@@ -6,7 +6,7 @@ Play the current BigBox build at [ne-gro.com](https://ne-gro.com/).
 
 See [MILESTONES.md](MILESTONES.md) for the verified public-slice status, completed exit criteria, and the explicit boundary between the current AI rival and future server-authoritative human PvPvE.
 
-The production build is installable as a standalone web app. After one complete online visit, its lobby and loaded game assets can reopen offline. Commit-scoped worker URLs and origin CDN controls prevent stale update scripts; updates wait for player consent and refuse to reload while a raid is active.
+The production build is installable as a standalone web app. After one complete online visit, its lobby and loaded game assets can reopen offline. Commit-scoped worker URLs and origin CDN controls prevent stale update scripts. Each release is staged in its own cache, so a partial install leaves the prior offline shell intact. Updates wait for player consent and refuse to reload while a raid is active.
 
 ## Play the slice
 

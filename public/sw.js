@@ -1,4 +1,8 @@
-const CACHE_NAME = "darkpix-runtime-v1";
+const CACHE_PREFIX = "darkpix-runtime-";
+const RELEASE_ID = (new URL(self.location.href).searchParams.get("v") ?? "dev")
+  .replace(/[^a-zA-Z0-9._-]/g, "")
+  .slice(0, 64) || "dev";
+const CACHE_NAME = `${CACHE_PREFIX}${RELEASE_ID}`;
 const SHELL_URLS = ["/", "/manifest.webmanifest", "/darkpix-icon.svg", "/assets/darkpix-title.jpg"];
 const ASSET_REFERENCE = /["']((?:\/assets\/|\.\/)[^"'\s)]+\.(?:js|css|jpg|png|svg|woff2?))["']/g;
 
@@ -40,7 +44,7 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key.startsWith("darkpix-") && key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME).map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   );
 });
