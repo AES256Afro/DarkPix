@@ -43,12 +43,12 @@ describe("daily Ironmonger commissions", () => {
     const first = settleRaid(profile, result);
     expect(first.commissionPaid).toBe(true);
     expect(first.commissionReward).toBe(commission.reward);
-    expect(first.goldGained).toBe(commission.reward + 7);
+    expect(first.goldGained).toBe(commission.reward);
     expect(first.profile.lastCommissionDay).toBe(commission.day);
     const repeated = settleRaid(first.profile, result);
     expect(repeated.commissionPaid).toBe(false);
     expect(repeated.commissionReward).toBe(0);
-    expect(repeated.goldGained).toBe(7);
+    expect(repeated.goldGained).toBe(0);
   });
 
   it("requires both the target count and a successful extraction", () => {

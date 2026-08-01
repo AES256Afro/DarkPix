@@ -85,6 +85,25 @@ describe("persistent raid consequences", () => {
     expect(result.stash).toHaveLength(1);
   });
 
+  it("caps a malformed failure verdict to the two-item packed limit", () => {
+    const profile = createProfile();
+    profile.stash.push(
+      { ...profile.stash[0]!, id: "reserve-one" },
+      { ...profile.stash[0]!, id: "reserve-two" },
+    );
+    const settlement = settleRaid(profile, {
+      reason: "slain",
+      classId: "vanguard",
+      loot: [],
+      equippedIds: ["starter-blade", "starter-jack", "reserve-one", "reserve-two"],
+      kills: 0,
+      elapsed: 10,
+      goldFound: 0,
+    });
+    expect(settlement.lost.map((item) => item.id)).toEqual(["starter-blade", "starter-jack"]);
+    expect(settlement.profile.stash.map((item) => item.id)).toEqual(["reserve-one", "reserve-two"]);
+  });
+
   it("settles an abandoned raid as gear loss without granting idle XP", () => {
     const profile = createProfile();
     const result = settleRaid(profile, {
@@ -144,7 +163,7 @@ describe("persistent raid consequences", () => {
 
   it("banks unsecured loot and gold only after extraction", () => {
     const profile = createProfile();
-    const loot = createLoot(() => 0.8);
+    const loot = { ...createLoot(() => 0.8), kind: "treasure" as const, value: 60 };
     const result = applyRaidResult(profile, {
       reason: "extracted",
       classId: "hexbound",
@@ -326,8 +345,8 @@ describe("persistent raid consequences", () => {
     };
     const first = applyRaidResult(createProfile(), result);
     const second = applyRaidResult(first, result);
-    expect(first.gold).toBe(185);
-    expect(second.gold).toBe(195);
+    expect(first.gold).toBe(175);
+    expect(second.gold).toBe(175);
   });
 
   it("pays the three-return bounty once and lets any failure break the chain", () => {
@@ -514,7 +533,7 @@ describe("persistent raid consequences", () => {
     });
     expect(result.stash).toHaveLength(24);
     expect(result.stash.every((item) => item.id.startsWith("kept-"))).toBe(true);
-    expect(result.gold).toBe(190);
+    expect(result.gold).toBe(200);
   });
 
   it("banks into a slot freed by a consumed packed item before calculating overflow", () => {
@@ -536,10 +555,10 @@ describe("persistent raid consequences", () => {
     expect(settlement.banked.map((item) => item.id)).toEqual(["recovered"]);
     expect(settlement.overflow).toEqual([]);
     expect(settlement.profile.stash).toHaveLength(24);
-    expect(settlement.goldGained).toBe(100);
+    expect(settlement.goldGained).toBe(123);
   });
 
-  it("does not duplicate loot IDs or accept negative result rewards", () => {
+  it("does not duplicate loot IDs or trust a claimed result reward", () => {
     const profile = createProfile();
     const duplicate = { ...profile.stash[0]! };
     const result = applyRaidResult(profile, {
@@ -549,7 +568,7 @@ describe("persistent raid consequences", () => {
       equippedIds: [],
       kills: -20,
       elapsed: 0,
-      goldFound: -50,
+      goldFound: MAX_GOLD,
     });
     expect(result.stash.filter((item) => item.id === duplicate.id)).toHaveLength(1);
     expect(result.gold).toBe(175);
@@ -577,12 +596,30 @@ describe("persistent raid consequences", () => {
       classId: "vanguard",
       loot: [],
       equippedIds: [potion.id],
-      consumedIds: [potion.id],
+      consumedIds: ["not-packed-one", "not-packed-two", potion.id],
       kills: 0,
       elapsed: 40,
       goldFound: 0,
     });
     expect(result.stash.some((item) => item.id === potion.id)).toBe(false);
+  });
+
+  it("refuses to consume a stash item that was not in the packed set", () => {
+    const profile = createProfile();
+    const potion = { ...profile.stash[0]!, id: "packed-potion", kind: "consumable" as const };
+    profile.stash.push(potion);
+    const result = applyRaidResult(profile, {
+      reason: "extracted",
+      classId: "vanguard",
+      loot: [],
+      equippedIds: [potion.id],
+      consumedIds: ["starter-jack"],
+      kills: 0,
+      elapsed: 40,
+      goldFound: 0,
+    });
+    expect(result.stash.some((item) => item.id === "starter-jack")).toBe(true);
+    expect(result.stash.some((item) => item.id === potion.id)).toBe(true);
   });
 });
 

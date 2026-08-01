@@ -2,6 +2,7 @@ import type { ClassId, Item, Profile, RaidJournalEntry, RaidResult, ThreatKind }
 import { craftingRecipeUnlocked, type CraftingRecipe } from "./data";
 import { raidRules } from "./raid";
 import { depthXpBonus } from "./depth";
+import { treasureGoldTotal } from "./haul";
 import { merchantCommission, validUtcDayKey } from "./commission";
 
 const PROFILE_KEY = "darkpix-profile-v1";
@@ -78,6 +79,19 @@ function signedInteger(value: unknown, magnitude = Number.MAX_SAFE_INTEGER): num
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return 0;
   return Math.min(magnitude, Math.max(-magnitude, Math.trunc(numeric)));
+}
+
+function boundedItemIds(value: unknown, limit = 2): string[] {
+  if (!Array.isArray(value)) return [];
+  const ids: string[] = [];
+  const known = new Set<string>();
+  for (const id of value) {
+    if (typeof id !== "string" || id.length === 0 || id.length > 160 || known.has(id)) continue;
+    known.add(id);
+    ids.push(id);
+    if (ids.length >= limit) break;
+  }
+  return ids;
 }
 
 function normalizeRaidJournalEntry(value: unknown): RaidJournalEntry | undefined {
@@ -258,7 +272,7 @@ export function createRaidEscrow(
     version: 1,
     classId,
     raidMode,
-    equippedIds: [...new Set(equippedIds.filter((id) => typeof id === "string" && id.length > 0 && id.length <= 160))].slice(0, 2),
+    equippedIds: boundedItemIds(equippedIds),
     startedAt: Number.isFinite(startedAt) ? Math.max(0, Math.floor(startedAt)) : 0,
     depthReached: depthReached === 2 ? 2 : 1,
     kills: Math.min(1_000, nonnegativeInteger(kills)),
@@ -376,7 +390,8 @@ export function raidXpBreakdown(result: RaidResult): RaidXpBreakdown {
 export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement {
   const next = normalizeProfile(profile);
   const rules = raidRules(result.raidMode);
-  const consumed = new Set(result.consumedIds ?? []);
+  const risked = new Set(boundedItemIds(result.equippedIds));
+  const consumed = new Set(boundedItemIds(result.consumedIds, 24).filter((id) => risked.has(id)).slice(0, 2));
   if (consumed.size) next.stash = next.stash.filter((item) => !consumed.has(item.id));
   const xpGain = raidXpBreakdown(result).total;
   next.xp[result.classId] = Math.min(MAX_CLASS_XP, next.xp[result.classId] + xpGain);
@@ -449,7 +464,7 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     const availableGoldCapacity = Math.max(0, MAX_GOLD - next.gold);
     settlement.goldGained = Math.min(
       availableGoldCapacity,
-      nonnegativeInteger(result.goldFound, MAX_GOLD) + firstContractReward + bossContractReward + highTollContractReward + ashenContractReward + boneBountyReward + rivalBountyReward + streakBountyReward + commissionReward + settlement.overflowGold,
+      treasureGoldTotal(transferable) + firstContractReward + bossContractReward + highTollContractReward + ashenContractReward + boneBountyReward + rivalBountyReward + streakBountyReward + commissionReward + settlement.overflowGold,
     );
     next.stash = [...next.stash, ...settlement.banked];
     next.gold += settlement.goldGained;
@@ -459,7 +474,6 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
       settlement.classXpLost = next.xp[result.classId];
       next.xp[result.classId] = 0;
     }
-    const risked = new Set(result.equippedIds);
     settlement.lost = next.stash.filter((item) => risked.has(item.id));
     next.stash = next.stash.filter((item) => !risked.has(item.id));
   }
