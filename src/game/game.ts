@@ -179,9 +179,10 @@ export class DarkPixGame {
   private readonly perkBonuses: ClassPerkBonuses;
   private readonly loadoutBonuses: LoadoutStats;
   private readonly raidRules: RaidRules;
-  private readonly variation = selectRaidVariation(Math.floor(Math.random() * 16));
+  private readonly variation = selectRaidVariation(Math.floor(Math.random() * 32));
   private readonly encountersMirrored = this.variation.encountersMirrored;
   private readonly portalSite = DUNGEON.portalSites[this.variation.portalSiteIndex] ?? DUNGEON.portal;
+  private readonly campfireSite = DUNGEON.campfireSites[this.variation.campfireSiteIndex] ?? DUNGEON.campfire;
   private readonly maxSpellCharges: number;
   private healthFill!: HTMLElement;
   private staminaFill!: HTMLElement;
@@ -448,7 +449,7 @@ export class DarkPixGame {
     }
 
     DUNGEON.torches.forEach(({ x, z, rotation }, index) => this.addTorch(x, z, rotation, index));
-    this.createCampfire(DUNGEON.campfire.x, DUNGEON.campfire.z);
+    this.createCampfire(this.campfireSite.x, this.campfireSite.z);
     this.createShrine(DUNGEON.shrine.x, DUNGEON.shrine.z);
     this.createPortal(this.portalSite.x, this.portalSite.z);
     DUNGEON.chests.forEach((chest) => {

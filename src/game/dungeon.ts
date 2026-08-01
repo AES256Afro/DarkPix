@@ -34,6 +34,7 @@ export interface RaidVariation {
   portalSiteIndex: number;
   trapLayoutIndex: number;
   rivalArchetypeIndex: number;
+  campfireSiteIndex: number;
 }
 
 export const DUNGEON = {
@@ -41,6 +42,7 @@ export const DUNGEON = {
   size: 44,
   playerStart: { x: 0, z: 17.4 },
   campfire: { x: -16, z: 15 },
+  campfireSites: [{ x: -16, z: 15 }, { x: 16, z: 15 }] satisfies Vec2[],
   shrine: { x: -20.4, z: -16.5 },
   portal: { x: 16, z: -16 },
   portalSites: [{ x: 16, z: -16 }, { x: -14, z: -18 }] satisfies Vec2[],
@@ -129,12 +131,13 @@ export const DUNGEON = {
 } as const;
 
 export function selectRaidVariation(seed: number): RaidVariation {
-  const normalized = Number.isFinite(seed) ? Math.abs(Math.floor(seed)) % 16 : 0;
+  const normalized = Number.isFinite(seed) ? Math.abs(Math.floor(seed)) % 32 : 0;
   return {
     encountersMirrored: (normalized & 1) === 1,
     portalSiteIndex: (normalized >> 1) & 1,
     trapLayoutIndex: (normalized >> 2) & 1,
     rivalArchetypeIndex: (normalized >> 3) & 1,
+    campfireSiteIndex: (normalized >> 4) & 1,
   };
 }
 

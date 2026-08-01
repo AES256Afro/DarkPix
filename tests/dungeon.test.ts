@@ -9,7 +9,7 @@ import type { Vec2 } from "../src/game/types";
 describe("Crypt of the Pale Toll topology", () => {
   it("keeps every contract-critical location reachable from the player start", () => {
     const contractEnemies = DUNGEON.enemies.filter((enemy) => enemy.kind === "warden" || enemy.kind === "boss");
-    const criticalLocations = [DUNGEON.campfire, DUNGEON.shrine, ...DUNGEON.portalSites, ...contractEnemies, ...DUNGEON.chests];
+    const criticalLocations = [...DUNGEON.campfireSites, DUNGEON.shrine, ...DUNGEON.portalSites, ...contractEnemies, ...DUNGEON.chests];
     for (const location of criticalLocations) {
       expect(dungeonPathExists(DUNGEON.playerStart, location), `${location.x},${location.z} should be reachable`).toBe(true);
     }
@@ -80,13 +80,13 @@ describe("Crypt of the Pale Toll topology", () => {
     }
   });
 
-  it("derives all three raid-variation switches from one bounded seed", () => {
-    expect(selectRaidVariation(0)).toEqual({ encountersMirrored: false, portalSiteIndex: 0, trapLayoutIndex: 0, rivalArchetypeIndex: 0 });
-    expect(selectRaidVariation(15)).toEqual({ encountersMirrored: true, portalSiteIndex: 1, trapLayoutIndex: 1, rivalArchetypeIndex: 1 });
-    expect(selectRaidVariation(16)).toEqual(selectRaidVariation(0));
-    expect(selectRaidVariation(-15)).toEqual(selectRaidVariation(15));
+  it("derives all five raid-variation switches from one bounded seed", () => {
+    expect(selectRaidVariation(0)).toEqual({ encountersMirrored: false, portalSiteIndex: 0, trapLayoutIndex: 0, rivalArchetypeIndex: 0, campfireSiteIndex: 0 });
+    expect(selectRaidVariation(31)).toEqual({ encountersMirrored: true, portalSiteIndex: 1, trapLayoutIndex: 1, rivalArchetypeIndex: 1, campfireSiteIndex: 1 });
+    expect(selectRaidVariation(32)).toEqual(selectRaidVariation(0));
+    expect(selectRaidVariation(-31)).toEqual(selectRaidVariation(31));
     expect(selectRaidVariation(Number.NaN)).toEqual(selectRaidVariation(0));
-    expect(new Set(Array.from({ length: 16 }, (_, seed) => JSON.stringify(selectRaidVariation(seed))))).toHaveLength(16);
+    expect(new Set(Array.from({ length: 32 }, (_, seed) => JSON.stringify(selectRaidVariation(seed))))).toHaveLength(32);
   });
 
   it("rejects targets behind, beside, or beyond a wall dart lane", () => {

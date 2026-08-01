@@ -36,7 +36,7 @@ Exit evidence: migration, settlement, escrow, economy, backup, and malformed-sav
 
 Status: Complete for the current map
 
-- Encounter mirroring, extraction-site selection, trap formations, and rival archetypes produce 16 bounded raid configurations
+- Encounter mirroring, extraction-site selection, trap formations, rival archetypes, and campfire placement produce 32 bounded raid configurations
 - Contract-critical locations remain reachable in topology tests
 - Threat windups, directional damage markers, guard cone, chain telegraphs, safe annulus, darkness bearing, crosshair scaling, rarity rank marks, and loose-loot silhouettes expose actionable state
 - The Ash Tollkeeper begins its annulus phase at full vigor and uses a tighter second-floor cadence
