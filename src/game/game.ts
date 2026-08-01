@@ -6,7 +6,7 @@ import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { equippedPower } from "./loadout";
 import { cardinalDirection, circlesOverlap } from "./navigation";
 import { disposeSceneResources } from "./resources";
-import { extractionHold, targetDistanceInView } from "./targeting";
+import { continuousHold, targetDistanceInView } from "./targeting";
 import type { ClassId, GamePreferences, Item, RaidEndReason, RaidResult, Vec2 } from "./types";
 import { distanceFromZoneCenter, zoneState } from "./zone";
 
@@ -182,7 +182,7 @@ export class DarkPixGame {
   private footstepClock = 0;
   private damageCooldown = 0;
   private interactHeld = false;
-  private extractHold = 0;
+  private interactionHold = 0;
   private attackDirection: "OVERHEAD" | "THRUST" | "SWEEP" = "THRUST";
   private mouseAccumulator = { x: 0, y: 0 };
   private yaw = 0;
@@ -621,7 +621,7 @@ export class DarkPixGame {
     this.keys.delete(event.code);
     if (event.code === "KeyE") {
       this.interactHeld = false;
-      this.extractHold = 0;
+      this.interactionHold = 0;
     }
   };
 
@@ -683,7 +683,7 @@ export class DarkPixGame {
     this.blocking = false;
     this.keys.clear();
     this.interactHeld = false;
-    this.extractHold = 0;
+    this.interactionHold = 0;
     this.setLockOverlayCopy("REKINDLING THE CRYPT", "The renderer was interrupted. Waiting for the torch to return.");
     this.lockOverlay.classList.remove("hidden");
     if (document.pointerLockElement === this.renderer.domElement) void document.exitPointerLock();
@@ -1041,7 +1041,7 @@ export class DarkPixGame {
   private hurt(amount: number, source: string): void {
     if (this.damageCooldown > 0 || this.ended) return;
     this.damageCooldown = 0.18;
-    this.extractHold = 0;
+    this.interactionHold = 0;
     this.health = Math.max(0, this.health - amount);
     this.vignette = 1;
     this.damageOverlay.classList.remove("pulse");
@@ -1138,15 +1138,16 @@ export class DarkPixGame {
 
     if (interactive === "pickup" && targetPickup) prompt = `[ E ] TAKE ${targetPickup.item.rarity.toUpperCase()} ${targetPickup.item.name.toUpperCase()}`;
     if (interactive === "chest") prompt = "[ E ] SEARCH IRONBOUND COFFER";
-    if (interactive === "campfire") prompt = "[ E ] REST · RESTORE VIGOR AND SPELL MEMORY";
+    if (interactive === "campfire") prompt = "[ HOLD E ] REST · RESTORE VIGOR AND SPELL MEMORY";
     if (interactive === "portal") prompt = "[ HOLD E ] OPEN THE BLUE PASSAGE";
     this.promptHud.textContent = prompt;
     this.promptHud.classList.toggle("visible", Boolean(prompt));
 
-    const channelingPortal = interactive === "portal" && this.interactHeld;
-    this.extractHold = extractionHold(this.extractHold, delta, channelingPortal);
-    this.extractProgress.style.width = `${Math.min(100, (this.extractHold / 1.8) * 100)}%`;
-    this.extractProgress.parentElement?.classList.toggle("visible", channelingPortal);
+    const channeling = this.interactHeld && (interactive === "portal" || interactive === "campfire");
+    const channelDuration = interactive === "campfire" ? 2.2 : 1.8;
+    this.interactionHold = continuousHold(this.interactionHold, delta, channeling);
+    this.extractProgress.style.width = `${Math.min(100, (this.interactionHold / channelDuration) * 100)}%`;
+    this.extractProgress.parentElement?.classList.toggle("visible", channeling);
 
     if (!this.interactHeld) return;
     if (interactive === "pickup" && targetPickup) {
@@ -1156,10 +1157,12 @@ export class DarkPixGame {
       this.openChest(targetChest);
       this.interactHeld = false;
     } else if (interactive === "campfire") {
-      this.useCampfire();
-      this.interactHeld = false;
+      if (this.interactionHold >= channelDuration) {
+        this.useCampfire();
+        this.interactHeld = false;
+      }
     } else if (interactive === "portal") {
-      if (this.extractHold >= 1.8) this.finish("extracted");
+      if (this.interactionHold >= channelDuration) this.finish("extracted");
     }
   }
 
@@ -1198,7 +1201,10 @@ export class DarkPixGame {
     this.health = Math.min(this.maxHealth, this.health + 52);
     this.spellCharges = 6;
     this.stamina = this.definition.maxStamina;
-    this.feed("You rest once. Footsteps echo while memory returns.", "system");
+    for (const enemy of this.enemies) {
+      if (enemy.alive && enemy.group.position.distanceTo(this.campfire.position) < 14) enemy.alerted = true;
+    }
+    this.feed("Memory returns. Every nearby thing heard the rest.", "system");
     this.audio.portal();
   }
 
@@ -1262,10 +1268,6 @@ export class DarkPixGame {
     this.directionHud.textContent = this.attackDirection;
     this.directionHud.classList.toggle("active", this.mouseAccumulator.x !== 0 || this.mouseAccumulator.y !== 0);
     this.threatHud.classList.toggle("visible", this.threatTimer > 0);
-    if (!this.interactHeld || !this.portalUnlocked) {
-      this.extractProgress.style.width = "0%";
-      this.extractProgress.parentElement?.classList.remove("visible");
-    }
     if (!this.portalAnnounced && this.elapsed > 90 && this.sigils < 2) {
       this.portalAnnounced = true;
       this.feed("The dark advances. Wardens carry what the passage needs.", "danger");

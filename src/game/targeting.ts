@@ -18,7 +18,7 @@ export function targetDistanceInView(
   return alignment >= minimumAlignment ? distance : Number.POSITIVE_INFINITY;
 }
 
-export function extractionHold(previous: number, delta: number, active: boolean): number {
+export function continuousHold(previous: number, delta: number, active: boolean): number {
   if (!active) return 0;
   const safePrevious = Number.isFinite(previous) ? Math.max(0, previous) : 0;
   const safeDelta = Number.isFinite(delta) ? Math.max(0, delta) : 0;
