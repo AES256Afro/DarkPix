@@ -4,7 +4,7 @@ import { createSaveBackup, parseSaveBackup } from "./game/backup";
 import { CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses } from "./game/data";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
-import { craftItem, loadProfile, purchaseItem, saveProfile, settleRaid } from "./game/profile";
+import { craftItem, loadProfile, purchaseItem, saveProfile, sellStashItem, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
 import type { DarkPixGame } from "./game/game";
 import type { ClassId, GamePreferences, Item, Profile, RaidMode, RaidResult } from "./game/types";
@@ -265,10 +265,17 @@ function renderLobby(): void {
         return;
       }
       pendingSaleId = undefined;
-      profile.gold += item.value;
-      profile.stash = profile.stash.filter((candidate) => candidate.id !== id);
+      const sale = sellStashItem(profile, item.id);
+      profile = sale.profile;
+      if (!sale.sold) {
+        merchantNotice = "Your coin ledger is full. Spend gold before selling more relics.";
+        renderLobby();
+        return;
+      }
       equippedIds.delete(item.id);
-      merchantNotice = `${item.name} sold for ${item.value}g.`;
+      merchantNotice = sale.proceeds === item.value
+        ? `${item.name} sold for ${sale.proceeds}g.`
+        : `${item.name} sold for ${sale.proceeds}g. The coin ledger reached its limit.`;
       persistProfile();
       renderLobby();
     });
@@ -293,7 +300,9 @@ function renderLobby(): void {
         ? `${offer.item.name} added to the stash.`
         : purchase.outcome === "stash_full"
           ? "The stash is full. Sell something before buying."
-          : `You need ${offer.price - profile.gold}g more for ${offer.item.name}.`;
+          : purchase.outcome === "insufficient_gold"
+            ? `You need ${offer.price - profile.gold}g more for ${offer.item.name}.`
+            : "The Ironmonger withdrew that malformed offer.";
       if (purchase.outcome === "purchased") persistProfile();
       renderLobby();
     });

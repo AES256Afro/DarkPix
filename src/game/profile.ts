@@ -4,6 +4,11 @@ import { raidRules } from "./raid";
 import { depthXpBonus } from "./depth";
 
 const PROFILE_KEY = "darkpix-profile-v1";
+export const MAX_GOLD = 9_999_999;
+export const MAX_ITEM_POWER = 100;
+export const MAX_ITEM_VALUE = 99_999;
+const MAX_CLASS_XP = 99_999_999;
+const MAX_OUTCOME_COUNT = 9_999_999;
 
 const STARTER_STASH: Item[] = [
   {
@@ -42,16 +47,16 @@ function validClass(value: unknown): value is ClassId {
   return value === "vanguard" || value === "cutpurse" || value === "hexbound" || value === "reaver";
 }
 
-function nonnegativeInteger(value: unknown): number {
+function nonnegativeInteger(value: unknown, maximum = Number.MAX_SAFE_INTEGER): number {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return 0;
-  return Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, Math.floor(numeric)));
+  return Math.min(maximum, Math.max(0, Math.floor(numeric)));
 }
 
-function validItem(value: unknown): value is Item {
-  if (!value || typeof value !== "object") return false;
+function normalizeItem(value: unknown): Item | undefined {
+  if (!value || typeof value !== "object") return undefined;
   const item = value as Partial<Item>;
-  return (
+  if (!(
     typeof item.id === "string" && item.id.length > 0 && item.id.length <= 160 &&
     typeof item.name === "string" && item.name.length > 0 && item.name.length <= 120 &&
     typeof item.power === "number" && Number.isFinite(item.power) && item.power >= 0 &&
@@ -59,7 +64,16 @@ function validItem(value: unknown): value is Item {
     (item.modifier === undefined || (typeof item.modifier === "string" && item.modifier.length <= 160)) &&
     ["weapon", "armor", "treasure", "consumable", "sigil"].includes(item.kind ?? "") &&
     ["Worn", "Common", "Uncommon", "Rare", "Epic", "Legendary"].includes(item.rarity ?? "")
-  );
+  )) return undefined;
+  return {
+    id: item.id,
+    name: item.name,
+    kind: item.kind as Item["kind"],
+    rarity: item.rarity as Item["rarity"],
+    power: Math.min(MAX_ITEM_POWER, Math.floor(item.power)),
+    value: Math.min(MAX_ITEM_VALUE, Math.floor(item.value)),
+    modifier: item.modifier,
+  };
 }
 
 export function normalizeProfile(value: unknown): Profile {
@@ -71,25 +85,26 @@ export function normalizeProfile(value: unknown): Profile {
   const itemIds = new Set<string>();
   if (Array.isArray(candidate.stash)) {
     for (const item of candidate.stash) {
-      if (!validItem(item) || itemIds.has(item.id) || stash.length >= 24) continue;
-      itemIds.add(item.id);
-      stash.push({ ...item });
+      const normalized = normalizeItem(item);
+      if (!normalized || itemIds.has(normalized.id) || stash.length >= 24) continue;
+      itemIds.add(normalized.id);
+      stash.push(normalized);
     }
   }
   return {
     version: 4,
-    gold: nonnegativeInteger(candidate.gold),
+    gold: nonnegativeInteger(candidate.gold, MAX_GOLD),
     xp: {
-      vanguard: nonnegativeInteger(xp.vanguard),
-      cutpurse: nonnegativeInteger(xp.cutpurse),
-      hexbound: nonnegativeInteger(xp.hexbound),
-      reaver: nonnegativeInteger(xp.reaver),
+      vanguard: nonnegativeInteger(xp.vanguard, MAX_CLASS_XP),
+      cutpurse: nonnegativeInteger(xp.cutpurse, MAX_CLASS_XP),
+      hexbound: nonnegativeInteger(xp.hexbound, MAX_CLASS_XP),
+      reaver: nonnegativeInteger(xp.reaver, MAX_CLASS_XP),
     },
     stash: Array.isArray(candidate.stash) ? stash : fallback.stash,
-    extracts: nonnegativeInteger(candidate.extracts),
-    deaths: nonnegativeInteger(candidate.deaths),
-    bossVictories: nonnegativeInteger(candidate.bossVictories),
-    highTollExtracts: nonnegativeInteger(candidate.highTollExtracts),
+    extracts: nonnegativeInteger(candidate.extracts, MAX_OUTCOME_COUNT),
+    deaths: nonnegativeInteger(candidate.deaths, MAX_OUTCOME_COUNT),
+    bossVictories: nonnegativeInteger(candidate.bossVictories, MAX_OUTCOME_COUNT),
+    highTollExtracts: nonnegativeInteger(candidate.highTollExtracts, MAX_OUTCOME_COUNT),
     preferredClass: validClass(candidate.preferredClass) ? candidate.preferredClass : fallback.preferredClass,
   };
 }
@@ -133,7 +148,7 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     + (result.reason === "extracted" ? 140 : 0)
     + depthXpBonus(result.depthReached, result.reason === "extracted");
   const xpGain = Math.round(baseXpGain * raidRules(result.raidMode).xpMultiplier);
-  next.xp[result.classId] = Math.min(Number.MAX_SAFE_INTEGER, next.xp[result.classId] + xpGain);
+  next.xp[result.classId] = Math.min(MAX_CLASS_XP, next.xp[result.classId] + xpGain);
   next.preferredClass = result.classId;
   const settlement: RaidSettlement = {
     profile: next,
@@ -155,30 +170,33 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     settlement.firstContractPaid = firstContractReward > 0;
     settlement.bossContractPaid = bossContractReward > 0;
     settlement.highTollContractPaid = highTollContractReward > 0;
-    next.extracts += 1;
-    if (result.bossKilled) next.bossVictories += 1;
-    if (result.raidMode === "high_toll") next.highTollExtracts += 1;
+    next.extracts = Math.min(MAX_OUTCOME_COUNT, next.extracts + 1);
+    if (result.bossKilled) next.bossVictories = Math.min(MAX_OUTCOME_COUNT, next.bossVictories + 1);
+    if (result.raidMode === "high_toll") next.highTollExtracts = Math.min(MAX_OUTCOME_COUNT, next.highTollExtracts + 1);
     const knownIds = new Set(next.stash.map((item) => item.id));
-    const transferable = result.loot.filter((item) => {
-      if (item.kind === "sigil" || knownIds.has(item.id) || !validItem(item)) return false;
-      knownIds.add(item.id);
-      return true;
-    });
+    const transferable: Item[] = [];
+    for (const item of result.loot) {
+      const normalized = normalizeItem(item);
+      if (!normalized || normalized.kind === "sigil" || knownIds.has(normalized.id)) continue;
+      knownIds.add(normalized.id);
+      transferable.push(normalized);
+    }
     const availableSlots = Math.max(0, 24 - next.stash.length);
     settlement.banked = transferable.slice(0, availableSlots);
     settlement.overflow = transferable.slice(availableSlots);
     settlement.overflowGold = settlement.overflow.reduce(
-      (sum, item) => Math.min(Number.MAX_SAFE_INTEGER, sum + Math.max(1, Math.floor(item.value * 0.5))),
+      (sum, item) => Math.min(MAX_GOLD, sum + Math.max(1, Math.floor(item.value * 0.5))),
       0,
     );
+    const availableGoldCapacity = Math.max(0, MAX_GOLD - next.gold);
     settlement.goldGained = Math.min(
-      Number.MAX_SAFE_INTEGER,
-      nonnegativeInteger(result.goldFound) + firstContractReward + bossContractReward + highTollContractReward + settlement.overflowGold,
+      availableGoldCapacity,
+      nonnegativeInteger(result.goldFound, MAX_GOLD) + firstContractReward + bossContractReward + highTollContractReward + settlement.overflowGold,
     );
     next.stash = [...next.stash, ...settlement.banked];
-    next.gold = Math.min(Number.MAX_SAFE_INTEGER, next.gold + settlement.goldGained);
+    next.gold += settlement.goldGained;
   } else {
-    next.deaths += 1;
+    next.deaths = Math.min(MAX_OUTCOME_COUNT, next.deaths + 1);
     const risked = new Set(result.equippedIds);
     settlement.lost = next.stash.filter((item) => risked.has(item.id));
     next.stash = next.stash.filter((item) => !risked.has(item.id));
@@ -190,15 +208,30 @@ export function applyRaidResult(profile: Profile, result: RaidResult): Profile {
   return settleRaid(profile, result).profile;
 }
 
-export type PurchaseOutcome = "purchased" | "insufficient_gold" | "stash_full";
+export function sellStashItem(profile: Profile, itemId: string): { profile: Profile; sold?: Item; proceeds: number } {
+  const next = normalizeProfile(profile);
+  const itemIndex = next.stash.findIndex((item) => item.id === itemId);
+  if (itemIndex < 0 || next.gold >= MAX_GOLD) return { profile: next, proceeds: 0 };
+  const [sold] = next.stash.splice(itemIndex, 1);
+  if (!sold) return { profile: next, proceeds: 0 };
+  const proceeds = Math.min(sold.value, MAX_GOLD - next.gold);
+  next.gold += proceeds;
+  return { profile: next, sold, proceeds };
+}
+
+export type PurchaseOutcome = "purchased" | "insufficient_gold" | "stash_full" | "invalid_offer";
 
 export function purchaseItem(profile: Profile, item: Item, price: number): { profile: Profile; outcome: PurchaseOutcome } {
   const next = normalizeProfile(profile);
-  const safePrice = Math.max(0, Math.floor(price));
+  const stock = normalizeItem(item);
+  if (!stock || !Number.isFinite(price) || price < 0 || next.stash.some((entry) => entry.id === stock.id)) {
+    return { profile: next, outcome: "invalid_offer" };
+  }
+  const safePrice = Math.floor(price);
   if (next.stash.length >= 24) return { profile: next, outcome: "stash_full" };
   if (next.gold < safePrice) return { profile: next, outcome: "insufficient_gold" };
   next.gold -= safePrice;
-  next.stash.push({ ...item });
+  next.stash.push(stock);
   return { profile: next, outcome: "purchased" };
 }
 

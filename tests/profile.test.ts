@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CLASS_ABILITIES, CRAFTING_RECIPES, MERCHANT_OFFERS, classPerkBonuses, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll } from "../src/game/data";
-import { applyRaidResult, craftItem, createProfile, normalizeProfile, purchaseItem, settleRaid } from "../src/game/profile";
+import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, applyRaidResult, craftItem, createProfile, normalizeProfile, purchaseItem, sellStashItem, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
 import { attackDamage, classAbilityDamageMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat } from "../src/game/combat";
 
@@ -92,6 +92,33 @@ describe("persistent raid consequences", () => {
     });
     expect(result.stash).toHaveLength(1);
     expect(result.stash[0]?.id).toBe(valid.id);
+  });
+
+  it("caps finite save values before they reach combat or the economy", () => {
+    const valid = createProfile().stash[0]!;
+    const result = normalizeProfile({
+      gold: Number.MAX_SAFE_INTEGER,
+      xp: { reaver: Number.MAX_SAFE_INTEGER },
+      stash: [{ ...valid, id: "oversized", power: 1_000_000, value: 1_000_000_000 }],
+    });
+    expect(result.gold).toBe(MAX_GOLD);
+    expect(result.xp.reaver).toBeLessThan(Number.MAX_SAFE_INTEGER);
+    expect(result.stash[0]).toMatchObject({ power: MAX_ITEM_POWER, value: MAX_ITEM_VALUE });
+  });
+
+  it("saturates stash sales without deleting an item at the gold limit", () => {
+    const profile = createProfile();
+    profile.gold = MAX_GOLD;
+    const blocked = sellStashItem(profile, "starter-blade");
+    expect(blocked.proceeds).toBe(0);
+    expect(blocked.sold).toBeUndefined();
+    expect(blocked.profile.stash.some((item) => item.id === "starter-blade")).toBe(true);
+
+    profile.gold = MAX_GOLD - 2;
+    const partial = sellStashItem(profile, "starter-blade");
+    expect(partial.proceeds).toBe(2);
+    expect(partial.profile.gold).toBe(MAX_GOLD);
+    expect(partial.profile.stash.some((item) => item.id === "starter-blade")).toBe(false);
   });
 
   it("pays the first extraction contract once", () => {
@@ -237,6 +264,8 @@ describe("persistent raid consequences", () => {
     expect(purchase.profile.gold).toBe(29);
     expect(purchase.profile.stash.some((entry) => entry.id === item.id)).toBe(true);
     expect(purchaseItem(purchase.profile, { ...item, id: "too-costly" }, 999).outcome).toBe("insufficient_gold");
+    expect(purchaseItem(profile, { ...item, id: "nan-price" }, Number.NaN).outcome).toBe("invalid_offer");
+    expect(purchaseItem(profile, { ...item, id: profile.stash[0]!.id }, 1).outcome).toBe("invalid_offer");
   });
 
   it("removes packed consumables after they are used in a successful raid", () => {
