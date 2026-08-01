@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ASHEN_CHESTS, ASHEN_ENEMIES, depthRules, depthXpBonus } from "../src/game/depth";
+import { ASHEN_CHESTS, ASHEN_ENEMIES, bossRingActive, bossRingCooldown, depthRules, depthXpBonus } from "../src/game/depth";
 import { dungeonCollides } from "../src/game/dungeon";
 
 describe("red-depth continuation", () => {
@@ -17,6 +17,14 @@ describe("red-depth continuation", () => {
     expect(depthXpBonus(1, true)).toBe(0);
     expect(depthXpBonus(2, false)).toBe(60);
     expect(depthXpBonus(2, true)).toBe(180);
+  });
+
+  it("starts the Ash Tollkeeper ring phase early and tightens its cadence", () => {
+    expect(bossRingActive(1, false)).toBe(false);
+    expect(bossRingActive(1, true)).toBe(true);
+    expect(bossRingActive(2, false)).toBe(true);
+    expect(bossRingCooldown(2, false)).toBeLessThan(bossRingCooldown(1, true));
+    expect(bossRingCooldown(2, true)).toBeLessThan(bossRingCooldown(2, false));
   });
 
   it("repopulates the Ashen floor with safe caches and a full PvPvE wave", () => {

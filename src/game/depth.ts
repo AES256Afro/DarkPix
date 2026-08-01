@@ -59,3 +59,12 @@ export function depthXpBonus(depth: DungeonDepth | undefined, extracted: boolean
   if (depth !== 2) return 0;
   return extracted ? 180 : 60;
 }
+
+export function bossRingActive(depth: DungeonDepth | undefined, enraged: boolean): boolean {
+  return depth === 2 || enraged;
+}
+
+export function bossRingCooldown(depth: DungeonDepth | undefined, enraged: boolean): number {
+  if (depth === 2) return enraged ? 3.8 : 4.8;
+  return 6.4;
+}

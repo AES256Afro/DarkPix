@@ -4,7 +4,7 @@ import { AudioDirector } from "./audio";
 import { RIPOSTE_DURATION_SECONDS, attackDamage, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
-import { ASHEN_CHESTS, ASHEN_ENEMIES, depthRules } from "./depth";
+import { ASHEN_CHESTS, ASHEN_ENEMIES, bossRingActive, bossRingCooldown, depthRules } from "./depth";
 import { HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGold } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, pickupDecision, type LoadoutStats } from "./loadout";
 import { cardinalDirection, circlesOverlap, movementOffset, relativeDirectionToSource } from "./navigation";
@@ -859,7 +859,7 @@ export class DarkPixGame {
       crippled: false,
       carriedLoot: [],
       rivalArchetype,
-      tollCooldown: 5,
+      tollCooldown: Math.min(5, bossRingCooldown(this.depth, false) * 0.7),
       tollWindup: 0,
       tollWindupDuration: 1.15,
       tollRing,
@@ -1587,7 +1587,11 @@ export class DarkPixGame {
     this.threatStateHud.textContent = !enemy.alive
       ? "FELLED"
       : enemy.kind === "boss"
-        ? enemy.tollWindup > 0 ? "KEEPER · CHAIN RING" : enemy.group.userData.enraged ? "KEEPER · ENRAGED" : "KEEPER"
+        ? enemy.tollWindup > 0
+          ? this.depth === 2 ? "KEEPER · ASH RING" : "KEEPER · CHAIN RING"
+          : bossRingActive(this.depth, Boolean(enemy.group.userData.enraged))
+            ? this.depth === 2 ? "KEEPER · ASHEN" : "KEEPER · ENRAGED"
+            : "KEEPER"
         : enemy.kind === "rival"
           ? `${enemy.rivalArchetype === "marauder" ? "HOSTILE MARAUDER" : "HOSTILE SKIRMISHER"}${enemy.crippled ? " · CRIPPLED" : ""}`
           : enemy.crippled ? "CRYPT THREAT · CRIPPLED" : "CRYPT THREAT";
@@ -1631,7 +1635,7 @@ export class DarkPixGame {
         { x: enemy.group.position.x, z: enemy.group.position.z },
         0.12,
       );
-      if (enemy.kind === "boss" && enemy.group.userData.enraged) {
+      if (enemy.kind === "boss" && bossRingActive(this.depth, Boolean(enemy.group.userData.enraged))) {
         if (enemy.tollWindup > 0) {
           enemy.tollWindup = Math.max(0, enemy.tollWindup - delta);
           const progress = 1 - enemy.tollWindup / enemy.tollWindupDuration;
@@ -1650,7 +1654,7 @@ export class DarkPixGame {
             enemy.tollRing.visible = true;
             enemy.tollRing.material.opacity = 0.08;
           }
-          this.feed("CHAIN RING MARKED · crowd the keeper or flee beyond the red band", "danger");
+          this.feed(`${this.depth === 2 ? "ASH RING" : "CHAIN RING"} MARKED · crowd the keeper or flee beyond the red band`, "danger");
           this.audio.tone(82, 0.36, "sawtooth", 0.11);
           continue;
         }
@@ -1774,7 +1778,7 @@ export class DarkPixGame {
   }
 
   private resolveBossToll(enemy: Enemy, distance: number, hasSight: boolean): void {
-    enemy.tollCooldown = 6.4;
+    enemy.tollCooldown = bossRingCooldown(this.depth, Boolean(enemy.group.userData.enraged));
     if (enemy.tollRing) {
       enemy.tollRing.visible = false;
       enemy.tollRing.material.opacity = 0;
