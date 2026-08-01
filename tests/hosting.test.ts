@@ -12,4 +12,11 @@ describe("production asset routing", () => {
     expect(deployScript).toContain('[[ "$missing_asset_status" == "404" ]] || return 1');
     expect(deployScript).toContain("grep -Eq 'HTTP/[0-9.]+ 404'");
   });
+
+  it("restores the prior image when a rollout gate fails", () => {
+    expect(deployScript).toContain("rollback_previous_release()");
+    expect(deployScript).toContain("docker image tag darkpix-web:rollback darkpix-web:local");
+    expect(deployScript).toContain("docker compose up -d --no-build --force-recreate darkpix");
+    expect(deployScript.match(/rollback_previous_release \|\| true/g)?.length).toBeGreaterThanOrEqual(4);
+  });
 });

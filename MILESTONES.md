@@ -67,7 +67,7 @@ Status: Complete
 - Release-isolated worker caches recover old hashed chunks from real asset 404s instead of accepting the HTML shell
 - CI-enforced compressed JavaScript, CSS, and entry-HTML performance budgets
 - CI rejects high or critical dependency advisories before building the release image
-- Every deploy verifies non-cacheable live health, real missing-asset 404s, and the exact commit through both `ne-gro.com` and `www.ne-gro.com`
+- Every deploy snapshots the prior image, verifies non-cacheable live health, real missing-asset 404s, and the exact commit through both `ne-gro.com` and `www.ne-gro.com`, and automatically restores that image if a rollout gate fails
 
 Exit evidence: Docker build and smoke checks in CI plus container, host, apex, and `www` gates during deployment.
 

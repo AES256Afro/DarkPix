@@ -23,9 +23,6 @@ if [[ -n "${DARKPIX_PUBLIC_URL:-}" ]]; then
 fi
 export DARKPIX_RELEASE="$darkpix_release"
 
-echo "Building and starting DarkPix release $darkpix_release on the loopback-only web service..."
-docker compose up -d --build darkpix
-
 check_darkpix_health() {
   if command -v curl >/dev/null 2>&1; then
     curl -fsS http://127.0.0.1:8092/healthz >/dev/null
@@ -36,14 +33,59 @@ check_darkpix_health() {
   fi
 }
 
+previous_container_id="$(docker compose ps -q darkpix 2>/dev/null || true)"
+previous_image_id=""
+previous_release=""
+if [[ -n "$previous_container_id" ]]; then
+  previous_image_id="$(docker inspect --format '{{.Image}}' "$previous_container_id" 2>/dev/null || true)"
+  previous_release="$(docker compose exec -T darkpix wget -q -O - http://127.0.0.1:8080/version.txt 2>/dev/null || true)"
+  if [[ -n "$previous_image_id" ]]; then docker image tag "$previous_image_id" darkpix-web:rollback; fi
+fi
+
+rollback_previous_release() {
+  if [[ -z "$previous_image_id" ]]; then
+    echo "No previous DarkPix image was available for automatic rollback." >&2
+    return 1
+  fi
+  echo "Restoring previously running DarkPix release ${previous_release:-unknown}..." >&2
+  docker image tag darkpix-web:rollback darkpix-web:local
+  docker compose up -d --no-build --force-recreate darkpix >/dev/null
+  local rollback_container_id
+  for attempt in {1..20}; do
+    rollback_container_id="$(docker compose ps -q darkpix)"
+    if [[ -n "$rollback_container_id" ]] &&
+      [[ "$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$rollback_container_id")" == "healthy" ]] &&
+      check_darkpix_health; then
+      local restored_release
+      restored_release="$(docker compose exec -T darkpix wget -q -O - http://127.0.0.1:8080/version.txt)"
+      if [[ -n "$previous_release" && "$restored_release" != "$previous_release" ]]; then
+        echo "Rollback health passed but release identity was $restored_release instead of $previous_release." >&2
+        return 1
+      fi
+      echo "Automatic rollback restored loopback release $restored_release." >&2
+      return 0
+    fi
+    sleep 1
+  done
+  echo "Automatic rollback did not restore a healthy DarkPix container." >&2
+  return 1
+}
+
+echo "Building and starting DarkPix release $darkpix_release on the loopback-only web service..."
+if ! docker compose up -d --build darkpix; then
+  rollback_previous_release || true
+  exit 1
+fi
+
 darkpix_container_id="$(docker compose ps -q darkpix)"
 if [[ -z "$darkpix_container_id" ]]; then
   echo "DarkPix container was not created." >&2
+  rollback_previous_release || true
   exit 1
 fi
 
 docker_health_status() {
-  docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$darkpix_container_id"
+  docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$darkpix_container_id" 2>/dev/null || printf 'missing\n'
 }
 
 for attempt in {1..30}; do
@@ -55,10 +97,12 @@ for attempt in {1..30}; do
   if [[ "$health_status" == "unhealthy" ]]; then
     echo "DarkPix container reported unhealthy. Inspect: docker compose logs darkpix" >&2
     docker compose logs --tail=40 darkpix >&2
+    rollback_previous_release || true
     exit 1
   fi
   if [[ "$attempt" -eq 30 ]]; then
     echo "DarkPix did not become healthy. Inspect: docker compose logs darkpix" >&2
+    rollback_previous_release || true
     exit 1
   fi
   sleep 1
@@ -121,6 +165,9 @@ for darkpix_public_url in "${darkpix_public_urls[@]}"; do
   done
   if [[ "$public_verified" != true ]]; then
     echo "The public route did not serve release $darkpix_release from $darkpix_public_url/version.txt." >&2
+    rollback_previous_release || true
     exit 1
   fi
 done
+
+if [[ -n "$previous_image_id" ]]; then docker image rm darkpix-web:rollback >/dev/null 2>&1 || true; fi
