@@ -169,6 +169,10 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .empty-stash strong { font: 800 9px ui-monospace, monospace; letter-spacing: .16em; }
 .empty-stash span { margin-top: 6px; font: 11px Georgia, serif; }
 .merchant-market { margin: 26px -24px -24px; padding: 24px; border-top: 1px solid #332a20; background: #0e0c0a; }
+.merchant-standing { display: grid; grid-template-columns: minmax(100px, 1fr) auto; align-items: center; gap: 12px; margin: -8px 0 14px; }
+.merchant-standing > span { height: 3px; background: #28231d; }
+.merchant-standing i { display: block; height: 100%; background: #a25e37; box-shadow: 0 0 9px rgba(190,108,50,.35); }
+.merchant-standing small { color: #75695b; font: 700 7px ui-monospace, monospace; letter-spacing: .08em; }
 .merchant-offers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .merchant-offer { position: relative; display: grid; grid-template-columns: 5px minmax(0, 1fr) auto; min-height: 62px; align-items: center; gap: 10px; padding: 9px; border: 1px solid #28241e; background: #14110e; }
 .merchant-offer > i { width: 5px; height: 30px; background: var(--rarity); }

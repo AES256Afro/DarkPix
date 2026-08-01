@@ -1,7 +1,7 @@
 import "./style.css";
 import { escapeHtml } from "./html";
 import { createSaveBackup, parseSaveBackup } from "./game/backup";
-import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses } from "./game/data";
+import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses } from "./game/data";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfile, loadRaidEscrow, purchaseItem, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
@@ -139,6 +139,7 @@ function renderLobby(): void {
   const packedVigor = equippedPower(previewLoadout, "armor") + previewStats.health;
   const boneKills = boneKillCount(profile);
   const contractRecord = contractRecordSummary(profile);
+  const ironmongerStanding = merchantStanding(profile.extracts);
   app.innerHTML = `
     <main class="lobby">
       <header class="lobby-header">
@@ -215,8 +216,12 @@ function renderLobby(): void {
               ${displayedStash.length ? displayedStash.map((item) => itemMarkup(item, true)).join("") : `<div class="empty-stash"><strong>THE CHEST IS BARE</strong><span>You can still descend with class equipment.</span></div>`}
             </div>
             <div class="merchant-market" id="merchant">
-              <div class="panel-heading"><span><small>THE IRONMONGER</small><strong>Provision bench</strong></span><b>${profile.extracts >= 3 ? "TRUSTED" : profile.extracts >= 1 ? "KNOWN" : "UNPROVEN"}</b></div>
+              <div class="panel-heading"><span><small>THE IRONMONGER</small><strong>Provision bench</strong></span><b>${ironmongerStanding.name.toUpperCase()}</b></div>
               <p class="panel-intro">Buy dependable supplies between raids. Successful extracts unlock stronger stock. Purchased gear enters the stash and is still lost if packed into a failed delve.</p>
+              <div class="merchant-standing">
+                <span><i style="width:${ironmongerStanding.progress}%"></i></span>
+                <small>${ironmongerStanding.nextExtracts === undefined ? "ALL STOCK EARNED" : `NEXT STOCK · ${profile.extracts} / ${ironmongerStanding.nextExtracts} EXTRACTS`}</small>
+              </div>
               <div class="merchant-offers">
                 ${MERCHANT_OFFERS.map((offer) => {
                   const unlocked = merchantOfferUnlocked(offer, profile.extracts);

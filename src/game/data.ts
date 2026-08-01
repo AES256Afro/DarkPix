@@ -7,6 +7,13 @@ export interface MerchantOffer {
   item: Omit<Item, "id">;
 }
 
+export interface MerchantStanding {
+  name: "Unproven" | "Known" | "Trusted" | "Sworn";
+  minimumExtracts: number;
+  nextExtracts?: number;
+  progress: number;
+}
+
 export interface CraftingRecipe {
   id: string;
   name: string;
@@ -349,6 +356,18 @@ export const MERCHANT_OFFERS: MerchantOffer[] = [
     requiredExtracts: 3,
     item: { name: "Reliquary edge", kind: "weapon", rarity: "Rare", power: 15, value: 156, modifier: "+15 edge damage" },
   },
+  {
+    sku: "ashen-brigandine",
+    price: 380,
+    requiredExtracts: 6,
+    item: { name: "Ashen brigandine", kind: "armor", rarity: "Epic", power: 18, value: 235, modifier: "+7 armor" },
+  },
+  {
+    sku: "blackglass-cantor",
+    price: 410,
+    requiredExtracts: 6,
+    item: { name: "Blackglass cantor", kind: "weapon", rarity: "Epic", power: 18, value: 240, modifier: "+12% undead damage" },
+  },
 ];
 
 export const CRAFTING_RECIPES: CraftingRecipe[] = [
@@ -402,6 +421,22 @@ export const CRAFTING_RECIPES: CraftingRecipe[] = [
 export function merchantOfferUnlocked(offer: MerchantOffer, extracts: number): boolean {
   const safeExtracts = Number.isFinite(extracts) ? Math.max(0, Math.floor(extracts)) : 0;
   return safeExtracts >= offer.requiredExtracts;
+}
+
+export function merchantStanding(extracts: number): MerchantStanding {
+  const safeExtracts = Number.isFinite(extracts) ? Math.max(0, Math.floor(extracts)) : 0;
+  const standing: Omit<MerchantStanding, "progress"> = safeExtracts >= 6
+    ? { name: "Sworn", minimumExtracts: 6 }
+    : safeExtracts >= 3
+      ? { name: "Trusted", minimumExtracts: 3, nextExtracts: 6 }
+      : safeExtracts >= 1
+        ? { name: "Known", minimumExtracts: 1, nextExtracts: 3 }
+        : { name: "Unproven", minimumExtracts: 0, nextExtracts: 1 };
+  const tierSpan = standing.nextExtracts === undefined ? 0 : standing.nextExtracts - standing.minimumExtracts;
+  return {
+    ...standing,
+    progress: standing.nextExtracts === undefined ? 100 : Math.min(100, Math.max(0, ((safeExtracts - standing.minimumExtracts) / tierSpan) * 100)),
+  };
 }
 
 const LOOT_NAMES = {

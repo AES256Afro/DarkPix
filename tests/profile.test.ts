@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
+import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
 import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
 import { RIPOSTE_DURATION_SECONDS, attackDamage, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat } from "../src/game/combat";
@@ -764,6 +764,23 @@ describe("merchant reputation", () => {
     expect(merchantOfferUnlocked(rare, 2)).toBe(false);
     expect(merchantOfferUnlocked(rare, 3)).toBe(true);
     expect(merchantOfferUnlocked(rare, Number.POSITIVE_INFINITY)).toBe(false);
+  });
+
+  it("derives named standing and exact progress from successful returns", () => {
+    expect(merchantStanding(0)).toEqual({ name: "Unproven", minimumExtracts: 0, nextExtracts: 1, progress: 0 });
+    expect(merchantStanding(1)).toEqual({ name: "Known", minimumExtracts: 1, nextExtracts: 3, progress: 0 });
+    expect(merchantStanding(2)).toEqual({ name: "Known", minimumExtracts: 1, nextExtracts: 3, progress: 50 });
+    expect(merchantStanding(5)).toMatchObject({ name: "Trusted", minimumExtracts: 3, nextExtracts: 6 });
+    expect(merchantStanding(5).progress).toBeCloseTo(200 / 3);
+    expect(merchantStanding(6)).toEqual({ name: "Sworn", minimumExtracts: 6, progress: 100 });
+    expect(merchantStanding(Number.NaN).name).toBe("Unproven");
+  });
+
+  it("reserves Epic Ironmonger stock for sworn delvers", () => {
+    const swornStock = MERCHANT_OFFERS.filter((offer) => offer.requiredExtracts === 6);
+    expect(swornStock).toHaveLength(2);
+    expect(swornStock.every((offer) => offer.item.rarity === "Epic")).toBe(true);
+    expect(swornStock.every((offer) => !merchantOfferUnlocked(offer, 5) && merchantOfferUnlocked(offer, 6))).toBe(true);
   });
 });
 

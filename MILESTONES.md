@@ -77,7 +77,7 @@ Status: Planned after M4
 
 - Party discovery and invitations
 - Moderated proximity voice with mute, report, and consent controls
-- Additional dungeon layouts, boss families, quests, crafting paths, and merchant reputation
+- Additional dungeon layouts, boss families, quests, crafting paths, and rotating merchant commissions
 - Observability for matchmaking health, disconnect rate, match completion, extraction balance, and economy inflation
 
 These items should not block continued improvements to the safe solo slice, but none should be presented as complete until its own exit evidence exists.
