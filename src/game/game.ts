@@ -174,6 +174,7 @@ export class DarkPixGame {
   private campfireUsed = false;
   private ended = false;
   private paused = true;
+  private contextLost = false;
   private blocking = false;
   private blockAge = 0;
   private attackCooldown = 0;
@@ -603,6 +604,8 @@ export class DarkPixGame {
     document.addEventListener("mousedown", this.onMouseDown);
     document.addEventListener("mouseup", this.onMouseUp);
     document.addEventListener("pointerlockchange", this.onPointerLockChange);
+    this.renderer.domElement.addEventListener("webglcontextlost", this.onContextLost);
+    this.renderer.domElement.addEventListener("webglcontextrestored", this.onContextRestored);
     this.renderer.domElement.addEventListener("click", this.requestPointerLock);
     this.lockOverlay.addEventListener("click", this.requestPointerLock);
   }
@@ -652,6 +655,11 @@ export class DarkPixGame {
   };
 
   private onPointerLockChange = (): void => {
+    if (this.contextLost) {
+      this.paused = true;
+      this.lockOverlay.classList.remove("hidden");
+      return;
+    }
     this.paused = document.pointerLockElement !== this.renderer.domElement;
     this.lockOverlay.classList.toggle("hidden", !this.paused || this.ended);
     if (!this.paused) {
@@ -660,8 +668,38 @@ export class DarkPixGame {
     }
   };
 
-  private requestPointerLock = (): void => {
+  private setLockOverlayCopy(title: string, detail: string): void {
+    const titleElement = this.lockOverlay.querySelector<HTMLElement>("strong");
+    const detailElement = this.lockOverlay.querySelector<HTMLElement>("small");
+    if (titleElement) titleElement.textContent = title;
+    if (detailElement) detailElement.textContent = detail;
+  }
+
+  private onContextLost = (event: Event): void => {
+    event.preventDefault();
     if (this.ended) return;
+    this.contextLost = true;
+    this.paused = true;
+    this.blocking = false;
+    this.keys.clear();
+    this.interactHeld = false;
+    this.extractHold = 0;
+    this.setLockOverlayCopy("REKINDLING THE CRYPT", "The renderer was interrupted. Waiting for the torch to return.");
+    this.lockOverlay.classList.remove("hidden");
+    if (document.pointerLockElement === this.renderer.domElement) void document.exitPointerLock();
+  };
+
+  private onContextRestored = (): void => {
+    if (this.ended) return;
+    this.contextLost = false;
+    this.paused = true;
+    this.setLockOverlayCopy("RETURN TO THE CRYPT", "Renderer restored. Click to bind the cursor again.");
+    this.lockOverlay.classList.remove("hidden");
+    this.feed("The torch catches. The crypt is visible again.", "system");
+  };
+
+  private requestPointerLock = (): void => {
+    if (this.ended || this.contextLost) return;
     this.paused = false;
     this.lockOverlay.classList.add("hidden");
     this.audio.start();
@@ -1309,6 +1347,8 @@ export class DarkPixGame {
     document.removeEventListener("mousedown", this.onMouseDown);
     document.removeEventListener("mouseup", this.onMouseUp);
     document.removeEventListener("pointerlockchange", this.onPointerLockChange);
+    this.renderer.domElement.removeEventListener("webglcontextlost", this.onContextLost);
+    this.renderer.domElement.removeEventListener("webglcontextrestored", this.onContextRestored);
     this.renderer.domElement.removeEventListener("click", this.requestPointerLock);
     this.lockOverlay.removeEventListener("click", this.requestPointerLock);
     this.audio.stop();
