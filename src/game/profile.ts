@@ -236,18 +236,43 @@ export interface RaidSettlement {
   classXpLost: number;
 }
 
+export interface RaidXpBreakdown {
+  presence: number;
+  kills: number;
+  extraction: number;
+  depth: number;
+  subtotal: number;
+  multiplier: number;
+  total: number;
+  forfeited: boolean;
+}
+
+export function raidXpBreakdown(result: RaidResult): RaidXpBreakdown {
+  const rules = raidRules(result.raidMode);
+  const presence = result.reason === "abandoned" ? 0 : 30;
+  const kills = Math.min(1_000, nonnegativeInteger(result.kills)) * 35;
+  const extraction = result.reason === "extracted" ? 140 : 0;
+  const depth = depthXpBonus(result.depthReached, result.reason === "extracted");
+  const subtotal = presence + kills + extraction + depth;
+  const forfeited = rules.wipesClassXpOnFailure && result.reason !== "extracted";
+  return {
+    presence,
+    kills,
+    extraction,
+    depth,
+    subtotal,
+    multiplier: rules.xpMultiplier,
+    total: forfeited ? 0 : Math.round(subtotal * rules.xpMultiplier),
+    forfeited,
+  };
+}
+
 export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement {
   const next = normalizeProfile(profile);
   const rules = raidRules(result.raidMode);
   const consumed = new Set(result.consumedIds ?? []);
   if (consumed.size) next.stash = next.stash.filter((item) => !consumed.has(item.id));
-  const baseXpGain = (result.reason === "abandoned" ? 0 : 30)
-    + Math.min(1_000, nonnegativeInteger(result.kills)) * 35
-    + (result.reason === "extracted" ? 140 : 0)
-    + depthXpBonus(result.depthReached, result.reason === "extracted");
-  const xpGain = rules.wipesClassXpOnFailure && result.reason !== "extracted"
-    ? 0
-    : Math.round(baseXpGain * rules.xpMultiplier);
+  const xpGain = raidXpBreakdown(result).total;
   next.xp[result.classId] = Math.min(MAX_CLASS_XP, next.xp[result.classId] + xpGain);
   next.preferredClass = result.classId;
   const settlement: RaidSettlement = {

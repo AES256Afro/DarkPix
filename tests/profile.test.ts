@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
-import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, applyRaidResult, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
+import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, applyRaidResult, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
 import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat } from "../src/game/combat";
 
@@ -251,6 +251,18 @@ describe("persistent raid consequences", () => {
     expect(standard.xpGained).toBe(100);
     expect(highToll.xpGained).toBe(135);
     expect(highToll.profile.deaths).toBe(1);
+  });
+
+  it("itemizes raid XP before applying contract stakes", () => {
+    expect(raidXpBreakdown({
+      reason: "extracted", raidMode: "high_toll", depthReached: 2, classId: "vanguard", loot: [], equippedIds: [], kills: 2, elapsed: 180, goldFound: 0,
+    })).toEqual({ presence: 30, kills: 70, extraction: 140, depth: 180, subtotal: 420, multiplier: 1.35, total: 567, forfeited: false });
+    expect(raidXpBreakdown({
+      reason: "slain", raidMode: "iron_soul", depthReached: 2, classId: "vanguard", loot: [], equippedIds: [], kills: 2, elapsed: 180, goldFound: 0,
+    })).toMatchObject({ presence: 30, kills: 70, extraction: 0, depth: 60, subtotal: 160, multiplier: 1.75, total: 0, forfeited: true });
+    expect(raidXpBreakdown({
+      reason: "abandoned", classId: "vanguard", loot: [], equippedIds: [], kills: Number.NaN, elapsed: 0, goldFound: 0,
+    })).toMatchObject({ presence: 0, kills: 0, total: 0 });
   });
 
   it("records red-depth veterancy on both escape and death", () => {

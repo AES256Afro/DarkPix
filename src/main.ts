@@ -4,7 +4,7 @@ import { createSaveBackup, parseSaveBackup } from "./game/backup";
 import { CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses } from "./game/data";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
-import { beginRaidEscrow, clearRaidEscrow, craftItem, createRaidEscrow, loadProfile, loadRaidEscrow, purchaseItem, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
+import { beginRaidEscrow, clearRaidEscrow, craftItem, createRaidEscrow, loadProfile, loadRaidEscrow, purchaseItem, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
 import type { DarkPixGame } from "./game/game";
 import type { ClassId, GamePreferences, Item, Profile, RaidMode, RaidResult } from "./game/types";
@@ -492,15 +492,24 @@ function finishRaid(result: RaidResult): void {
   activeGame = undefined;
   const extracted = result.reason === "extracted";
   const rules = raidRules(result.raidMode);
+  const riskedIds = new Set(result.equippedIds);
+  const consumedIds = new Set(result.consumedIds ?? []);
+  const riskedBeforeSettlement = profile.stash.filter((item) => riskedIds.has(item.id));
+  const consumedItems = riskedBeforeSettlement.filter((item) => consumedIds.has(item.id));
+  const returnedItems = extracted ? riskedBeforeSettlement.filter((item) => !consumedIds.has(item.id)) : [];
+  const xpBreakdown = raidXpBreakdown(result);
   const settlement = settleRaid(profile, result);
   profile = settlement.profile;
   persistProfile();
   const recordedItems = extracted
     ? [
+        ...returnedItems.map((item) => ({ item, outcome: "GEAR RETURNED" })),
+        ...consumedItems.map((item) => ({ item, outcome: "USED BELOW" })),
         ...settlement.banked.map((item) => ({ item, outcome: "STASHED" })),
         ...settlement.overflow.map((item) => ({ item, outcome: "PORTER-SOLD" })),
       ]
     : [
+        ...consumedItems.map((item) => ({ item, outcome: "USED BELOW" })),
         ...settlement.lost.map((item) => ({ item, outcome: "GEAR LOST" })),
         ...result.loot.map((item) => ({ item, outcome: "HAUL LOST" })),
       ];
@@ -514,6 +523,15 @@ function finishRaid(result: RaidResult): void {
   const detail = extracted
     ? `${result.depthReached === 2 ? "The Ashen Depth's passage" : "The blue passage"} seals behind you. ${settlement.overflow.length ? `${settlement.overflow.length} overflow item${settlement.overflow.length === 1 ? " was" : "s were"} sold by the porter for ${settlement.overflowGold}g.` : "Everything in your haul fits safely in the stash."}${result.depthReached === 2 ? " The red-depth veterancy bonus is recorded." : ""}${settlement.firstContractPaid ? " The Taverner's 100g bounty is paid." : ""}${settlement.bossContractPaid ? " The 150g Tollkeeper bounty is paid." : ""}${settlement.highTollContractPaid ? " The 200g Deeper Wager bounty is paid." : result.raidMode === "high_toll" ? " The High Toll veterancy bonus is recorded." : ""}${settlement.ashenContractPaid ? " The 250g Ash Below Ash bounty is paid." : ""}`
     : `${settlement.classXpLost > 0 ? `${settlement.classXpLost} ${CLASSES[result.classId].name} XP is erased by the Iron Soul oath.` : result.raidMode === "iron_soul" ? "The Iron Soul oath finds no veterancy left to erase." : "Your class remembers."} Your carried gear and every unsecured find remain ${result.depthReached === 2 ? "in the Ashen Depth" : "below"}.${result.depthReached === 2 && result.raidMode !== "iron_soul" ? " Some red-depth veterancy survives." : ""}${rules.entryFee ? ` The ${rules.entryFee}g entry fee is gone.` : ""}`;
+  const nextStep = extracted
+    ? settlement.overflow.length
+      ? "The stash is full. Sell or forge an item before the next descent to avoid another porter discount."
+      : result.depthReached === 2
+        ? "The Ashen Return is secured. Refit at the Ironmonger or wager an Iron Soul when ready."
+        : "Refit from the recovered haul, or risk a red descent after the next Tollkeeper falls."
+    : profile.stash.length > 0
+      ? "Rebuild a two-item kit from the stash, or descend with base equipment and scavenge."
+      : "The stash is bare. Descend with base class equipment and rebuild from recovered loot.";
   app.innerHTML = `
     <main class="result-screen ${extracted ? "success" : "failure"}">
       <div class="result-backdrop"></div>
@@ -522,12 +540,19 @@ function finishRaid(result: RaidResult): void {
         <p class="eyebrow">RAID VERDICT</p>
         <h1>${headline}</h1>
         <p class="result-detail">${detail}</p>
+        <div class="result-ledger">
+          <span><small>CONTRACT</small><strong>${rules.name}</strong></span>
+          <span><small>DEEPEST FLOOR</small><strong>${result.depthReached === 2 ? "Ashen Depth" : "Pale Toll"}</strong></span>
+          <span><small>RISKED GEAR</small><strong>${extracted ? `${returnedItems.length} returned` : `${settlement.lost.length} lost`}</strong></span>
+          <span><small>XP RATE</small><strong>${rules.xpMultiplier.toFixed(2)}x</strong></span>
+        </div>
         <div class="result-metrics">
           <span><small>TIME BELOW</small><strong>${formatTime(result.elapsed)}</strong></span>
           <span><small>THREATS FELLED</small><strong>${result.kills}</strong></span>
           <span><small>GOLD ${extracted ? "SETTLED" : "LOST"}</small><strong>${extracted ? settlement.goldGained : result.goldFound}g</strong></span>
           <span><small>CLASS XP</small><strong>${settlement.classXpLost > 0 ? `-${settlement.classXpLost}` : `+${settlement.xpGained}`}</strong></span>
         </div>
+        <p class="xp-breakdown">XP LEDGER · presence ${xpBreakdown.presence} · kills ${xpBreakdown.kills} · extraction ${xpBreakdown.extraction} · depth ${xpBreakdown.depth} · ${xpBreakdown.multiplier.toFixed(2)}x${xpBreakdown.forfeited ? " · FORFEITED BY IRON SOUL" : ` = ${xpBreakdown.total}`}</p>
         <div class="result-haul">
           <div class="panel-heading"><span><small>${extracted ? "SETTLED" : "ABANDONED"}</small><strong>${extracted ? "Recovered haul" : "Lost below"}</strong></span><b>${recordedItems.length} ITEMS</b></div>
           <div class="result-items">
@@ -535,6 +560,7 @@ function finishRaid(result: RaidResult): void {
               <div class="result-item" style="--rarity:${RARITY_COLOR[item.rarity]}"><i></i><span><strong>${escapeHtml(item.name)}</strong><small>${item.rarity} ${item.kind} · ${outcome}</small></span><b>${item.value}g</b></div>`).join("") : `<div class="empty-stash"><strong>NOTHING TO RECORD</strong><span>The ledger remains clean.</span></div>`}
           </div>
         </div>
+        <p class="result-next"><small>NEXT DESCENT</small><span>${nextStep}</span></p>
         <button class="return-button" type="button">RETURN TO THE LAST LANTERN</button>
       </section>
     </main>`;
