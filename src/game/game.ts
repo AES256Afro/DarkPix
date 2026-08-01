@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
-import { attackDamage, classAbilityDamageMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat, type ThreatKind } from "./combat";
+import { attackDamage, bossTactic, classAbilityDamageMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat, type ThreatKind } from "./combat";
 import { CLASSES, CLASS_ABILITIES, RARITY_COLOR, classPerkBonuses, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, type ClassPerkBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { depthRules } from "./depth";
@@ -1139,6 +1139,22 @@ export class DarkPixGame {
     }, 95);
   }
 
+  private spawnBossChain(enemy: Enemy): void {
+    const start = enemy.group.position.clone().add(new THREE.Vector3(0, 1.35, 0));
+    const end = this.camera.position.clone().add(new THREE.Vector3(0, -0.28, 0));
+    const distance = start.distanceTo(end);
+    const chainMaterial = material(0x796554, 0x301712);
+    const chain = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, Math.max(0.3, distance)), chainMaterial);
+    chain.position.copy(start).lerp(end, 0.5);
+    chain.lookAt(end);
+    this.scene.add(chain);
+    window.setTimeout(() => {
+      this.scene.remove(chain);
+      chain.geometry.dispose();
+      chainMaterial.dispose();
+    }, 130);
+  }
+
   private damageEnemy(enemy: Enemy, amount: number, headshot: boolean, limbHit: boolean): void {
     enemy.hp -= amount;
     enemy.alerted = true;
@@ -1255,14 +1271,18 @@ export class DarkPixGame {
         enemy.group.scale.set(enemy.baseScale * 0.94, enemy.baseScale * 1.08, enemy.baseScale * 0.94);
         if (enemy.windup > 0) continue;
 
-        const pattern = enemyAttackPattern(enemy.kind, Boolean(enemy.group.userData.enraged));
+        const rangedAttack = enemy.attackStyle === "ranged";
+        const pattern = enemyAttackPattern(enemy.kind, Boolean(enemy.group.userData.enraged), rangedAttack);
         enemy.cooldown = pattern.recovery;
         enemy.group.rotation.x = 0.18;
         enemy.group.scale.set(enemy.baseScale * 1.12, enemy.baseScale * 0.9, enemy.baseScale * 1.12);
-        const attackRange = enemy.kind === "rival" && enemy.attackStyle === "melee" ? 1.9 : enemy.range;
+        const attackRange = enemy.kind === "boss" && rangedAttack
+          ? 7.2
+          : enemy.kind === "rival" && enemy.attackStyle === "melee" ? 1.9 : enemy.range;
         if (distance > attackRange + 0.25 || !hasSight) continue;
 
         if (enemy.kind === "rival" && enemy.attackStyle === "ranged") this.spawnRivalKnife(enemy);
+        if (enemy.kind === "boss" && rangedAttack) this.spawnBossChain(enemy);
         const guardFacing = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
         const facingThreat = guardFacesThreat(
           { x: guardFacing.x, z: guardFacing.z },
@@ -1277,15 +1297,16 @@ export class DarkPixGame {
           this.audio.tone(780, 0.12, "square", 0.13);
         } else {
           const reduction = guardingAttack ? (this.options.classId === "hexbound" ? 0.45 : 0.72) : 0;
-          const attackDamage = enemy.kind === "rival" && enemy.attackStyle === "melee"
-            ? Math.round(enemy.damage * 0.75)
-            : enemy.damage;
+          const attackDamage = enemy.kind === "boss" && rangedAttack
+            ? Math.round(enemy.damage * 0.68)
+            : enemy.kind === "rival" && enemy.attackStyle === "melee" ? Math.round(enemy.damage * 0.75) : enemy.damage;
           this.hurt(attackDamage * (1 - reduction), enemy.name);
           if (guardingAttack) this.stamina = Math.max(0, this.stamina - attackDamage * 0.75);
         }
         continue;
       }
       const tactic = enemy.kind === "rival" ? rivalTactic(distance, hasSight) : undefined;
+      const keeperTactic = enemy.kind === "boss" ? bossTactic(distance, hasSight, Boolean(enemy.group.userData.enraged)) : undefined;
       if (tactic === "retreat" && enemy.stagger <= 0) {
         enemy.path = [];
         enemy.group.lookAt(player.x, enemy.group.position.y, player.z);
@@ -1304,6 +1325,16 @@ export class DarkPixGame {
           if (!this.collidesEnemy(enemy, enemy.group.position.x, strafeZ)) enemy.group.position.z = strafeZ;
         }
         enemy.group.position.y = Math.sin(this.elapsed * 7 + enemy.phase) * 0.025;
+        continue;
+      }
+      if (keeperTactic === "chain" && enemy.cooldown <= 0 && enemy.stagger <= 0) {
+        enemy.attackStyle = "ranged";
+        enemy.group.lookAt(player.x, enemy.group.position.y, player.z);
+        const pattern = enemyAttackPattern("boss", Boolean(enemy.group.userData.enraged), true);
+        enemy.windup = pattern.windup;
+        enemy.windupDuration = pattern.windup;
+        this.feed("CHAIN LASH · break sight, retreat, or raise your guard", "danger");
+        this.audio.tone(52, 0.22, "sawtooth", 0.11);
         continue;
       }
       if ((distance > enemy.range || !hasSight) && enemy.stagger <= 0) {
@@ -1338,9 +1369,11 @@ export class DarkPixGame {
         if (enemy.kind === "rival") {
           if (tactic !== "throw" && tactic !== "melee") continue;
           enemy.attackStyle = tactic === "throw" ? "ranged" : "melee";
+        } else if (enemy.kind === "boss") {
+          enemy.attackStyle = "melee";
         }
         enemy.group.lookAt(player.x, enemy.group.position.y, player.z);
-        const pattern = enemyAttackPattern(enemy.kind, Boolean(enemy.group.userData.enraged));
+        const pattern = enemyAttackPattern(enemy.kind, Boolean(enemy.group.userData.enraged), false);
         enemy.windup = pattern.windup;
         enemy.windupDuration = pattern.windup;
         this.audio.tone(enemy.kind === "boss" ? 58 : 110, 0.08, "square", 0.04);

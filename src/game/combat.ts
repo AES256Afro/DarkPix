@@ -10,6 +10,7 @@ export interface EnemyAttackPattern {
 }
 
 export type RivalTactic = "approach" | "retreat" | "throw" | "melee";
+export type BossTactic = "approach" | "chain" | "melee";
 
 export interface DamageInput {
   baseDamage: number;
@@ -31,7 +32,8 @@ export function attackDamage(input: DamageInput): number {
   return Math.round(damage);
 }
 
-export function enemyAttackPattern(kind: ThreatKind, enraged = false): EnemyAttackPattern {
+export function enemyAttackPattern(kind: ThreatKind, enraged = false, ranged = false): EnemyAttackPattern {
+  if (kind === "boss" && ranged) return enraged ? { windup: 0.62, recovery: 2.4 } : { windup: 0.9, recovery: 3.2 };
   if (kind === "boss") return enraged ? { windup: 0.34, recovery: 1.2 } : { windup: 0.62, recovery: 2.2 };
   if (kind === "warden") return { windup: 0.48, recovery: 1.9 };
   if (kind === "crawler") return { windup: 0.26, recovery: 1.25 };
@@ -45,6 +47,13 @@ export function rivalTactic(distance: number, hasSight: boolean): RivalTactic {
   if (distance <= 1.75) return "melee";
   if (distance < 3.1) return "retreat";
   return "throw";
+}
+
+export function bossTactic(distance: number, hasSight: boolean, enraged = false): BossTactic {
+  if (!Number.isFinite(distance) || distance < 0 || !hasSight || distance > 7.2) return "approach";
+  if (distance <= 2.35) return "melee";
+  if (distance >= (enraged ? 2.8 : 3.4)) return "chain";
+  return "approach";
 }
 
 export function guardDrainPerSecond(classId: ClassId): number {

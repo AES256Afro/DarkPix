@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CLASS_ABILITIES, CRAFTING_RECIPES, MERCHANT_OFFERS, classPerkBonuses, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll } from "../src/game/data";
 import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, applyRaidResult, craftItem, createProfile, normalizeProfile, purchaseItem, sellStashItem, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
-import { attackDamage, classAbilityDamageMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat } from "../src/game/combat";
+import { attackDamage, bossTactic, classAbilityDamageMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat } from "../src/game/combat";
 
 describe("loot generation", () => {
   it("maps rarity thresholds deterministically", () => {
@@ -356,6 +356,8 @@ describe("directional combat damage", () => {
     expect(enemyAttackPattern("boss").windup).toBeGreaterThan(enemyAttackPattern("rival").windup);
     expect(enemyAttackPattern("rival")).toEqual({ windup: 0.5, recovery: 1.8 });
     expect(enemyAttackPattern("boss", true)).toEqual({ windup: 0.34, recovery: 1.2 });
+    expect(enemyAttackPattern("boss", false, true)).toEqual({ windup: 0.9, recovery: 3.2 });
+    expect(enemyAttackPattern("boss", true, true)).toEqual({ windup: 0.62, recovery: 2.4 });
   });
 
   it("gives the rival distinct ranged, retreat, and cornered tactics", () => {
@@ -367,6 +369,16 @@ describe("directional combat damage", () => {
     expect(rivalTactic(1.76, true)).toBe("retreat");
     expect(rivalTactic(1.75, true)).toBe("melee");
     expect(rivalTactic(Number.NaN, true)).toBe("approach");
+  });
+
+  it("makes the Tollkeeper telegraph chain lashes only at counterable range", () => {
+    expect(bossTactic(8, true)).toBe("approach");
+    expect(bossTactic(5, false)).toBe("approach");
+    expect(bossTactic(2.35, true)).toBe("melee");
+    expect(bossTactic(3.39, true)).toBe("approach");
+    expect(bossTactic(3.4, true)).toBe("chain");
+    expect(bossTactic(2.8, true, true)).toBe("chain");
+    expect(bossTactic(Number.NaN, true)).toBe("approach");
   });
 
   it("makes sustained guards cost class-tuned stamina", () => {
