@@ -1,6 +1,7 @@
 import "./style.css";
 import { escapeHtml } from "./html";
 import { CLASSES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, progressionBonuses } from "./game/data";
+import { toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { loadProfile, purchaseItem, saveProfile, settleRaid } from "./game/profile";
 import type { DarkPixGame } from "./game/game";
@@ -119,7 +120,7 @@ function renderLobby(): void {
         <div class="lower-grid">
           <section class="loadout-panel" id="stash">
             <div class="panel-heading"><span><small>RISK LOADOUT</small><strong>Stash</strong></span><b>${profile.stash.length} / 24</b></div>
-            <p class="panel-intro">Pack up to two pieces. Their power applies in the crypt, but death removes them from your stash.</p>
+            <p class="panel-intro">Pack up to two pieces, with one weapon and one armor slot. Consumables use any open slot. Death removes packed items from your stash.</p>
             <div class="stash-list">
               ${profile.stash.length ? profile.stash.map((item) => itemMarkup(item, true)).join("") : `<div class="empty-stash"><strong>THE CHEST IS BARE</strong><span>You can still descend with class equipment.</span></div>`}
             </div>
@@ -181,8 +182,7 @@ function renderLobby(): void {
     button.addEventListener("click", () => {
       const id = button.closest<HTMLElement>("[data-item-id]")?.dataset.itemId;
       if (!id) return;
-      if (equippedIds.has(id)) equippedIds.delete(id);
-      else if (equippedIds.size < 2) equippedIds.add(id);
+      equippedIds = toggleEquippedItem(equippedIds, profile.stash, id);
       renderLobby();
     });
   });

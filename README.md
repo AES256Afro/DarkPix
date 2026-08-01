@@ -36,7 +36,7 @@ Mouse sensitivity, crypt brightness, audio, and reduced camera motion can be adj
 ## Extraction loop
 
 - Choose Vanguard, Cutpurse, or Hexbound. Class XP and levels persist across every outcome.
-- Pack up to two stash items. Their power applies in the raid, but they are lost if the delver dies.
+- Pack up to two stash items. One weapon and one armor piece can contribute power; consumables occupy any open slot. Packed items are lost if the delver dies.
 - Defeat two Ossuary Wardens and take their sigils.
 - Follow the contract wayfinder toward the nearest living Warden, loose sigil, or unlocked blue passage.
 - Search four coffers across an interconnected dungeon while fighting monsters and one AI rival delver.

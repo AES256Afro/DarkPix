@@ -3,6 +3,7 @@ import { AudioDirector } from "./audio";
 import { attackDamage, enemyAttackPattern, guardDrainPerSecond, type ThreatKind } from "./combat";
 import { CLASSES, RARITY_COLOR, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
+import { equippedPower } from "./loadout";
 import { cardinalDirection, circlesOverlap } from "./navigation";
 import { disposeSceneResources } from "./resources";
 import { extractionHold, targetDistanceInView } from "./targeting";
@@ -191,7 +192,7 @@ export class DarkPixGame {
     this.audio = new AudioDirector(!options.preferences.muted);
     this.definition = CLASSES[options.classId];
     const progression = progressionBonuses(options.classLevel);
-    const armorBonus = options.equipped.filter((item) => item.kind === "armor").reduce((sum, item) => sum + item.power, 0);
+    const armorBonus = equippedPower(options.equipped, "armor");
     this.maxHealth = this.definition.maxHealth + armorBonus + progression.health;
     this.damageBonus = progression.damage;
     this.carriedConsumables = options.equipped.filter((item) => item.kind === "consumable").map((item) => ({ ...item }));
@@ -801,7 +802,7 @@ export class DarkPixGame {
     const headHeight = best.kind === "crawler" ? 0.72 : best.kind === "boss" ? 2.35 : 1.82;
     const toHead = best.group.position.clone().add(new THREE.Vector3(0, headHeight, 0)).sub(cameraPosition).normalize();
     const headshot = toHead.dot(forward) > (this.options.classId === "hexbound" ? 0.992 : 0.975);
-    const weaponPower = this.options.equipped.filter((item) => item.kind === "weapon").reduce((sum, item) => sum + item.power, 0);
+    const weaponPower = equippedPower(this.options.equipped, "weapon");
     const damage = attackDamage({
       baseDamage: this.definition.damage,
       weaponPower,
