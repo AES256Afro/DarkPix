@@ -10,6 +10,7 @@ export interface EnemyAttackPattern {
 
 export type RivalTactic = "approach" | "retreat" | "throw" | "melee";
 export type RivalArchetype = "skirmisher" | "marauder";
+export type RivalDungeonTactic = "ignore" | "approach" | "clash";
 export type BossTactic = "approach" | "chain" | "melee";
 
 export interface DamageInput {
@@ -56,6 +57,17 @@ export function rivalTactic(distance: number, hasSight: boolean, archetype: Riva
   if (distance <= 1.75) return "melee";
   if (distance < 3.1) return "retreat";
   return "throw";
+}
+
+export function rivalDungeonTactic(kind: ThreatKind, distance: number, hasSight: boolean): RivalDungeonTactic {
+  if (kind === "rival" || kind === "boss" || !Number.isFinite(distance) || distance < 0 || !hasSight || distance > 6.5) return "ignore";
+  return distance <= 1.9 ? "clash" : "approach";
+}
+
+export function dungeonCrossfireDamage(baseDamage: number, defenderKind: ThreatKind): number {
+  const safeDamage = Number.isFinite(baseDamage) ? Math.max(0, baseDamage) : 0;
+  const multiplier = defenderKind === "warden" ? 0.55 : defenderKind === "rival" ? 0.7 : defenderKind === "boss" ? 0 : 0.65;
+  return safeDamage > 0 && multiplier > 0 ? Math.max(1, Math.round(safeDamage * multiplier)) : 0;
 }
 
 export function bossTactic(distance: number, hasSight: boolean, enraged = false): BossTactic {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
 import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, firstRunPreferences, normalizePreferences } from "../src/game/preferences";
-import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, enemyAttackPattern, guardBreakDuration, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat } from "../src/game/combat";
+import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, guardBreakDuration, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat } from "../src/game/combat";
 
 describe("loot generation", () => {
   it("maps rarity thresholds deterministically", () => {
@@ -758,6 +758,17 @@ describe("directional combat damage", () => {
     expect(rivalTactic(3, true, "marauder")).toBe("approach");
     expect(rivalTactic(1.9, true, "marauder")).toBe("melee");
     expect(rivalTactic(1, false, "marauder")).toBe("approach");
+  });
+
+  it("lets unengaged rivals clash with nearby crypt threats but not bosses", () => {
+    expect(rivalDungeonTactic("skeleton", 4, true)).toBe("approach");
+    expect(rivalDungeonTactic("warden", 1.8, true)).toBe("clash");
+    expect(rivalDungeonTactic("boss", 1.8, true)).toBe("ignore");
+    expect(rivalDungeonTactic("crawler", 2, false)).toBe("ignore");
+    expect(dungeonCrossfireDamage(20, "skeleton")).toBe(13);
+    expect(dungeonCrossfireDamage(20, "warden")).toBe(11);
+    expect(dungeonCrossfireDamage(20, "rival")).toBe(14);
+    expect(dungeonCrossfireDamage(20, "boss")).toBe(0);
   });
 
   it("makes the Tollkeeper telegraph chain lashes only at counterable range", () => {

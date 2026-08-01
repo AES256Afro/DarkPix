@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { escapeHtml } from "../html";
 import { AudioDirector } from "./audio";
-import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, enemyAttackPattern, guardBreakDuration, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
+import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, guardBreakDuration, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
@@ -1685,9 +1685,19 @@ export class DarkPixGame {
     }, 130);
   }
 
-  private damageEnemy(enemy: Enemy, amount: number, headshot: boolean, limbHit: boolean, forcedCripple = false, riposte = false): void {
+  private damageEnemy(
+    enemy: Enemy,
+    amount: number,
+    headshot: boolean,
+    limbHit: boolean,
+    forcedCripple = false,
+    riposte = false,
+    credited = true,
+    alertPlayer = true,
+    announce = true,
+  ): void {
     enemy.hp -= amount;
-    enemy.alerted = true;
+    if (alertPlayer) enemy.alerted = true;
     enemy.stagger = 0.18;
     if (enemy.kind === "rival") {
       enemy.extractProgress = 0;
@@ -1697,13 +1707,13 @@ export class DarkPixGame {
       enemy.windup = 0;
       enemy.cooldown = Math.max(enemy.cooldown, 0.45);
     }
-    this.audio.hit();
+    if (announce) this.audio.hit();
     const crippledNow = (limbHit || forcedCripple) && enemy.kind !== "boss" && !enemy.crippled;
     if (crippledNow) {
       enemy.crippled = true;
       enemy.speed *= 0.72;
     }
-    this.feed(`${riposte ? "RIPOSTE · " : ""}${headshot ? "HEADSHOT · " : forcedCripple ? "FROSTBITE · " : limbHit ? "LIMB HIT · " : ""}${enemy.name} takes ${amount}.${crippledNow ? " Its stride breaks." : ""}`, enemy.kind === "rival" ? "rival" : "combat");
+    if (announce) this.feed(`${riposte ? "RIPOSTE · " : ""}${headshot ? "HEADSHOT · " : forcedCripple ? "FROSTBITE · " : limbHit ? "LIMB HIT · " : ""}${enemy.name} takes ${amount}.${crippledNow ? " Its stride breaks." : ""}`, enemy.kind === "rival" ? "rival" : "combat");
     enemy.group.scale.set(enemy.baseScale * 1.14, enemy.baseScale * 0.9, enemy.baseScale * 1.14);
     if (enemy.kind === "boss" && enemy.hp > 0 && enemy.hp <= enemy.maxHp / 2 && !enemy.group.userData.enraged) {
       enemy.group.userData.enraged = true;
@@ -1711,32 +1721,36 @@ export class DarkPixGame {
       enemy.damage = Math.round(enemy.damage * 1.2);
       enemy.cooldown = 0;
       enemy.tollCooldown = 1.8;
-      this.feed("THE TOLLKEEPER ENRAGES · its chain quickens and the floor becomes a weapon", "danger");
-      this.audio.tone(46, 0.6, "sawtooth", 0.16);
+      if (announce) {
+        this.feed("THE TOLLKEEPER ENRAGES · its chain quickens and the floor becomes a weapon", "danger");
+        this.audio.tone(46, 0.6, "sawtooth", 0.16);
+      }
     }
     if (enemy.hp > 0) {
-      this.showThreatVitals(enemy);
+      if (announce) this.showThreatVitals(enemy);
       return;
     }
     enemy.alive = false;
     if (enemy.tollRing) enemy.tollRing.visible = false;
-    this.killsByKind[enemy.kind] += 1;
-    if (enemy.kind === "boss") {
-      this.bossKilled = true;
-      if (this.depth === 1) this.revealRedDepth();
+    if (credited) {
+      this.killsByKind[enemy.kind] += 1;
+      if (enemy.kind === "boss") {
+        this.bossKilled = true;
+        if (this.depth === 1) this.revealRedDepth();
+      }
+      this.kills += 1;
+      this.options.onCheckpoint?.(this.depth, this.kills, { ...this.killsByKind });
     }
-    this.kills += 1;
-    this.options.onCheckpoint?.(this.depth, this.kills, { ...this.killsByKind });
     enemy.group.rotation.z = 1.2;
     enemy.group.position.y = -0.55;
-    this.feed(`${enemy.name} falls.`, enemy.kind === "rival" ? "rival" : "loot");
+    if (announce) this.feed(`${enemy.name} falls.`, enemy.kind === "rival" ? "rival" : "loot");
     if (enemy.kind === "rival" && enemy.carriedLoot.length) {
       enemy.carriedLoot.forEach((item, index) => {
         const angle = (index / enemy.carriedLoot.length) * Math.PI * 2;
         const position = enemy.group.position.clone().add(new THREE.Vector3(Math.cos(angle) * 0.5, 0, Math.sin(angle) * 0.5));
         this.spawnPickup(item, position);
       });
-      this.feed(`RIVAL FELLED · ${enemy.carriedLoot.length} stolen relic${enemy.carriedLoot.length === 1 ? "" : "s"} recovered`, "rival");
+      if (announce) this.feed(`RIVAL FELLED · ${enemy.carriedLoot.length} stolen relic${enemy.carriedLoot.length === 1 ? "" : "s"} recovered`, "rival");
       enemy.carriedLoot = [];
     }
     const drop = enemy.kind === "warden"
@@ -1745,8 +1759,8 @@ export class DarkPixGame {
         ? createBossLoot(Math.random, this.raidRules.lootDepthBonus + depthRules(this.depth).lootDepthBonus)
         : createLoot(Math.random, (enemy.kind === "rival" ? 0.12 : enemy.kind === "mimic" ? 0.18 : 0.03) + this.raidRules.lootDepthBonus + depthRules(this.depth).lootDepthBonus);
     this.spawnPickup(drop, enemy.group.position.clone());
-    this.showThreatVitals(enemy);
-    if (enemy.kind === "boss" && this.depth === 1) {
+    if (announce) this.showThreatVitals(enemy);
+    if (announce && enemy.kind === "boss" && this.depth === 1) {
       this.feed("RED BREACH AWAKENED · extract with E or descend with R", "danger");
       this.audio.portal();
     }
@@ -1796,6 +1810,7 @@ export class DarkPixGame {
         { x: player.x, z: player.z },
         { x: enemy.group.position.x, z: enemy.group.position.z },
       )) enemy.alerted = true;
+      if (!enemy.alerted && enemy.kind === "rival" && this.updateRivalSkirmish(enemy, delta)) continue;
       if (!enemy.alerted && enemy.kind === "rival" && this.updateRivalScavenging(enemy, delta)) continue;
       if (!enemy.alerted) {
         enemy.group.rotation.y += Math.sin(this.elapsed * 0.35 + enemy.phase) * delta * 0.15;
@@ -2018,6 +2033,55 @@ export class DarkPixGame {
     const nextZ = enemy.group.position.z + movementZ * stepScale;
     if (!this.collidesEnemy(enemy, enemy.group.position.x, nextZ)) enemy.group.position.z = nextZ;
     enemy.group.position.y = Math.sin(this.elapsed * 7 + enemy.phase) * 0.025;
+    return true;
+  }
+
+  private updateRivalSkirmish(rival: Enemy, delta: number): boolean {
+    let target: Enemy | undefined;
+    let nearest = Number.POSITIVE_INFINITY;
+    for (const candidate of this.enemies) {
+      if (candidate === rival || !candidate.alive || candidate.alerted || candidate.kind === "rival" || candidate.kind === "boss") continue;
+      const distance = Math.hypot(
+        candidate.group.position.x - rival.group.position.x,
+        candidate.group.position.z - rival.group.position.z,
+      );
+      if (distance >= nearest || rivalDungeonTactic(candidate.kind, distance, dungeonLineOfSight(
+        { x: rival.group.position.x, z: rival.group.position.z },
+        { x: candidate.group.position.x, z: candidate.group.position.z },
+        0.12,
+      )) === "ignore") continue;
+      nearest = distance;
+      target = candidate;
+    }
+    if (!target) return false;
+    const tactic = rivalDungeonTactic(target.kind, nearest, true);
+    rival.group.lookAt(target.group.position.x, rival.group.position.y, target.group.position.z);
+    if (tactic === "approach") {
+      const movementX = target.group.position.x - rival.group.position.x;
+      const movementZ = target.group.position.z - rival.group.position.z;
+      const movementLength = Math.hypot(movementX, movementZ);
+      const stepScale = movementLength > 0.001 ? (rival.speed * 0.72 * delta) / movementLength : 0;
+      const nextX = rival.group.position.x + movementX * stepScale;
+      if (!this.collidesEnemy(rival, nextX, rival.group.position.z)) rival.group.position.x = nextX;
+      const nextZ = rival.group.position.z + movementZ * stepScale;
+      if (!this.collidesEnemy(rival, rival.group.position.x, nextZ)) rival.group.position.z = nextZ;
+      rival.group.position.y = Math.sin(this.elapsed * 7 + rival.phase) * 0.025;
+      return true;
+    }
+    if (tactic !== "clash") return false;
+    target.group.lookAt(rival.group.position.x, target.group.position.y, rival.group.position.z);
+    const rivalReady = rival.cooldown <= 0 && rival.stagger <= 0;
+    const threatReady = target.cooldown <= 0 && target.stagger <= 0;
+    if (rivalReady) {
+      rival.cooldown = enemyAttackPattern("rival").recovery;
+      rival.group.scale.set(rival.baseScale * 1.1, rival.baseScale * 0.92, rival.baseScale * 1.1);
+      this.damageEnemy(target, dungeonCrossfireDamage(rival.damage, target.kind), false, false, false, false, false, false, false);
+    }
+    if (threatReady && target.alive && rival.alive) {
+      target.cooldown = enemyAttackPattern(target.kind).recovery;
+      target.group.scale.set(target.baseScale * 1.1, target.baseScale * 0.92, target.baseScale * 1.1);
+      this.damageEnemy(rival, dungeonCrossfireDamage(target.damage, "rival"), false, false, false, false, false, false, false);
+    }
     return true;
   }
 
