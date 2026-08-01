@@ -26,6 +26,7 @@ export const DUNGEON = {
   size: 44,
   playerStart: { x: 0, z: 17.4 },
   campfire: { x: -16, z: 15 },
+  shrine: { x: -20.4, z: -16.5 },
   portal: { x: 16, z: -16 },
   walls: [
     { x: 0, z: -22, width: 44, depth: 1 },

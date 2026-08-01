@@ -137,6 +137,7 @@ export class DarkPixGame {
   private readonly portal = new THREE.Group();
   private readonly portalCore = new THREE.Mesh();
   private readonly campfire = new THREE.Group();
+  private readonly shrine = new THREE.Group();
   private readonly resizeObserver: ResizeObserver;
   private readonly maxHealth: number;
   private readonly damageBonus: number;
@@ -172,6 +173,7 @@ export class DarkPixGame {
   private portalAnnounced = false;
   private spawnGraceAnnounced = false;
   private campfireUsed = false;
+  private shrineUsed = false;
   private ended = false;
   private paused = true;
   private contextLost = false;
@@ -349,6 +351,7 @@ export class DarkPixGame {
 
     DUNGEON.torches.forEach(({ x, z, rotation }, index) => this.addTorch(x, z, rotation, index));
     this.createCampfire(DUNGEON.campfire.x, DUNGEON.campfire.z);
+    this.createShrine(DUNGEON.shrine.x, DUNGEON.shrine.z);
     this.createPortal(DUNGEON.portal.x, DUNGEON.portal.z);
     DUNGEON.chests.forEach((chest) => this.createChest(chest.x, chest.z, chest.depthBonus));
     DUNGEON.traps.forEach((trap) => this.createTrap(trap.x, trap.z, trap.damage));
@@ -428,6 +431,29 @@ export class DarkPixGame {
     light.position.y = 0.7;
     this.campfire.add(logA, logB, fire, light);
     this.scene.add(this.campfire);
+  }
+
+  private createShrine(x: number, z: number): void {
+    this.shrine.position.set(x, 0, z);
+    this.shrine.rotation.y = Math.PI / 2;
+    const altar = new THREE.Mesh(new THREE.BoxGeometry(0.45, 1.7, 1.55), material(0x2d2925));
+    altar.position.y = 0.85;
+    const face = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.72, 0.72), material(0x665044));
+    face.position.set(0.29, 1.15, 0);
+    const rune = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.065, 4, 8), material(0x8d241c, 0x6b120e));
+    rune.name = "bloodRune";
+    rune.position.set(0.37, 1.17, 0);
+    rune.rotation.y = Math.PI / 2;
+    const light = new THREE.PointLight(0xb52c20, 0.8, 4.5);
+    light.name = "shrineLight";
+    light.position.set(0.6, 1.15, 0);
+    this.shrine.add(altar, face, rune, light);
+    this.shrine.traverse((object) => {
+      object.castShadow = true;
+      object.receiveShadow = true;
+    });
+    this.scene.add(this.shrine);
+    this.walls.push({ x, z, halfW: 0.78, halfD: 0.24 });
   }
 
   private createTrap(x: number, z: number, damage: number): void {
@@ -1093,7 +1119,7 @@ export class DarkPixGame {
 
   private updateInteraction(delta: number): void {
     let prompt = "";
-    let interactive: "pickup" | "chest" | "campfire" | "portal" | undefined;
+    let interactive: "pickup" | "chest" | "campfire" | "shrine" | "portal" | undefined;
     let targetPickup: Pickup | undefined;
     let targetChest: Chest | undefined;
     let nearest = 2.6;
@@ -1130,6 +1156,11 @@ export class DarkPixGame {
       nearest = campfireDistance;
       interactive = "campfire";
     }
+    const shrineDistance = targetDistance(this.shrine.position);
+    if (!this.shrineUsed && shrineDistance < nearest) {
+      nearest = shrineDistance;
+      interactive = "shrine";
+    }
     const portalDistance = this.portalUnlocked ? targetDistance(this.portal.position, 3.1) : Number.POSITIVE_INFINITY;
     if (Number.isFinite(portalDistance) && (interactive === undefined || portalDistance < nearest)) {
       nearest = portalDistance;
@@ -1139,6 +1170,7 @@ export class DarkPixGame {
     if (interactive === "pickup" && targetPickup) prompt = `[ E ] TAKE ${targetPickup.item.rarity.toUpperCase()} ${targetPickup.item.name.toUpperCase()}`;
     if (interactive === "chest") prompt = "[ E ] SEARCH IRONBOUND COFFER";
     if (interactive === "campfire") prompt = "[ HOLD E ] REST · RESTORE VIGOR AND SPELL MEMORY";
+    if (interactive === "shrine") prompt = "[ E ] PAY 18 VIGOR TO THE BLOOD RELIQUARY";
     if (interactive === "portal") prompt = "[ HOLD E ] OPEN THE BLUE PASSAGE";
     this.promptHud.textContent = prompt;
     this.promptHud.classList.toggle("visible", Boolean(prompt));
@@ -1161,6 +1193,9 @@ export class DarkPixGame {
         this.useCampfire();
         this.interactHeld = false;
       }
+    } else if (interactive === "shrine") {
+      this.useShrine();
+      this.interactHeld = false;
     } else if (interactive === "portal") {
       if (this.interactionHold >= channelDuration) this.finish("extracted");
     }
@@ -1205,6 +1240,27 @@ export class DarkPixGame {
       if (enemy.alive && enemy.group.position.distanceTo(this.campfire.position) < 14) enemy.alerted = true;
     }
     this.feed("Memory returns. Every nearby thing heard the rest.", "system");
+    this.audio.portal();
+  }
+
+  private useShrine(): void {
+    if (this.health <= 18 || this.damageCooldown > 0) {
+      this.feed("The reliquary rejects weak or freshly spilled blood.", "danger");
+      return;
+    }
+    this.shrineUsed = true;
+    this.hurt(18, "the blood reliquary");
+    const rune = this.shrine.getObjectByName("bloodRune") as THREE.Mesh | undefined;
+    if (rune?.material instanceof THREE.MeshStandardMaterial) rune.material.emissiveIntensity = 0.08;
+    const light = this.shrine.getObjectByName("shrineLight") as THREE.PointLight | undefined;
+    if (light) light.intensity = 0;
+    const origin = this.shrine.position.clone();
+    this.spawnPickup(createLoot(Math.random, 0.16), origin.clone().add(new THREE.Vector3(1, 0, -0.48)));
+    this.spawnPickup(createLoot(Math.random, 0.16), origin.clone().add(new THREE.Vector3(1, 0, 0.48)));
+    for (const enemy of this.enemies) {
+      if (enemy.alive && enemy.group.position.distanceTo(this.shrine.position) < 16) enemy.alerted = true;
+    }
+    this.feed("The reliquary opens. Something in the crypt answers.", "loot");
     this.audio.portal();
   }
 

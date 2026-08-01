@@ -8,7 +8,7 @@ import type { Vec2 } from "../src/game/types";
 describe("Crypt of the Pale Toll topology", () => {
   it("keeps every contract-critical location reachable from the player start", () => {
     const contractEnemies = DUNGEON.enemies.filter((enemy) => enemy.kind === "warden" || enemy.kind === "boss");
-    const criticalLocations = [DUNGEON.campfire, DUNGEON.portal, ...contractEnemies, ...DUNGEON.chests];
+    const criticalLocations = [DUNGEON.campfire, DUNGEON.shrine, DUNGEON.portal, ...contractEnemies, ...DUNGEON.chests];
     for (const location of criticalLocations) {
       expect(dungeonPathExists(DUNGEON.playerStart, location), `${location.x},${location.z} should be reachable`).toBe(true);
     }
