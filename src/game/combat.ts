@@ -93,6 +93,22 @@ export function classAttackDelay(classId: ClassId, baseDelay: number, activeSeco
   return safeDelay;
 }
 
+export function attackStaminaCost(classId: ClassId, direction: AttackDirection): number {
+  const baseCost = classId === "hexbound"
+    ? 6
+    : classId === "ranger" || classId === "cutpurse"
+      ? 8
+      : classId === "reaver"
+        ? 13
+        : classId === "vanguard" || classId === "cleric"
+          ? 11
+          : 10;
+  if (classId === "hexbound" || classId === "ranger") return baseCost;
+  if (direction === "OVERHEAD") return baseCost + 3;
+  if (direction === "SWEEP") return baseCost + 1;
+  return baseCost;
+}
+
 export function classMovementMultiplier(classId: ClassId, activeSeconds: number): number {
   return classId === "shapeshifter" && Number.isFinite(activeSeconds) && activeSeconds > 0 ? 1.15 : 1;
 }

@@ -12,7 +12,7 @@ Human PvP, parties, matchmaking, proximity voice, and server-authoritative comba
 
 Status: Complete
 
-- First-person movement, pixel-scaled 3D rendering, directional melee, ranged weapons, magic, guards, parries, ripostes, sidesteps, and class abilities
+- First-person movement, pixel-scaled 3D rendering, stamina-costed directional melee, ranged weapons, magic, guards, parries, ripostes, sidesteps, and class abilities
 - Eight persistent disciplines with levels, perks, equipment, remedies, throwing weapons, and local preferences
 - Loot capacity, item rarity, randomized modifiers, stash risk, merchants, crafting, save backup, and authoritative local raid settlement
 - Closing darkness, two extraction sites, red descent, two floors, traps, mimics, hidden room, campfire, blood reliquary, bosses, and AI rival delvers

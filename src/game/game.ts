@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { escapeHtml } from "../html";
 import { AudioDirector } from "./audio";
-import { RIPOSTE_DURATION_SECONDS, attackDamage, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
+import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, bossRingActive, bossRingCooldown, depthRules } from "./depth";
@@ -1399,7 +1399,12 @@ export class DarkPixGame {
   }
 
   private attack(): void {
-    if (this.attackCooldown > 0 || this.blocking || this.stamina < 8) return;
+    if (this.attackCooldown > 0 || this.blocking) return;
+    const staminaCost = attackStaminaCost(this.options.classId, this.attackDirection);
+    if (this.stamina < staminaCost) {
+      this.feed(`${this.attackDirection} NEEDS ${staminaCost} STAMINA`, "danger");
+      return;
+    }
     if (this.options.classId === "hexbound" && this.spellCharges <= 0) {
       this.feed("Your spell memory is ash. Find the campfire.", "danger");
       return;
@@ -1410,7 +1415,7 @@ export class DarkPixGame {
     this.concealmentTimer = 0;
     this.swingDuration = Math.min(0.42, attackDelay * 0.72);
     this.swingClock = this.swingDuration;
-    this.stamina = Math.max(0, this.stamina - (this.options.classId === "hexbound" ? 5 : this.options.classId === "ranger" ? 7 : 10));
+    this.stamina = Math.max(0, this.stamina - staminaCost);
     if (this.options.classId === "hexbound") this.spellCharges -= 1;
     this.audio.attack();
 
