@@ -12,6 +12,7 @@ import { raidRules, type RaidRules } from "./raid";
 import { consumablesInUseOrder, nextConsumableId, nextThrowableId, resolveConsumableId, resolveThrowableId, throwablesInUseOrder } from "./quickslots";
 import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./resolution";
 import { disposeSceneResources } from "./resources";
+import { rarityShape } from "./rarity";
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { continuousHold, targetDistanceInView } from "./targeting";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
@@ -869,7 +870,18 @@ export class DarkPixGame {
   private spawnPickup(item: Item, position: THREE.Vector3): void {
     const group = new THREE.Group();
     const color = new THREE.Color(RARITY_COLOR[item.rarity]);
-    const geometry = item.kind === "sigil" ? new THREE.TorusGeometry(0.25, 0.08, 4, 8) : new THREE.BoxGeometry(0.34, 0.34, 0.34);
+    const shape = rarityShape(item.rarity);
+    const geometry = item.kind === "sigil"
+      ? new THREE.TorusGeometry(0.25, 0.08, 4, 8)
+      : shape === "tetrahedron"
+        ? new THREE.TetrahedronGeometry(0.3, 0)
+        : shape === "octahedron"
+          ? new THREE.OctahedronGeometry(0.3, 0)
+          : shape === "dodecahedron"
+            ? new THREE.DodecahedronGeometry(0.28, 0)
+            : shape === "icosahedron"
+              ? new THREE.IcosahedronGeometry(0.29, 0)
+              : new THREE.BoxGeometry(0.34, 0.34, 0.34);
     const object = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.55, roughness: 0.7, flatShading: true }));
     group.add(object);
     group.position.copy(position);

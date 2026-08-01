@@ -6,6 +6,7 @@ import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEq
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfile, loadRaidEscrow, purchaseItem, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
+import { rarityMark } from "./game/rarity";
 import type { DarkPixGame } from "./game/game";
 import type { ClassId, GamePreferences, Item, Profile, RaidMode, RaidResult } from "./game/types";
 
@@ -104,7 +105,7 @@ function itemMarkup(item: Item, riskable = false): string {
   const itemModifier = item.modifier ? ` · ${escapeHtml(item.modifier)}` : "";
   return `
     <article class="stash-item ${selected ? "selected" : ""}" data-item-id="${itemId}" style="--rarity:${RARITY_COLOR[item.rarity]}">
-      <span class="item-gem"></span>
+      <span class="item-gem" data-mark="${rarityMark(item.rarity)}" aria-hidden="true"></span>
       <span class="item-copy"><strong>${itemName}</strong><small>${item.rarity} ${item.kind}${itemModifier}</small></span>
       <span class="item-value">${item.value}g</span>
       ${riskable && item.kind !== "treasure" ? `<button class="risk-item" type="button">${selected ? "Packed" : "Pack"}</button>` : ""}
@@ -226,7 +227,7 @@ function renderLobby(): void {
                 ${MERCHANT_OFFERS.map((offer) => {
                   const unlocked = merchantOfferUnlocked(offer, profile.extracts);
                   return `<article class="merchant-offer ${unlocked ? "" : "locked"}" style="--rarity:${RARITY_COLOR[offer.item.rarity]}">
-                    <i></i><span><strong>${offer.item.name}</strong><small>${offer.item.modifier ?? `${offer.item.rarity} ${offer.item.kind}`}</small></span>
+                    <i data-mark="${rarityMark(offer.item.rarity)}" aria-hidden="true"></i><span><strong>${offer.item.name}</strong><small>${offer.item.modifier ?? `${offer.item.rarity} ${offer.item.kind}`}</small></span>
                     <button type="button" data-merchant-sku="${offer.sku}" aria-label="${unlocked ? `Buy ${offer.item.name} for ${offer.price} gold` : `Requires ${offer.requiredExtracts} successful extracts`}" ${unlocked ? "" : "disabled"}>${unlocked ? `${offer.price}g` : `${offer.requiredExtracts} EXT`}</button>
                   </article>`;
                 }).join("")}
@@ -665,7 +666,7 @@ function finishRaid(result: RaidResult): void {
           <div class="panel-heading"><span><small>${extracted ? "SETTLED" : "ABANDONED"}</small><strong>${extracted ? "Recovered haul" : "Lost below"}</strong></span><b>${recordedItems.length} ITEMS</b></div>
           <div class="result-items">
             ${recordedItems.length ? recordedItems.map(({ item, outcome }) => `
-              <div class="result-item" style="--rarity:${RARITY_COLOR[item.rarity]}"><i></i><span><strong>${escapeHtml(item.name)}</strong><small>${item.rarity} ${item.kind} · ${outcome}</small></span><b>${item.value}g</b></div>`).join("") : `<div class="empty-stash"><strong>NOTHING TO RECORD</strong><span>The ledger remains clean.</span></div>`}
+              <div class="result-item" style="--rarity:${RARITY_COLOR[item.rarity]}"><i data-mark="${rarityMark(item.rarity)}" aria-hidden="true"></i><span><strong>${escapeHtml(item.name)}</strong><small>${item.rarity} ${item.kind} · ${outcome}</small></span><b>${item.value}g</b></div>`).join("") : `<div class="empty-stash"><strong>NOTHING TO RECORD</strong><span>The ledger remains clean.</span></div>`}
           </div>
         </div>
         <p class="result-next"><small>NEXT DESCENT</small><span>${nextStep}</span></p>
