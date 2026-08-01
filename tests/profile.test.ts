@@ -94,6 +94,11 @@ describe("persistent raid consequences", () => {
     expect(settlement.profile.deaths).toBe(1);
     expect(settlement.lost.map((item) => item.id).sort()).toEqual(["starter-blade", "starter-jack"]);
 
+    const checkpoint = createRaidEscrow("ranger", "standard", [], 123, 2, 3);
+    const recoveredCheckpoint = settleInterruptedRaid(createProfile(), checkpoint);
+    expect(checkpoint).toMatchObject({ startedAt: 123, depthReached: 2, kills: 3 });
+    expect(recoveredCheckpoint.xpGained).toBe(165);
+
     const standardProfile = createProfile();
     standardProfile.xp.ranger = 700;
     const standard = settleInterruptedRaid(standardProfile, createRaidEscrow("ranger", "standard", []));

@@ -140,6 +140,8 @@ export interface RaidEscrow {
   raidMode: NonNullable<RaidResult["raidMode"]>;
   equippedIds: string[];
   startedAt: number;
+  depthReached: 1 | 2;
+  kills: number;
 }
 
 export function createRaidEscrow(
@@ -147,6 +149,8 @@ export function createRaidEscrow(
   raidMode: NonNullable<RaidResult["raidMode"]>,
   equippedIds: readonly string[],
   startedAt = Date.now(),
+  depthReached: 1 | 2 = 1,
+  kills = 0,
 ): RaidEscrow {
   return {
     version: 1,
@@ -154,6 +158,8 @@ export function createRaidEscrow(
     raidMode,
     equippedIds: [...new Set(equippedIds.filter((id) => typeof id === "string" && id.length > 0 && id.length <= 160))].slice(0, 2),
     startedAt: Number.isFinite(startedAt) ? Math.max(0, Math.floor(startedAt)) : 0,
+    depthReached: depthReached === 2 ? 2 : 1,
+    kills: Math.min(1_000, nonnegativeInteger(kills)),
   };
 }
 
@@ -161,7 +167,14 @@ export function normalizeRaidEscrow(value: unknown): RaidEscrow | undefined {
   if (!value || typeof value !== "object") return undefined;
   const candidate = value as Partial<RaidEscrow>;
   if (candidate.version !== 1 || !validClass(candidate.classId) || !validRaidMode(candidate.raidMode) || !Array.isArray(candidate.equippedIds)) return undefined;
-  return createRaidEscrow(candidate.classId, candidate.raidMode, candidate.equippedIds, candidate.startedAt);
+  return createRaidEscrow(
+    candidate.classId,
+    candidate.raidMode,
+    candidate.equippedIds,
+    candidate.startedAt,
+    candidate.depthReached,
+    candidate.kills,
+  );
 }
 
 export function beginRaidEscrow(escrow: RaidEscrow): boolean {
@@ -197,11 +210,11 @@ export function settleInterruptedRaid(profile: Profile, escrow: RaidEscrow): Rai
   return settleRaid(profile, {
     reason: "abandoned",
     raidMode: escrow.raidMode,
-    depthReached: 1,
+    depthReached: escrow.depthReached,
     classId: escrow.classId,
     loot: [],
     equippedIds: escrow.equippedIds,
-    kills: 0,
+    kills: escrow.kills,
     elapsed: 0,
     goldFound: 0,
   });

@@ -75,6 +75,7 @@ export interface DarkPixGameOptions {
   equipped: Item[];
   preferences: GamePreferences;
   onFinish: (result: RaidResult) => void;
+  onCheckpoint?: (depthReached: DungeonDepth, kills: number) => void;
 }
 
 const PLAYER_HEIGHT = 1.67;
@@ -1226,6 +1227,7 @@ export class DarkPixGame {
       if (this.depth === 1) this.revealRedDepth();
     }
     this.kills += 1;
+    this.options.onCheckpoint?.(this.depth, this.kills);
     enemy.group.rotation.z = 1.2;
     enemy.group.position.y = -0.55;
     this.feed(`${enemy.name} falls.`, enemy.kind === "rival" ? "rival" : "loot");
@@ -1812,6 +1814,7 @@ export class DarkPixGame {
   private descendDeeper(): void {
     if (this.depth !== 1 || !this.bossKilled || !this.portalUnlocked) return;
     this.depth = 2;
+    this.options.onCheckpoint?.(this.depth, this.kills);
     this.depthStartedAt = this.elapsed;
     this.sigils = 0;
     this.portalUnlocked = false;

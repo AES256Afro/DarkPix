@@ -445,7 +445,7 @@ async function startRaid(): Promise<void> {
     renderLobby();
     return;
   }
-  const escrow = createRaidEscrow(selectedClass, selectedRaidMode, equipped.map((item) => item.id));
+  let escrow = createRaidEscrow(selectedClass, selectedRaidMode, equipped.map((item) => item.id));
   if (!beginRaidEscrow(escrow)) {
     profile.gold = goldBeforeEntry;
     saveProfile(profile);
@@ -469,6 +469,10 @@ async function startRaid(): Promise<void> {
       raidMode: selectedRaidMode,
       equipped,
       preferences,
+      onCheckpoint: (depthReached, kills) => {
+        escrow = createRaidEscrow(escrow.classId, escrow.raidMode, escrow.equippedIds, escrow.startedAt, depthReached, kills);
+        if (!beginRaidEscrow(escrow)) console.warn("DarkPix could not update the active raid escrow checkpoint");
+      },
       onFinish: finishRaid,
     });
   } catch (error) {
