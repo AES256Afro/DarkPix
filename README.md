@@ -29,7 +29,7 @@ Open `http://127.0.0.1:4173` on a desktop browser. Click **Enter the Crypt** to 
 
 Moving the mouse vertically before a strike selects an overhead attack. Horizontal movement selects a sweep. A centered motion selects a thrust. Enemies visibly draw back before committing to a strike, so sidestepping and last-moment guards matter. Vanguard blocks can parry during the opening guard window. Cutpurse attacks deal extra damage against unaware targets. Hexbound casts six ranged ash bolts and restores spell memory once at the campfire.
 
-Light is tactical. Hooding the torch shortens passive enemy detection range, while unhooding it restores the player spotlight. Walls block passive acquisition and attacks, but alerted enemies route through the dungeon to pursue prey they can no longer see. Four pressure-plate spike traps punish careless routes through the crypt.
+Light is tactical. Hooding the torch shortens passive enemy detection range, while unhooding it restores the player spotlight. Walls block passive acquisition and attacks, but alerted enemies route through the dungeon to pursue prey they can no longer see. Threats have physical spacing and slide along corners instead of stacking into one hitbox. Four pressure-plate spike traps punish careless routes through the crypt.
 
 Mouse sensitivity, crypt brightness, audio, and reduced camera motion can be adjusted from the lobby. These preferences stay local to the browser. Each raid begins with an eight-second warding veil so the player can orient before passive enemies acquire them. Attacking during the veil still alerts the target.
 

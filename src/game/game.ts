@@ -3,7 +3,7 @@ import { AudioDirector } from "./audio";
 import { attackDamage, enemyAttackPattern, type ThreatKind } from "./combat";
 import { CLASSES, RARITY_COLOR, createLoot, createSigil, formatTime, progressionBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
-import { cardinalDirection } from "./navigation";
+import { cardinalDirection, circlesOverlap } from "./navigation";
 import { disposeSceneResources } from "./resources";
 import { extractionHold, targetDistanceInView } from "./targeting";
 import type { ClassId, GamePreferences, Item, RaidEndReason, RaidResult, Vec2 } from "./types";
@@ -907,6 +907,7 @@ export class DarkPixGame {
           enemy.path = dungeonPath(
             { x: enemy.group.position.x, z: enemy.group.position.z },
             { x: player.x, z: player.z },
+            enemy.kind === "boss" ? 0.44 : 0.3,
           );
           enemy.pathTimer = 0.65 + (enemy.id % 4) * 0.12;
         }
@@ -924,11 +925,9 @@ export class DarkPixGame {
         enemy.group.lookAt(waypoint.x, enemy.group.position.y, waypoint.z);
         const step = movement.normalize().multiplyScalar(enemy.speed * delta);
         const nextX = enemy.group.position.x + step.x;
+        if (!this.collidesEnemy(enemy, nextX, enemy.group.position.z)) enemy.group.position.x = nextX;
         const nextZ = enemy.group.position.z + step.z;
-        if (!this.collidesEnemy(nextX, nextZ)) {
-          enemy.group.position.x = nextX;
-          enemy.group.position.z = nextZ;
-        }
+        if (!this.collidesEnemy(enemy, enemy.group.position.x, nextZ)) enemy.group.position.z = nextZ;
         enemy.group.position.y = Math.sin(this.elapsed * 7 + enemy.phase) * 0.025;
       } else if (enemy.cooldown <= 0 && enemy.stagger <= 0) {
         enemy.group.lookAt(player.x, enemy.group.position.y, player.z);
@@ -940,8 +939,19 @@ export class DarkPixGame {
     }
   }
 
-  private collidesEnemy(x: number, z: number): boolean {
-    return this.walls.some((wall) => Math.abs(x - wall.x) < wall.halfW + 0.3 && Math.abs(z - wall.z) < wall.halfD + 0.3);
+  private collidesEnemy(movingEnemy: Enemy, x: number, z: number): boolean {
+    const radius = movingEnemy.kind === "boss" ? 0.44 : 0.3;
+    if (this.walls.some((wall) => Math.abs(x - wall.x) < wall.halfW + radius && Math.abs(z - wall.z) < wall.halfD + radius)) return true;
+    return this.enemies.some((other) =>
+      other !== movingEnemy &&
+      other.alive &&
+      circlesOverlap(
+        { x, z },
+        radius,
+        { x: other.group.position.x, z: other.group.position.z },
+        other.kind === "boss" ? 0.44 : 0.3,
+      ),
+    );
   }
 
   private hurt(amount: number, source: string): void {

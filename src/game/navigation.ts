@@ -8,3 +8,8 @@ export function cardinalDirection(vector: Vec2): string {
   const index = Math.round(angle / (Math.PI / 4));
   return CARDINALS[(index + CARDINALS.length) % CARDINALS.length] ?? "N";
 }
+
+export function circlesOverlap(left: Vec2, leftRadius: number, right: Vec2, rightRadius: number): boolean {
+  const minimumDistance = Math.max(0, leftRadius) + Math.max(0, rightRadius);
+  return Math.hypot(left.x - right.x, left.z - right.z) < minimumDistance;
+}

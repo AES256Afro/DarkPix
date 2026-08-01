@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DUNGEON, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists } from "../src/game/dungeon";
 import { extractionHold, targetDistanceInView } from "../src/game/targeting";
-import { cardinalDirection } from "../src/game/navigation";
+import { cardinalDirection, circlesOverlap } from "../src/game/navigation";
 import { distanceFromZoneCenter, zoneState } from "../src/game/zone";
 import type { Vec2 } from "../src/game/types";
 
@@ -64,6 +64,11 @@ describe("contract wayfinding", () => {
     expect(cardinalDirection({ x: 1, z: 0 })).toBe("E");
     expect(cardinalDirection({ x: -1, z: 1 })).toBe("SW");
     expect(cardinalDirection({ x: 0, z: 0 })).toBe("HERE");
+  });
+
+  it("keeps physical threat circles from stacking", () => {
+    expect(circlesOverlap({ x: 0, z: 0 }, 0.3, { x: 0.5, z: 0 }, 0.3)).toBe(true);
+    expect(circlesOverlap({ x: 0, z: 0 }, 0.3, { x: 0.7, z: 0 }, 0.3)).toBe(false);
   });
 });
 
