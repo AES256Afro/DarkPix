@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
 import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat, type ThreatKind } from "./combat";
-import { CLASSES, CLASS_ABILITIES, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, type ClassPerkBonuses } from "./data";
+import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { depthRules } from "./depth";
 import { HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGold } from "./haul";
@@ -160,6 +160,7 @@ export class DarkPixGame {
   private healthFill!: HTMLElement;
   private staminaFill!: HTMLElement;
   private spellFill!: HTMLElement;
+  private spellLabelHud!: HTMLElement;
   private raidClock!: HTMLElement;
   private lootHud!: HTMLElement;
   private objectiveHud!: HTMLElement;
@@ -184,6 +185,7 @@ export class DarkPixGame {
   private health: number;
   private stamina: number;
   private spellCharges: number;
+  private selectedSpell: HexSpellId = "ash_bolt";
   private kills = 0;
   private goldFound = 0;
   private bossKilled = false;
@@ -290,7 +292,7 @@ export class DarkPixGame {
               <div class="bars">
                 <div class="bar health"><i></i><span>VIGOR</span></div>
                 <div class="bar stamina"><i></i><span>STAMINA</span></div>
-                <div class="bar spells"><i></i><span>MEMORY</span></div>
+                <div class="bar spells"><i></i><span>MEMORY${this.options.classId === "hexbound" ? " · ASH BOLT" : ""}</span></div>
               </div>
             </section>
             <section class="quick-slots">
@@ -315,7 +317,7 @@ export class DarkPixGame {
             <button class="resume-raid" type="button">BIND CURSOR / RESUME</button>
             <button class="abandon-raid" type="button">ABANDON RAID</button>
           </span>
-          <span class="control-line">WASD move · mouse look · LMB strike · RMB guard · E interact · R red descent · F heal · G drop · T torch · Shift sprint</span>
+          <span class="control-line">WASD move · mouse look · LMB strike · RMB guard · 1/2 spells · E interact · R red descent · F remedy · G drop · T torch · Shift sprint</span>
         </div>
       </div>`;
     const host = this.mount.querySelector<HTMLElement>(".render-host");
@@ -324,6 +326,7 @@ export class DarkPixGame {
     this.healthFill = this.mount.querySelector<HTMLElement>(".health i")!;
     this.staminaFill = this.mount.querySelector<HTMLElement>(".stamina i")!;
     this.spellFill = this.mount.querySelector<HTMLElement>(".spells i")!;
+    this.spellLabelHud = this.mount.querySelector<HTMLElement>(".spells span")!;
     this.raidClock = this.mount.querySelector<HTMLElement>(".raid-clock")!;
     this.lootHud = this.mount.querySelector<HTMLElement>(".loot-count")!;
     this.objectiveHud = this.mount.querySelector<HTMLElement>(".objective-copy")!;
@@ -751,6 +754,8 @@ export class DarkPixGame {
     if (event.code === "KeyG" && !event.repeat) this.dropLowestHaul();
     if (event.code === "KeyQ" && !event.repeat) this.useClassAbility();
     if (event.code === "KeyT" && !event.repeat) this.toggleTorch();
+    if (event.code === "Digit1" && !event.repeat) this.selectSpell("ash_bolt");
+    if (event.code === "Digit2" && !event.repeat) this.selectSpell("frost_hex");
   };
 
   private onKeyUp = (event: KeyboardEvent): void => {
@@ -772,7 +777,7 @@ export class DarkPixGame {
     this.pitch = THREE.MathUtils.clamp(this.pitch, -1.35, 1.35);
     this.mouseAccumulator.x += event.movementX;
     this.mouseAccumulator.y += event.movementY;
-    if (this.options.classId === "ranger") {
+    if (this.options.classId === "ranger" || this.options.classId === "hexbound") {
       this.attackDirection = "THRUST";
     } else if (Math.abs(this.mouseAccumulator.y) > Math.abs(this.mouseAccumulator.x) * 1.15 && Math.abs(this.mouseAccumulator.y) > 18) {
       this.attackDirection = "OVERHEAD";
@@ -1042,6 +1047,14 @@ export class DarkPixGame {
     this.audio.tone(this.torchLit ? 310 : 140, 0.12, "sine", 0.08);
   }
 
+  private selectSpell(spellId: HexSpellId): void {
+    if (this.options.classId !== "hexbound" || this.selectedSpell === spellId) return;
+    this.selectedSpell = spellId;
+    const spell = HEX_SPELLS[spellId];
+    this.feed(`${spell.name.toUpperCase()} MEMORIZED · ${spell.cripples ? "slows non-boss threats" : "full spell damage"}`, "system");
+    this.audio.tone(spell.cripples ? 390 : 520, 0.1, "sine", 0.06);
+  }
+
   private updateTraps(delta: number): void {
     for (const trap of this.traps) {
       trap.cooldown = Math.max(0, trap.cooldown - delta);
@@ -1102,7 +1115,7 @@ export class DarkPixGame {
       }
     }
     if (!best) {
-      if (this.options.classId === "hexbound") this.spawnSpellTrail(cameraPosition, forward, this.definition.reach);
+      if (this.options.classId === "hexbound") this.spawnSpellTrail(cameraPosition, forward, this.definition.reach, HEX_SPELLS[this.selectedSpell].color);
       if (this.options.classId === "ranger") this.spawnArrowTrail(cameraPosition, forward, this.definition.reach);
       this.mouseAccumulator.x = 0;
       this.mouseAccumulator.y = 0;
@@ -1123,20 +1136,22 @@ export class DarkPixGame {
       headshot,
       limb: limbHit,
     });
+    const spell = this.options.classId === "hexbound" ? HEX_SPELLS[this.selectedSpell] : undefined;
     const damage = Math.round(
       baseDamage
       * (best.kind === "rival" ? 1 : this.loadoutBonuses.undeadDamageMultiplier)
-      * classAbilityDamageMultiplier(this.options.classId, this.rageTimer),
+      * classAbilityDamageMultiplier(this.options.classId, this.rageTimer)
+      * (spell?.damageMultiplier ?? 1),
     );
-    this.damageEnemy(best, damage, headshot, limbHit);
-    if (this.options.classId === "hexbound") this.spawnSpellTrail(cameraPosition, forward, bestDistance);
+    this.damageEnemy(best, damage, headshot, limbHit, Boolean(spell?.cripples && !headshot));
+    if (this.options.classId === "hexbound") this.spawnSpellTrail(cameraPosition, forward, bestDistance, spell?.color ?? HEX_SPELLS.ash_bolt.color);
     if (this.options.classId === "ranger") this.spawnArrowTrail(cameraPosition, forward, bestDistance);
     this.mouseAccumulator.x = 0;
     this.mouseAccumulator.y = 0;
   }
 
-  private spawnSpellTrail(start: THREE.Vector3, forward: THREE.Vector3, distance: number): void {
-    const boltMaterial = material(0x5ce3d9, 0x38c9c1);
+  private spawnSpellTrail(start: THREE.Vector3, forward: THREE.Vector3, distance: number, color: number): void {
+    const boltMaterial = material(color, color);
     const bolt = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, Math.max(0.2, distance)), boltMaterial);
     bolt.position.copy(start).add(forward.clone().multiplyScalar(distance / 2));
     bolt.quaternion.copy(this.camera.quaternion);
@@ -1193,7 +1208,7 @@ export class DarkPixGame {
     }, 130);
   }
 
-  private damageEnemy(enemy: Enemy, amount: number, headshot: boolean, limbHit: boolean): void {
+  private damageEnemy(enemy: Enemy, amount: number, headshot: boolean, limbHit: boolean, forcedCripple = false): void {
     enemy.hp -= amount;
     enemy.alerted = true;
     enemy.stagger = 0.18;
@@ -1202,12 +1217,12 @@ export class DarkPixGame {
       enemy.cooldown = Math.max(enemy.cooldown, 0.45);
     }
     this.audio.hit();
-    const crippledNow = limbHit && enemy.kind !== "boss" && !enemy.crippled;
+    const crippledNow = (limbHit || forcedCripple) && enemy.kind !== "boss" && !enemy.crippled;
     if (crippledNow) {
       enemy.crippled = true;
       enemy.speed *= 0.72;
     }
-    this.feed(`${headshot ? "HEADSHOT · " : limbHit ? "LIMB HIT · " : ""}${enemy.name} takes ${amount}.${crippledNow ? " Its stride breaks." : ""}`, enemy.kind === "rival" ? "rival" : "combat");
+    this.feed(`${headshot ? "HEADSHOT · " : forcedCripple ? "FROSTBITE · " : limbHit ? "LIMB HIT · " : ""}${enemy.name} takes ${amount}.${crippledNow ? " Its stride breaks." : ""}`, enemy.kind === "rival" ? "rival" : "combat");
     enemy.group.scale.set(enemy.baseScale * 1.14, enemy.baseScale * 0.9, enemy.baseScale * 1.14);
     if (enemy.kind === "boss" && enemy.hp > 0 && enemy.hp <= enemy.maxHp / 2 && !enemy.group.userData.enraged) {
       enemy.group.userData.enraged = true;
@@ -1921,6 +1936,11 @@ export class DarkPixGame {
     this.staminaFill.style.width = `${(this.stamina / this.definition.maxStamina) * 100}%`;
     this.spellFill.style.width = `${this.options.classId === "hexbound" ? (this.spellCharges / this.maxSpellCharges) * 100 : 100}%`;
     this.spellFill.parentElement?.classList.toggle("inactive", this.options.classId !== "hexbound");
+    if (this.options.classId === "hexbound") {
+      const spell = HEX_SPELLS[this.selectedSpell];
+      this.spellLabelHud.textContent = `MEMORY · ${spell.name.toUpperCase()}`;
+      this.spellFill.style.background = `#${spell.color.toString(16).padStart(6, "0")}`;
+    }
     const floorRules = depthRules(this.depth);
     const remaining = floorRules.duration - this.phaseElapsed();
     this.raidClock.textContent = formatTime(remaining);

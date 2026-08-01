@@ -44,6 +44,21 @@ export interface ConsumableEffect {
   description: string;
 }
 
+export type HexSpellId = "ash_bolt" | "frost_hex";
+
+export interface HexSpellDefinition {
+  id: HexSpellId;
+  name: string;
+  damageMultiplier: number;
+  cripples: boolean;
+  color: number;
+}
+
+export const HEX_SPELLS: Record<HexSpellId, HexSpellDefinition> = {
+  ash_bolt: { id: "ash_bolt", name: "Ash bolt", damageMultiplier: 1, cripples: false, color: 0x5ce3d9 },
+  frost_hex: { id: "frost_hex", name: "Frost hex", damageMultiplier: 0.72, cripples: true, color: 0x79aee8 },
+};
+
 export const CLASSES: Record<ClassId, ClassDefinition> = {
   vanguard: {
     id: "vanguard",

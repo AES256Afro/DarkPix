@@ -22,6 +22,7 @@ Open `http://127.0.0.1:4173` on a desktop browser. Click **Enter the Crypt** to 
 | Left mouse | Strike or cast |
 | Right mouse | Guard or raise a ward |
 | `Q` | Use the class active ability |
+| `1 / 2` | Select Ash Bolt or Frost Hex as Hexbound |
 | `Shift` | Sprint |
 | `E` | Loot, search, rest, or hold to extract |
 | `F` | Use the first carried consumable that can help |
@@ -32,7 +33,7 @@ Open `http://127.0.0.1:4173` on a desktop browser. Click **Enter the Crypt** to 
 
 Right-click guarding suppresses the browser context menu while the raid canvas is active. Inputs pressed on the pause overlay are discarded until the cursor is rebound. The pause overlay also offers a two-step abandon action; confirming it counts as a death and forfeits equipped gear and unsecured loot.
 
-Moving the mouse vertically before a melee strike selects an overhead attack. Horizontal movement selects a sweep. A centered motion selects a thrust. Headshots amplify damage; non-magical sweep hits trade damage for a permanent cripple against non-boss threats. Enemies visibly draw back before committing to a strike, so sidestepping and last-moment guards matter. A struck threat briefly reveals its vigor and combat state above the crosshair. Sustained guards drain stamina and break at zero; they protect only the forward guard cone, so flanking attacks bypass them. The Vanguard can rally vigor and stamina, the Cutpurse can break distant pursuit with Smoke Step, the Hexbound can trade vigor for spell memory, the Reaver can sacrifice vigor for a six-second Blood Rage, and the Ranger can enter a seven-second Quickdraw. Every active has a visible cooldown. Resting requires an uninterrupted hold and alerts nearby threats.
+Moving the mouse vertically before a melee strike selects an overhead attack. Horizontal movement selects a sweep. A centered motion selects a thrust. Headshots amplify damage; non-magical sweep hits trade damage for a permanent cripple against non-boss threats. Enemies visibly draw back before committing to a strike, so sidestepping and last-moment guards matter. A struck threat briefly reveals its vigor and combat state above the crosshair. Sustained guards drain stamina and break at zero; they protect only the forward guard cone, so flanking attacks bypass them. The Vanguard can rally vigor and stamina, the Cutpurse can break distant pursuit with Smoke Step, the Hexbound can trade vigor for spell memory, the Reaver can sacrifice vigor for a six-second Blood Rage, and the Ranger can enter a seven-second Quickdraw. Hexbound players can switch between full-damage Ash Bolt and a weaker Frost Hex that cripples non-boss threats; both consume the shared memory pool. Every active has a visible cooldown. Resting requires an uninterrupted hold and alerts nearby threats.
 
 Light is tactical. Hooding the torch shortens passive enemy detection range, while unhooding it restores the player spotlight. Walls block passive acquisition and attacks, but alerted enemies route through the dungeon to pursue prey they can no longer see. Threats have physical spacing and slide along corners instead of stacking into one hitbox. Four pressure-plate spike traps punish careless routes, interrupt threats, and can award normal kill drops when enemies are baited across them. The Tollkeeper takes reduced trap damage.
 

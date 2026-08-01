@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CLASS_ABILITIES, CRAFTING_RECIPES, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll } from "../src/game/data";
+import { CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll } from "../src/game/data";
 import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, applyRaidResult, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
 import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat } from "../src/game/combat";
@@ -529,6 +529,14 @@ describe("class perk milestones", () => {
       expect(ability.cooldown).toBeGreaterThanOrEqual(30);
       expect(ability.cooldown).toBeLessThanOrEqual(60);
     }
+  });
+
+  it("gives the Hexbound two bounded spell-memory choices", () => {
+    expect(Object.keys(HEX_SPELLS).sort()).toEqual(["ash_bolt", "frost_hex"]);
+    expect(HEX_SPELLS.ash_bolt).toMatchObject({ damageMultiplier: 1, cripples: false });
+    expect(HEX_SPELLS.frost_hex.damageMultiplier).toBeGreaterThan(0.5);
+    expect(HEX_SPELLS.frost_hex.damageMultiplier).toBeLessThan(1);
+    expect(HEX_SPELLS.frost_hex.cripples).toBe(true);
   });
 });
 
