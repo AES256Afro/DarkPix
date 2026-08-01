@@ -39,7 +39,7 @@ Status: Complete for the current map
 
 - Encounter mirroring, extraction-site selection, trap formations, rival archetypes, and campfire placement produce 32 bounded raid configurations
 - Contract-critical locations remain reachable in topology tests
-- Threat windups, directional damage markers, guard cone, chain telegraphs, safe annulus, darkness bearing, crosshair scaling, rarity rank marks, and loose-loot silhouettes expose actionable state
+- Threat windups, directional damage markers, guard cone, chain telegraphs, safe annulus, darkness bearing, channel interruption reasons, crosshair scaling, rarity rank marks, and loose-loot silhouettes expose actionable state
 - The Ash Tollkeeper begins its annulus phase at full vigor and uses a tighter second-floor cadence
 
 Exit evidence: topology, collision, sightline, pathfinding, variation, combat-rule, and depth tests.

@@ -14,7 +14,7 @@ import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./r
 import { disposeSceneResources } from "./resources";
 import { rarityShape } from "./rarity";
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
-import { continuousHold, targetDistanceInView } from "./targeting";
+import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
 import { directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "./zone";
 
@@ -246,6 +246,7 @@ export class DarkPixGame {
   private interactHeld = false;
   private descendHeld = false;
   private interactionHold = 0;
+  private interactionInput?: "interact" | "descend";
   private attackDirection: "OVERHEAD" | "THRUST" | "SWEEP" = "THRUST";
   private mouseAccumulator = { x: 0, y: 0 };
   private yaw = 0;
@@ -912,8 +913,8 @@ export class DarkPixGame {
   private onKeyDown = (event: KeyboardEvent): void => {
     if (this.paused || this.ended) return;
     this.keys.add(event.code);
-    if (event.code === "KeyE") this.interactHeld = true;
-    if (event.code === "KeyR") this.descendHeld = true;
+    if (event.code === "KeyE" && !event.repeat) this.interactHeld = true;
+    if (event.code === "KeyR" && !event.repeat) this.descendHeld = true;
     if (event.code === "KeyF" && !event.repeat) this.useConsumable();
     if (event.code === "KeyC" && !event.repeat) this.cycleConsumable();
     if (event.code === "KeyV" && !event.repeat) this.throwItem();
@@ -933,11 +934,11 @@ export class DarkPixGame {
     this.keys.delete(event.code);
     if (event.code === "KeyE") {
       this.interactHeld = false;
-      this.interactionHold = 0;
+      if (this.interactionInput === "interact") this.breakInteractionChannel("released");
     }
     if (event.code === "KeyR") {
       this.descendHeld = false;
-      this.interactionHold = 0;
+      if (this.interactionInput === "descend") this.breakInteractionChannel("released");
     }
   };
 
@@ -1004,7 +1005,7 @@ export class DarkPixGame {
     this.blockAge = 0;
     this.interactHeld = false;
     this.descendHeld = false;
-    this.interactionHold = 0;
+    this.resetInteractionChannel();
     this.mouseAccumulator.x = 0;
     this.mouseAccumulator.y = 0;
   }
@@ -1879,8 +1880,13 @@ export class DarkPixGame {
 
   private hurt(amount: number, source: string, physical = true, sourcePosition?: Vec2): void {
     if (this.damageCooldown > 0 || this.ended) return;
+    const channelBroken = this.interactionHold > 0;
     this.damageCooldown = 0.18;
-    this.interactionHold = 0;
+    if (channelBroken) {
+      this.resetInteractionChannel();
+      this.interactHeld = false;
+      this.descendHeld = false;
+    }
     const appliedDamage = physicalDamageAfterArmor(amount, physical ? this.loadoutBonuses.armor : 0);
     this.health = Math.max(0, this.health - appliedDamage);
     this.vignette = 1;
@@ -1900,7 +1906,7 @@ export class DarkPixGame {
       this.damageDirectionHud.classList.add("visible");
     }
     this.audio.danger();
-    this.feed(`${source} wounds you for ${Math.round(appliedDamage)}.`, "danger");
+    this.feed(`${source} wounds you for ${Math.round(appliedDamage)}.${channelBroken ? " CHANNEL BROKEN." : ""}`, "danger");
     if (this.health <= 0) this.finish(source === "the dark" ? "darkness" : "slain");
   }
 
@@ -2042,6 +2048,10 @@ export class DarkPixGame {
   }
 
   private useClassAbility(): void {
+    if (this.interactionHold > 0) {
+      this.feed("ABILITY BLOCKED · finish or release the ritual", "system");
+      return;
+    }
     if (this.abilityCooldown > 0) {
       this.feed(`${CLASS_ABILITIES[this.options.classId].name} returns in ${Math.ceil(this.abilityCooldown)}s.`, "system");
       return;
@@ -2074,7 +2084,6 @@ export class DarkPixGame {
         return;
       }
       this.health -= 12;
-      this.interactionHold = 0;
       this.vignette = Math.max(this.vignette, 0.48);
       this.spellCharges = Math.min(this.maxSpellCharges, this.spellCharges + 2);
       this.feed("BLOOD MEMORY · two ash charges return", "danger");
@@ -2084,7 +2093,6 @@ export class DarkPixGame {
         return;
       }
       this.health -= 12;
-      this.interactionHold = 0;
       this.vignette = Math.max(this.vignette, 0.65);
       this.rageTimer = 6;
       this.feed("BLOOD RAGE · strike damage surges for 6s", "danger");
@@ -2242,8 +2250,39 @@ export class DarkPixGame {
     this.promptHud.textContent = prompt;
     this.promptHud.classList.toggle("visible", Boolean(prompt));
 
-    const descending = redDepthAvailable && this.descendHeld;
-    const channeling = descending || (this.interactHeld && (interactive === "portal" || interactive === "campfire" || interactive === "false_wall"));
+    let descending = redDepthAvailable && this.descendHeld;
+    const interactTargeted = interactive === "portal" || interactive === "campfire" || interactive === "false_wall";
+    const moving = this.keys.has("KeyW") || this.keys.has("KeyA") || this.keys.has("KeyS") || this.keys.has("KeyD");
+    const activeTargeted = this.interactionInput === "descend" ? redDepthAvailable : interactTargeted;
+    const activeInterruption = this.interactionInput ? channelInterruptionReason({
+      targeted: activeTargeted,
+      moving,
+      guarding: this.blocking,
+      recovering: this.attackCooldown > 0 || this.swingClock > 0,
+      damaged: this.damageCooldown > 0,
+    }) : undefined;
+    if (this.interactionHold > 0 && activeInterruption) this.breakInteractionChannel(activeInterruption);
+
+    descending = redDepthAvailable && this.descendHeld;
+    const candidateInput = this.interactionInput
+      ? this.interactionInput === "descend"
+        ? descending ? "descend" : undefined
+        : this.interactHeld && interactTargeted ? "interact" : undefined
+      : descending ? "descend" : this.interactHeld && interactTargeted ? "interact" : undefined;
+    const candidateInterruption = candidateInput ? channelInterruptionReason({
+      targeted: true,
+      moving,
+      guarding: this.blocking,
+      recovering: this.attackCooldown > 0 || this.swingClock > 0,
+      damaged: this.damageCooldown > 0,
+    }) : undefined;
+    const channeling = Boolean(candidateInput && !candidateInterruption);
+    if (channeling && !this.interactionInput) this.interactionInput = candidateInput;
+    descending = candidateInput === "descend";
+    if (candidateInput && candidateInterruption) {
+      const instruction = candidateInterruption === "moving" ? "STAND STILL" : candidateInterruption === "guarding" ? "LOWER GUARD" : "WAIT FOR RECOVERY";
+      this.promptHud.textContent = `${prompt} · ${instruction}`;
+    }
     const channelDuration = (descending ? 2.4 : interactive === "campfire" ? 2.2 : interactive === "false_wall" ? 1.45 : 1.8) * this.loadoutBonuses.interactionDurationMultiplier;
     this.interactionHold = continuousHold(this.interactionHold, delta, channeling);
     this.extractProgress.style.width = `${Math.min(100, (this.interactionHold / channelDuration) * 100)}%`;
@@ -2260,6 +2299,7 @@ export class DarkPixGame {
       if (this.interactionHold >= channelDuration) {
         this.useCampfire();
         this.interactHeld = false;
+        this.resetInteractionChannel();
       }
     } else if (interactive === "shrine") {
       this.useShrine(this.descendHeld ? "exchange" : "blood");
@@ -2269,6 +2309,7 @@ export class DarkPixGame {
       if (this.interactionHold >= channelDuration) {
         this.openFalseWall();
         this.interactHeld = false;
+        this.resetInteractionChannel();
       }
     } else if (interactive === "portal") {
       if (this.interactionHold >= channelDuration) {
@@ -2276,6 +2317,32 @@ export class DarkPixGame {
         else if (this.interactHeld) this.finish("extracted");
       }
     }
+  }
+
+  private resetInteractionChannel(): void {
+    this.interactionHold = 0;
+    this.interactionInput = undefined;
+  }
+
+  private breakInteractionChannel(reason: ChannelInterruptionReason | "released"): boolean {
+    if (this.interactionHold <= 0) return false;
+    const message = reason === "released"
+      ? "CHANNEL RELEASED · progress lost"
+      : reason === "target_lost"
+        ? "CHANNEL BROKEN · face the ritual and remain close"
+        : reason === "moving"
+          ? "CHANNEL BROKEN · stand still"
+          : reason === "guarding"
+            ? "CHANNEL BROKEN · lower your guard"
+            : reason === "recovering"
+              ? "CHANNEL BROKEN · finish the attack recovery"
+              : "CHANNEL BROKEN · the wound breaks your focus";
+    this.resetInteractionChannel();
+    this.interactHeld = false;
+    this.descendHeld = false;
+    this.feed(message, reason === "released" ? "system" : "danger");
+    this.audio.tone(reason === "released" ? 125 : 72, 0.12, "square", 0.07);
+    return true;
   }
 
   private collectPickup(pickup: Pickup): void {
@@ -2393,7 +2460,7 @@ export class DarkPixGame {
       this.falseWallCollider = undefined;
     }
     this.falseWall.visible = false;
-    this.interactionHold = 0;
+    this.resetInteractionChannel();
     for (const enemy of this.enemies) {
       if (enemy.alive && enemy.group.position.distanceTo(this.falseWall.position) < 12) enemy.alerted = true;
     }
@@ -2426,7 +2493,7 @@ export class DarkPixGame {
     this.portalUnlocked = false;
     this.portalAnnounced = false;
     this.spawnGraceAnnounced = false;
-    this.interactionHold = 0;
+    this.resetInteractionChannel();
     this.interactHeld = false;
     this.descendHeld = false;
     this.clearHeldInputs();

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DUNGEON, dartTrapTargetDistance, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists, encounterPosition, selectRaidVariation } from "../src/game/dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES } from "../src/game/depth";
-import { continuousHold, targetDistanceInView } from "../src/game/targeting";
+import { channelInterruptionReason, continuousHold, targetDistanceInView } from "../src/game/targeting";
 import { cardinalDirection, circlesOverlap, movementOffset, recoveryNeed, relativeDirectionToSource } from "../src/game/navigation";
 import { directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "../src/game/zone";
 import type { Vec2 } from "../src/game/types";
@@ -129,6 +129,15 @@ describe("deliberate interaction targeting", () => {
     expect(continuousHold(partial, 0.4, true)).toBeCloseTo(1.3);
     expect(continuousHold(partial, 0.4, false)).toBe(0);
     expect(continuousHold(Number.NaN, -1, true)).toBe(0);
+  });
+
+  it("names the highest-priority channel interruption", () => {
+    expect(channelInterruptionReason({ targeted: true, moving: false, guarding: false, recovering: false, damaged: false })).toBeUndefined();
+    expect(channelInterruptionReason({ targeted: false, moving: true, guarding: true, recovering: true, damaged: false })).toBe("target_lost");
+    expect(channelInterruptionReason({ targeted: true, moving: true, guarding: true, recovering: true, damaged: false })).toBe("moving");
+    expect(channelInterruptionReason({ targeted: true, moving: false, guarding: true, recovering: true, damaged: false })).toBe("guarding");
+    expect(channelInterruptionReason({ targeted: true, moving: false, guarding: false, recovering: true, damaged: false })).toBe("recovering");
+    expect(channelInterruptionReason({ targeted: false, moving: true, guarding: true, recovering: true, damaged: true })).toBe("damaged");
   });
 });
 

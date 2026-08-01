@@ -24,3 +24,20 @@ export function continuousHold(previous: number, delta: number, active: boolean)
   const safeDelta = Number.isFinite(delta) ? Math.max(0, delta) : 0;
   return safePrevious + safeDelta;
 }
+
+export type ChannelInterruptionReason = "target_lost" | "moving" | "guarding" | "recovering" | "damaged";
+
+export function channelInterruptionReason(input: {
+  targeted: boolean;
+  moving: boolean;
+  guarding: boolean;
+  recovering: boolean;
+  damaged: boolean;
+}): ChannelInterruptionReason | undefined {
+  if (input.damaged) return "damaged";
+  if (!input.targeted) return "target_lost";
+  if (input.moving) return "moving";
+  if (input.guarding) return "guarding";
+  if (input.recovering) return "recovering";
+  return undefined;
+}
