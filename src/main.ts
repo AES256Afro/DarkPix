@@ -4,7 +4,7 @@ import { createSaveBackup, parseSaveBackup } from "./game/backup";
 import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses } from "./game/data";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
-import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, craftItem, createRaidEscrow, loadProfile, loadRaidEscrow, purchaseItem, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
+import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfile, loadRaidEscrow, purchaseItem, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
 import type { DarkPixGame } from "./game/game";
 import type { ClassId, GamePreferences, Item, Profile, RaidMode, RaidResult } from "./game/types";
@@ -138,6 +138,7 @@ function renderLobby(): void {
   const previewStats = loadoutStats(previewLoadout);
   const packedVigor = equippedPower(previewLoadout, "armor") + previewStats.health;
   const boneKills = boneKillCount(profile);
+  const contractRecord = contractRecordSummary(profile);
   app.innerHTML = `
     <main class="lobby">
       <header class="lobby-header">
@@ -287,6 +288,12 @@ function renderLobby(): void {
             </section>
             <section class="journal-panel" aria-labelledby="journal-heading">
               <div class="panel-heading"><span><small>PERSISTENT LEDGER</small><strong id="journal-heading">Recent contracts</strong></span><b>${profile.raidHistory.length} / 10</b></div>
+              <div class="journal-summary" aria-label="Contract record summary">
+                <span><small>LIFETIME CONTRACTS</small><strong>${contractRecord.totalContracts}</strong></span>
+                <span><small>EXTRACTION RATE</small><strong>${contractRecord.extractionRate}%</strong></span>
+                <span><small>CURRENT STREAK</small><strong>${contractRecord.currentExtractStreak}</strong></span>
+                <span><small>10-RUN BEST</small><strong>${contractRecord.recentBestGold}g</strong></span>
+              </div>
               <div class="journal-list">
                 ${profile.raidHistory.length ? profile.raidHistory.map((entry) => {
                   const rules = raidRules(entry.raidMode);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
-import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, RAID_HISTORY_LIMIT, applyRaidResult, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
+import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
 import { attackDamage, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat } from "../src/game/combat";
 
@@ -215,6 +215,20 @@ describe("persistent raid consequences", () => {
     expect(profile.raidHistory[0]).toMatchObject({ completedAt: 1_011, raidMode: "high_toll", depthReached: 2, kills: 11, bossKilled: true });
     expect(profile.raidHistory.at(-1)?.completedAt).toBe(1_002);
     expect(profile.raidHistory.some((entry) => entry.completedAt === 1_000)).toBe(false);
+  });
+
+  it("derives lifetime and recent contract records without duplicating save state", () => {
+    const profile = createProfile();
+    profile.extracts = 7;
+    profile.deaths = 3;
+    profile.raidHistory = [
+      { completedAt: 4, classId: "ranger", raidMode: "standard", reason: "extracted", depthReached: 1, kills: 3, elapsed: 60, goldDelta: 44, xpDelta: 1, gearLost: 0, bossKilled: false },
+      { completedAt: 3, classId: "ranger", raidMode: "standard", reason: "extracted", depthReached: 1, kills: 2, elapsed: 70, goldDelta: 91, xpDelta: 1, gearLost: 0, bossKilled: false },
+      { completedAt: 2, classId: "ranger", raidMode: "standard", reason: "slain", depthReached: 1, kills: 1, elapsed: 80, goldDelta: 0, xpDelta: 1, gearLost: 1, bossKilled: false },
+      { completedAt: 1, classId: "ranger", raidMode: "standard", reason: "extracted", depthReached: 1, kills: 4, elapsed: 90, goldDelta: 60, xpDelta: 1, gearLost: 0, bossKilled: false },
+    ];
+    expect(contractRecordSummary(profile)).toEqual({ totalContracts: 10, extractionRate: 70, currentExtractStreak: 2, recentBestGold: 91 });
+    expect(contractRecordSummary(createProfile())).toEqual({ totalContracts: 0, extractionRate: 0, currentExtractStreak: 0, recentBestGold: 0 });
   });
 
   it("sanitizes malformed contract journal entries and signed XP", () => {

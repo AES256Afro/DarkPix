@@ -176,6 +176,33 @@ export function boneKillCount(profile: Pick<Profile, "threatKills">): number {
   return profile.threatKills.skeleton + profile.threatKills.crawler + profile.threatKills.mimic + profile.threatKills.warden;
 }
 
+export interface ContractRecordSummary {
+  totalContracts: number;
+  extractionRate: number;
+  currentExtractStreak: number;
+  recentBestGold: number;
+}
+
+export function contractRecordSummary(profile: Pick<Profile, "extracts" | "deaths" | "raidHistory">): ContractRecordSummary {
+  const extracts = nonnegativeInteger(profile.extracts, MAX_OUTCOME_COUNT);
+  const deaths = nonnegativeInteger(profile.deaths, MAX_OUTCOME_COUNT);
+  const totalContracts = extracts + deaths;
+  let currentExtractStreak = 0;
+  let recentBestGold = 0;
+  let streakOpen = true;
+  for (const entry of profile.raidHistory.slice(0, RAID_HISTORY_LIMIT)) {
+    if (streakOpen && entry.reason === "extracted") currentExtractStreak += 1;
+    else streakOpen = false;
+    recentBestGold = Math.max(recentBestGold, nonnegativeInteger(entry.goldDelta, MAX_GOLD));
+  }
+  return {
+    totalContracts,
+    extractionRate: totalContracts > 0 ? Math.round((extracts / totalContracts) * 100) : 0,
+    currentExtractStreak,
+    recentBestGold,
+  };
+}
+
 function boundedRaidThreatKills(result: RaidResult): Record<ThreatKind, number> {
   const bounded: Record<ThreatKind, number> = { skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 };
   let remaining = Math.min(1_000, nonnegativeInteger(result.kills));
