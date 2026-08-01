@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { escapeHtml } from "../html";
 import { AudioDirector } from "./audio";
 import { attackDamage, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
@@ -203,6 +204,7 @@ export class DarkPixGame {
   private abilityHud!: HTMLElement;
   private consumableHud!: HTMLElement;
   private throwableHud!: HTMLElement;
+  private pauseLedger!: HTMLElement;
   private animationFrame = 0;
   private enemyId = 0;
   private elapsed = 0;
@@ -318,7 +320,7 @@ export class DarkPixGame {
           <div class="extract-meter"><i></i></div>
           <div class="hud-bottom">
             <section class="vitals">
-              <div class="portrait-rune">${this.options.classId === "vanguard" ? "V" : this.options.classId === "cutpurse" ? "C" : this.options.classId === "hexbound" ? "H" : this.options.classId === "reaver" ? "R" : this.options.classId === "ranger" ? "A" : "L"}</div>
+              <div class="portrait-rune">${this.options.classId === "vanguard" ? "V" : this.options.classId === "cutpurse" ? "C" : this.options.classId === "hexbound" ? "H" : this.options.classId === "reaver" ? "R" : this.options.classId === "ranger" ? "A" : this.options.classId === "cleric" ? "L" : "S"}</div>
               <div class="bars">
                 <div class="bar health"><i></i><span>VIGOR</span></div>
                 <div class="bar stamina"><i></i><span>STAMINA</span></div>
@@ -327,8 +329,8 @@ export class DarkPixGame {
             </section>
             <section class="quick-slots">
               <div class="ability-slot"><kbd>Q</kbd><span class="slot-icon ability-icon"></span><small>${CLASS_ABILITIES[this.options.classId].name}</small></div>
-              <div class="consumable-slot"><kbd>F</kbd><span class="slot-icon potion-icon"></span><small>${this.carriedConsumables[0]?.name ?? "No remedy"} · C cycle</small></div>
-              <div class="throwable-slot"><kbd>V</kbd><span class="slot-icon knife-icon"></span><small>${this.carriedThrowables[0]?.name ?? "No throwing weapon"} · B cycle</small></div>
+              <div class="consumable-slot"><kbd>F</kbd><span class="slot-icon potion-icon"></span><small>${escapeHtml(this.carriedConsumables[0]?.name ?? "No remedy")} · C cycle</small></div>
+              <div class="throwable-slot"><kbd>V</kbd><span class="slot-icon knife-icon"></span><small>${escapeHtml(this.carriedThrowables[0]?.name ?? "No throwing weapon")} · B cycle</small></div>
               <div><kbd>G</kbd><span class="slot-icon hand-icon"></span><small>Drop lowest haul</small></div>
               <div><kbd>E</kbd><span class="slot-icon hand-icon"></span><small>Interact / extract</small></div>
               <div><kbd>T</kbd><span class="slot-icon torch-icon"></span><small>Hood the torch</small></div>
@@ -344,6 +346,7 @@ export class DarkPixGame {
           <span class="sigil-mark">DP</span>
           <strong data-lock-title>ENTER THE CRYPT</strong>
           <small data-lock-detail>Bind the cursor when you are ready</small>
+          <section class="pause-ledger" aria-label="Current raid risk ledger"></section>
           <span class="lock-actions">
             <button class="resume-raid" type="button">BIND CURSOR / RESUME</button>
             <button class="abandon-raid" type="button">ABANDON RAID</button>
@@ -378,6 +381,8 @@ export class DarkPixGame {
     this.abilityHud = this.mount.querySelector<HTMLElement>(".ability-slot small")!;
     this.consumableHud = this.mount.querySelector<HTMLElement>(".consumable-slot small")!;
     this.throwableHud = this.mount.querySelector<HTMLElement>(".throwable-slot small")!;
+    this.pauseLedger = this.mount.querySelector<HTMLElement>(".pause-ledger")!;
+    this.updatePauseLedger();
   }
 
   private configureRenderer(): void {
@@ -939,6 +944,7 @@ export class DarkPixGame {
       if (!this.ended) {
         this.resetAbandonConfirmation();
         this.setLockOverlayCopy("RETURN TO THE CRYPT", "Bind the cursor when you are ready.");
+        this.updatePauseLedger();
       }
     }
     this.lockOverlay.classList.toggle("hidden", !this.paused || this.ended);
@@ -966,6 +972,7 @@ export class DarkPixGame {
     this.audio.pause();
     this.resetAbandonConfirmation();
     this.setLockOverlayCopy("RETURN TO THE CRYPT", "Bind the cursor when you are ready.");
+    this.updatePauseLedger();
     this.lockOverlay.classList.remove("hidden");
     if (document.pointerLockElement === this.renderer.domElement) void document.exitPointerLock();
   }
@@ -981,6 +988,28 @@ export class DarkPixGame {
     const detailElement = this.lockOverlay.querySelector<HTMLElement>("[data-lock-detail]");
     if (titleElement) titleElement.textContent = title;
     if (detailElement) detailElement.textContent = detail;
+  }
+
+  private updatePauseLedger(): void {
+    const remainingPacked = this.options.equipped.filter((item) => !this.consumedIds.includes(item.id));
+    const ordinaryHaul = this.raidLoot.filter((item) => item.kind !== "sigil");
+    const sigils = this.raidLoot.filter((item) => item.kind === "sigil").length;
+    const haulValue = ordinaryHaul.reduce((sum, item) => sum + item.value, 0);
+    const dropCandidate = dropLeastValuable(this.raidLoot).dropped;
+    const itemRow = (item: Item, status: string): string => `<span class="pause-ledger-item" style="--rarity:${RARITY_COLOR[item.rarity]}"><i></i><b>${escapeHtml(item.name)}</b><small>${status} · ${item.value}g</small></span>`;
+    this.pauseLedger.innerHTML = `
+      <div class="pause-ledger-summary">
+        <span><small>PACKED RISK</small><strong>${remainingPacked.length} ITEM${remainingPacked.length === 1 ? "" : "S"}</strong></span>
+        <span><small>UNSECURED HAUL</small><strong>${ordinaryHaul.length} / ${HAUL_CAPACITY} · ${haulValue}G</strong></span>
+        <span><small>RESERVES</small><strong>${this.availableConsumables().length} REMEDY · ${this.availableThrowables().length} THROW</strong></span>
+        <span><small>SIGIL POUCH</small><strong>${sigils} / 2</strong></span>
+      </div>
+      <div class="pause-ledger-items">
+        ${remainingPacked.map((item) => itemRow(item, "PACKED")).join("")}
+        ${ordinaryHaul.map((item) => itemRow(item, "HAUL")).join("")}
+        ${remainingPacked.length || ordinaryHaul.length ? "" : `<span class="pause-ledger-empty">No gear or unsecured loot is recorded.</span>`}
+      </div>
+      <p>${dropCandidate ? `DROP PREVIEW · G will discard ${escapeHtml(dropCandidate.name)} (${dropCandidate.value}g)` : "DROP PREVIEW · no ordinary haul can be discarded"}</p>`;
   }
 
   private resetAbandonConfirmation(): void {
@@ -1012,6 +1041,7 @@ export class DarkPixGame {
     this.audio.pause();
     this.resetAbandonConfirmation();
     this.setLockOverlayCopy("REKINDLING THE CRYPT", "The renderer was interrupted. Waiting for the torch to return.");
+    this.updatePauseLedger();
     this.lockOverlay.classList.remove("hidden");
     if (document.pointerLockElement === this.renderer.domElement) void document.exitPointerLock();
   };
@@ -1022,6 +1052,7 @@ export class DarkPixGame {
     this.paused = true;
     this.resetAbandonConfirmation();
     this.setLockOverlayCopy("RETURN TO THE CRYPT", "Renderer restored. Click to bind the cursor again.");
+    this.updatePauseLedger();
     this.lockOverlay.classList.remove("hidden");
     this.feed("The torch catches. The crypt is visible again.", "system");
   };
@@ -1034,6 +1065,7 @@ export class DarkPixGame {
       this.clearHeldInputs();
       this.audio.pause();
       this.setLockOverlayCopy("CURSOR RITUAL FAILED", "This browser cannot bind a first-person cursor. Return to the lobby and use a desktop browser.");
+      this.updatePauseLedger();
       this.lockOverlay.classList.remove("hidden");
       return;
     }
@@ -1054,6 +1086,7 @@ export class DarkPixGame {
     this.clearHeldInputs();
     this.audio.pause();
     this.setLockOverlayCopy("CURSOR UNBOUND", "Click to try again. If the browser keeps refusing, allow pointer lock for this site.");
+    this.updatePauseLedger();
     this.lockOverlay.classList.remove("hidden");
     this.feed("The browser refused pointer lock. The raid remains paused.", "system");
   }
