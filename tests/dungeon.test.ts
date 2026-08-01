@@ -9,7 +9,7 @@ import type { Vec2 } from "../src/game/types";
 describe("Crypt of the Pale Toll topology", () => {
   it("keeps every contract-critical location reachable from the player start", () => {
     const contractEnemies = DUNGEON.enemies.filter((enemy) => enemy.kind === "warden" || enemy.kind === "boss");
-    const criticalLocations = [DUNGEON.campfire, DUNGEON.shrine, DUNGEON.portal, ...contractEnemies, ...DUNGEON.chests];
+    const criticalLocations = [DUNGEON.campfire, DUNGEON.shrine, ...DUNGEON.portalSites, ...contractEnemies, ...DUNGEON.chests];
     for (const location of criticalLocations) {
       expect(dungeonPathExists(DUNGEON.playerStart, location), `${location.x},${location.z} should be reachable`).toBe(true);
     }
@@ -130,7 +130,7 @@ describe("contract wayfinding", () => {
 });
 
 describe("migrating darkness", () => {
-  it("closes over time but keeps the final blue passage barely inside", () => {
+  it("closes over time but keeps either final blue passage barely inside", () => {
     const dormant = zoneState(0);
     const middle = zoneState(115);
     const final = zoneState(210);
@@ -138,5 +138,11 @@ describe("migrating darkness", () => {
     expect(middle.radius).toBeLessThan(dormant.radius);
     expect(final.radius).toBeLessThan(middle.radius);
     expect(distanceFromZoneCenter(DUNGEON.portal, final)).toBeLessThan(final.radius);
+    for (const passage of DUNGEON.portalSites) {
+      const passageFinal = zoneState(210, 210, passage);
+      expect(dungeonCollides(passage)).toBe(false);
+      expect(dungeonPathExists(DUNGEON.playerStart, passage)).toBe(true);
+      expect(distanceFromZoneCenter(passage, passageFinal)).toBeLessThan(passageFinal.radius);
+    }
   });
 });

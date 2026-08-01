@@ -171,6 +171,7 @@ export class DarkPixGame {
   private readonly loadoutBonuses: LoadoutStats;
   private readonly raidRules: RaidRules;
   private readonly encountersMirrored = Math.random() >= 0.5;
+  private readonly portalSite = DUNGEON.portalSites[Math.random() >= 0.5 ? 1 : 0] ?? DUNGEON.portal;
   private readonly maxSpellCharges: number;
   private healthFill!: HTMLElement;
   private staminaFill!: HTMLElement;
@@ -423,7 +424,7 @@ export class DarkPixGame {
     DUNGEON.torches.forEach(({ x, z, rotation }, index) => this.addTorch(x, z, rotation, index));
     this.createCampfire(DUNGEON.campfire.x, DUNGEON.campfire.z);
     this.createShrine(DUNGEON.shrine.x, DUNGEON.shrine.z);
-    this.createPortal(DUNGEON.portal.x, DUNGEON.portal.z);
+    this.createPortal(this.portalSite.x, this.portalSite.z);
     DUNGEON.chests.forEach((chest) => {
       const position = encounterPosition(chest, this.encountersMirrored);
       this.createChest(position.x, position.z, chest.depthBonus, chest.mimic ?? false);
@@ -1862,7 +1863,7 @@ export class DarkPixGame {
   private updateZone(_delta: number): void {
     const floorRules = depthRules(this.depth);
     const floorElapsed = this.phaseElapsed();
-    const zone = zoneState(floorElapsed, floorRules.duration);
+    const zone = zoneState(floorElapsed, floorRules.duration, this.portalSite);
     const distance = distanceFromZoneCenter({ x: this.camera.position.x, z: this.camera.position.z }, zone);
     const zoneCopy = this.mount.querySelector<HTMLElement>(".zone-copy");
     if (zoneCopy) {
@@ -2103,7 +2104,7 @@ export class DarkPixGame {
   private unlockPortal(): void {
     this.portalUnlocked = true;
     this.audio.portal();
-    this.feed(`${this.depth === 2 ? "ASHEN" : "BLUE"} PASSAGE UNSEALED · southeast reliquary`, "system");
+    this.feed(`${this.depth === 2 ? "ASHEN" : "BLUE"} PASSAGE UNSEALED · ${this.portalSite.x < 0 ? "southwest" : "southeast"} reliquary`, "system");
     this.portalAnnounced = true;
     const portalMaterial = this.portalCore.material as THREE.MeshBasicMaterial;
     portalMaterial.opacity = 0.72;

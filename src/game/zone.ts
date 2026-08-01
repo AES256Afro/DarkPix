@@ -7,14 +7,14 @@ export interface ZoneState {
   radius: number;
 }
 
-export function zoneState(elapsed: number, duration = 210): ZoneState {
+export function zoneState(elapsed: number, duration = 210, passage: Vec2 = DUNGEON.portal): ZoneState {
   const closingDuration = Math.max(1, duration - 20);
   const progress = Math.min(1, Math.max(0, (elapsed - 20) / closingDuration));
   return {
     progress,
     center: {
-      x: DUNGEON.portal.x * 0.75 * progress,
-      z: DUNGEON.portal.z * 0.75 * progress,
+      x: passage.x * 0.75 * progress,
+      z: passage.z * 0.75 * progress,
     },
     radius: 31 + (6.2 - 31) * progress,
   };

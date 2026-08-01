@@ -36,6 +36,7 @@ export const DUNGEON = {
   campfire: { x: -16, z: 15 },
   shrine: { x: -20.4, z: -16.5 },
   portal: { x: 16, z: -16 },
+  portalSites: [{ x: 16, z: -16 }, { x: -14, z: -18 }] satisfies Vec2[],
   walls: [
     { x: 0, z: -22, width: 44, depth: 1 },
     { x: 0, z: 22, width: 44, depth: 1 },
