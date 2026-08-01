@@ -24,6 +24,7 @@ Open `http://127.0.0.1:4173` on a desktop browser. Click **Enter the Crypt** to 
 | `Shift` | Sprint |
 | `E` | Loot, search, rest, or hold to extract |
 | `F` | Use a recovered consumable |
+| `G` | Drop the least valuable unsecured haul item |
 | `T` | Hood or unhood the torch |
 | `Escape` | Release the cursor and pause |
 
@@ -43,6 +44,7 @@ Mouse sensitivity, crypt brightness, audio, reduced camera motion, and stash ord
 - Defeat two Ossuary Wardens and take their sigils.
 - Follow the contract wayfinder toward the nearest living Warden, loose sigil, or unlocked blue passage.
 - Search four coffers across an interconnected dungeon while fighting monsters and one AI rival delver.
+- Carry up to eight ordinary haul items. Contract sigils stay in a separate pouch; when the haul is full, `G` drops the least valuable unsecured item so a better find can take its place.
 - Break the AI rival's sightline or react to its telegraphed throwing knife; a fresh guard can parry the projectile.
 - Find the unmarked blood reliquary in the southwest dead chamber, if the extra loot is worth 18 vigor and the noise it makes.
 - Survive the Tollkeeper in the extraction chamber. Its heavy attacks cannot be parried, it enrages below half vigor, and it always drops a named Rare-or-better chain trophy.

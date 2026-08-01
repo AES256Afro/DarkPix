@@ -3,6 +3,7 @@ import { AudioDirector } from "./audio";
 import { attackDamage, enemyAttackPattern, guardDrainPerSecond, healthPercent, rivalTactic, type ThreatKind } from "./combat";
 import { CLASSES, RARITY_COLOR, classPerkBonuses, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, type ClassPerkBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
+import { HAUL_CAPACITY, canAddToHaul, dropLeastValuable, haulCount, treasureGold } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, type LoadoutStats } from "./loadout";
 import { cardinalDirection, circlesOverlap } from "./navigation";
 import { raidRules, type RaidRules } from "./raid";
@@ -271,12 +272,13 @@ export class DarkPixGame {
             <section class="quick-slots">
               <div><kbd>1</kbd><span class="slot-icon weapon-icon"></span><small>${this.definition.weapon}</small></div>
               <div><kbd>F</kbd><span class="slot-icon potion-icon"></span><small>${this.carriedConsumables.length ? `Packed draught ×${this.carriedConsumables.length}` : "Recovered draught"}</small></div>
+              <div><kbd>G</kbd><span class="slot-icon hand-icon"></span><small>Drop lowest haul</small></div>
               <div><kbd>E</kbd><span class="slot-icon hand-icon"></span><small>Interact / extract</small></div>
               <div><kbd>T</kbd><span class="slot-icon torch-icon"></span><small>Hood the torch</small></div>
             </section>
             <section class="haul-panel">
               <span class="eyebrow">UNSECURED HAUL</span>
-              <strong class="loot-count">0 items · 0g</strong>
+              <strong class="loot-count">0 / ${HAUL_CAPACITY} slots · 0g</strong>
               <span>death takes all</span>
             </section>
           </div>
@@ -285,7 +287,7 @@ export class DarkPixGame {
           <span class="sigil-mark">DP</span>
           <strong>ENTER THE CRYPT</strong>
           <small>Click to bind the cursor</small>
-          <span class="control-line">WASD move · mouse look · LMB strike · RMB guard · E interact · F heal · T torch · Shift sprint</span>
+          <span class="control-line">WASD move · mouse look · LMB strike · RMB guard · E interact · F heal · G drop · T torch · Shift sprint</span>
         </button>
       </div>`;
     const host = this.mount.querySelector<HTMLElement>(".render-host");
@@ -664,6 +666,7 @@ export class DarkPixGame {
     this.keys.add(event.code);
     if (event.code === "KeyE") this.interactHeld = true;
     if (event.code === "KeyF" && !event.repeat) this.usePotion();
+    if (event.code === "KeyG" && !event.repeat) this.dropLowestHaul();
     if (event.code === "KeyT" && !event.repeat) this.toggleTorch();
   };
 
@@ -1294,7 +1297,9 @@ export class DarkPixGame {
       interactive = "portal";
     }
 
-    if (interactive === "pickup" && targetPickup) prompt = `[ E ] TAKE ${targetPickup.item.rarity.toUpperCase()} ${targetPickup.item.name.toUpperCase()}`;
+    if (interactive === "pickup" && targetPickup) prompt = canAddToHaul(this.raidLoot, targetPickup.item)
+      ? `[ E ] TAKE ${targetPickup.item.rarity.toUpperCase()} ${targetPickup.item.name.toUpperCase()}`
+      : "HAUL FULL · [ G ] DROP THE LEAST VALUABLE ITEM";
     if (interactive === "chest") prompt = "[ E ] SEARCH IRONBOUND COFFER";
     if (interactive === "campfire") prompt = "[ HOLD E ] REST · RESTORE VIGOR AND SPELL MEMORY";
     if (interactive === "shrine") prompt = "[ E ] PAY 18 VIGOR TO THE BLOOD RELIQUARY";
@@ -1329,6 +1334,10 @@ export class DarkPixGame {
   }
 
   private collectPickup(pickup: Pickup): void {
+    if (!canAddToHaul(this.raidLoot, pickup.item)) {
+      this.feed(`HAUL FULL · drop something before taking ${pickup.item.name}`, "danger");
+      return;
+    }
     pickup.collected = true;
     pickup.group.visible = false;
     this.raidLoot.push(pickup.item);
@@ -1336,11 +1345,25 @@ export class DarkPixGame {
       this.sigils += 1;
       if (this.sigils >= 2) this.unlockPortal();
     } else if (pickup.item.kind === "treasure") {
-      const coins = Math.max(3, Math.floor(pickup.item.value * 0.35));
-      this.goldFound += coins;
+      this.goldFound += treasureGold(pickup.item);
     }
     this.audio.loot();
     this.feed(`${pickup.item.rarity} ${pickup.item.name} secured for now.`, "loot");
+  }
+
+  private dropLowestHaul(): void {
+    const { kept, dropped } = dropLeastValuable(this.raidLoot);
+    if (!dropped) {
+      this.feed("There is no unsecured haul to drop.", "system");
+      return;
+    }
+    this.raidLoot.splice(0, this.raidLoot.length, ...kept);
+    this.goldFound = Math.max(0, this.goldFound - treasureGold(dropped));
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).setY(0).normalize();
+    const position = this.camera.position.clone().add(forward.multiplyScalar(1.15));
+    position.y = 0.55;
+    this.spawnPickup(dropped, position);
+    this.feed(`${dropped.name} dropped from the haul.`, "system");
   }
 
   private openChest(chest: Chest): void {
@@ -1447,7 +1470,8 @@ export class DarkPixGame {
     this.spellFill.parentElement?.classList.toggle("inactive", this.options.classId !== "hexbound");
     this.raidClock.textContent = formatTime(RAID_DURATION - this.elapsed);
     this.raidClock.classList.toggle("urgent", RAID_DURATION - this.elapsed < 45);
-    this.lootHud.textContent = `${this.raidLoot.length} item${this.raidLoot.length === 1 ? "" : "s"} · ${this.goldFound}g`;
+    const carried = haulCount(this.raidLoot);
+    this.lootHud.textContent = `${carried} / ${HAUL_CAPACITY} slots · ${this.goldFound}g`;
     this.objectiveHud.textContent = this.portalUnlocked ? "BLUE PASSAGE OPEN" : `WARDEN SIGILS ${this.sigils} / 2`;
     this.updateWayfinder();
     this.directionHud.textContent = this.attackDirection;
