@@ -103,7 +103,7 @@ function renderLobby(): void {
           </div>
           <button class="descend-button" type="button">
             <span>DESCEND INTO THE ${selectedRaidMode === "high_toll" ? "HIGH TOLL" : "PALE TOLL"}</span>
-            <small>Solo contract · ${selectedRaidMode === "high_toll" ? "empowered threats · improved rarity · +35% XP" : "8 threats · 2 sigils · 1 keeper"}</small>
+            <small>Solo contract · ${selectedRaidMode === "high_toll" ? "empowered threats · improved rarity · +35% XP" : "8 roaming threats · 2 sigils · 1 keeper"}</small>
           </button>
           <p class="raid-warning">${selectedRaidRules.entryFee ? `${selectedRaidRules.entryFee}g is paid on entry. ` : ""}Equipped items are lost on death. Class experience always persists.</p>
         </div>

@@ -43,7 +43,7 @@ Mouse sensitivity, crypt brightness, audio, reduced camera motion, and stash ord
 - Pack up to two stash items. One weapon and one armor piece can contribute power; consumables occupy any open slot. Armor power adds vigor but imposes up to 18% encumbrance, offset by movement enchantments, and the lobby previews the final pace. Packed items are lost if the delver dies.
 - Defeat two Ossuary Wardens and take their sigils.
 - Follow the contract wayfinder toward the nearest living Warden, loose sigil, or unlocked blue passage.
-- Search four coffers across an interconnected dungeon while fighting monsters and one AI rival delver.
+- Search four coffers across an interconnected dungeon while fighting monsters and one AI rival delver. One deep coffer carries subtle teeth and wakes as a mimic instead of surrendering loot; killing it produces a depth-weighted drop.
 - Carry up to eight ordinary haul items. Contract sigils stay in a separate pouch; when the haul is full, `G` drops the least valuable unsecured item so a better find can take its place.
 - Break the AI rival's sightline or react to its telegraphed throwing knife; a fresh guard can parry the projectile.
 - Find the unmarked blood reliquary in the southwest dead chamber, if the extra loot is worth 18 vigor and the noise it makes.

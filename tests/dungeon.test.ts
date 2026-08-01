@@ -14,6 +14,12 @@ describe("Crypt of the Pale Toll topology", () => {
     }
   });
 
+  it("marks exactly one deep coffer as the hidden mimic encounter", () => {
+    const mimics = DUNGEON.chests.filter((chest) => chest.mimic);
+    expect(mimics).toHaveLength(1);
+    expect(mimics[0]?.depthBonus).toBeGreaterThanOrEqual(0.1);
+  });
+
   it("treats walls and pillars as solid while leaving the start open", () => {
     expect(dungeonCollides(DUNGEON.playerStart)).toBe(false);
     expect(dungeonCollides({ x: -10, z: 14 })).toBe(true);

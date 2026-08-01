@@ -7,10 +7,11 @@ export interface WallSpec extends Vec2 {
 
 export interface ChestSpec extends Vec2 {
   depthBonus: number;
+  mimic?: boolean;
 }
 
 export interface EnemySpec extends Vec2 {
-  kind: "skeleton" | "crawler" | "warden" | "rival" | "boss";
+  kind: "skeleton" | "crawler" | "mimic" | "warden" | "rival" | "boss";
 }
 
 export interface TorchSpec extends Vec2 {
@@ -71,7 +72,7 @@ export const DUNGEON = {
     { x: -16, z: 11, depthBonus: 0.01 },
     { x: 16, z: 12, depthBonus: 0.03 },
     { x: -16, z: -15, depthBonus: 0.08 },
-    { x: 4, z: -16, depthBonus: 0.12 },
+    { x: 4, z: -16, depthBonus: 0.12, mimic: true },
   ] satisfies ChestSpec[],
   traps: [
     { x: 0, z: 8, damage: 16 },

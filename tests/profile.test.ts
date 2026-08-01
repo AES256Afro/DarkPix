@@ -264,6 +264,7 @@ describe("directional combat damage", () => {
 
   it("gives every enemy strike a readable windup and recovery", () => {
     expect(enemyAttackPattern("crawler").windup).toBeGreaterThan(0.2);
+    expect(enemyAttackPattern("mimic")).toEqual({ windup: 0.32, recovery: 1.4 });
     expect(enemyAttackPattern("warden").windup).toBeGreaterThan(enemyAttackPattern("crawler").windup);
     expect(enemyAttackPattern("boss").windup).toBeGreaterThan(enemyAttackPattern("rival").windup);
     expect(enemyAttackPattern("rival")).toEqual({ windup: 0.5, recovery: 1.8 });

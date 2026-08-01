@@ -54,6 +54,7 @@ interface Chest {
   group: THREE.Group;
   opened: boolean;
   depthBonus: number;
+  mimic: boolean;
 }
 
 interface FloorTrap {
@@ -373,7 +374,7 @@ export class DarkPixGame {
     this.createCampfire(DUNGEON.campfire.x, DUNGEON.campfire.z);
     this.createShrine(DUNGEON.shrine.x, DUNGEON.shrine.z);
     this.createPortal(DUNGEON.portal.x, DUNGEON.portal.z);
-    DUNGEON.chests.forEach((chest) => this.createChest(chest.x, chest.z, chest.depthBonus));
+    DUNGEON.chests.forEach((chest) => this.createChest(chest.x, chest.z, chest.depthBonus, chest.mimic ?? false));
     DUNGEON.traps.forEach((trap) => this.createTrap(trap.x, trap.z, trap.damage));
     DUNGEON.enemies.forEach((enemy) => this.spawnEnemy(enemy.kind, enemy.x, enemy.z));
 
@@ -412,7 +413,7 @@ export class DarkPixGame {
     this.scene.add(torch);
   }
 
-  private createChest(x: number, z: number, depthBonus: number): void {
+  private createChest(x: number, z: number, depthBonus: number, mimic: boolean): void {
     const group = new THREE.Group();
     group.position.set(x, 0.42, z);
     const base = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.65, 0.7), material(0x4b2d18));
@@ -420,7 +421,7 @@ export class DarkPixGame {
     lid.position.y = 0.42;
     lid.name = "lid";
     const band = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.92, 0.76), material(0x554a3a));
-    const lock = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.24, 0.12), material(0xb07b34));
+    const lock = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.24, 0.12), material(mimic ? 0x8f4937 : 0xb07b34, mimic ? 0x35130d : 0));
     lock.position.set(0, 0.22, 0.4);
     group.add(base, lid, band, lock);
     group.traverse((object) => {
@@ -428,7 +429,15 @@ export class DarkPixGame {
       object.receiveShadow = true;
     });
     this.scene.add(group);
-    this.chests.push({ group, opened: false, depthBonus });
+    if (mimic) {
+      for (const side of [-1, 1]) {
+        const tooth = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.16, 4), material(0x8d806c));
+        tooth.position.set(side * 0.24, 0.31, 0.39);
+        tooth.rotation.x = Math.PI;
+        group.add(tooth);
+      }
+    }
+    this.chests.push({ group, opened: false, depthBonus, mimic });
   }
 
   private createCampfire(x: number, z: number): void {
@@ -556,12 +565,12 @@ export class DarkPixGame {
   private spawnEnemy(kind: Enemy["kind"], x: number, z: number): void {
     const group = new THREE.Group();
     const id = this.enemyId++;
-    const isCrawler = kind === "crawler";
+    const isCrawler = kind === "crawler" || kind === "mimic";
     const isRival = kind === "rival";
     const isWarden = kind === "warden";
     const isBoss = kind === "boss";
-    const bone = material(isBoss ? 0x8e5d3f : isRival ? 0x513542 : isWarden ? 0xc2b07f : isCrawler ? 0x695d4d : 0x9c9687);
-    const dark = material(isBoss ? 0x24110c : isRival ? 0x251720 : 0x27251f);
+    const bone = material(isBoss ? 0x8e5d3f : isRival ? 0x513542 : isWarden ? 0xc2b07f : kind === "mimic" ? 0x8a5336 : isCrawler ? 0x695d4d : 0x9c9687);
+    const dark = material(isBoss ? 0x24110c : isRival ? 0x251720 : kind === "mimic" ? 0x321b13 : 0x27251f);
     const torso = new THREE.Mesh(new THREE.BoxGeometry(isCrawler ? 0.62 : 0.52, isCrawler ? 0.4 : 0.78, 0.3), dark);
     torso.position.y = isCrawler ? 0.45 : 1.18;
     const head = new THREE.Mesh(new THREE.BoxGeometry(isCrawler ? 0.44 : 0.38, 0.38, 0.38), bone);
@@ -603,6 +612,8 @@ export class DarkPixGame {
       ? { hp: 115, speed: 1.35, damage: 24, range: 1.7, name: "Ossuary warden" }
       : kind === "rival"
         ? { hp: 88, speed: 2.05, damage: 16, range: 6.5, name: "Rival delver" }
+        : kind === "mimic"
+          ? { hp: 76, speed: 2.3, damage: 20, range: 1.3, name: "Coffer mimic" }
         : kind === "crawler"
           ? { hp: 38, speed: 2.65, damage: 12, range: 1.15, name: "Grave crawler" }
           : { hp: 64, speed: 1.55, damage: 17, range: 1.55, name: "Hollow legionary" };
@@ -971,7 +982,7 @@ export class DarkPixGame {
       return;
     }
 
-    const headHeight = best.kind === "crawler" ? 0.72 : best.kind === "boss" ? 2.35 : 1.82;
+    const headHeight = best.kind === "crawler" || best.kind === "mimic" ? 0.72 : best.kind === "boss" ? 2.35 : 1.82;
     const toHead = best.group.position.clone().add(new THREE.Vector3(0, headHeight, 0)).sub(cameraPosition).normalize();
     const headshot = toHead.dot(forward) > (this.options.classId === "hexbound" ? 0.992 : 0.975);
     const weaponPower = equippedPower(this.options.equipped, "weapon");
@@ -1052,7 +1063,7 @@ export class DarkPixGame {
       ? createSigil()
       : enemy.kind === "boss"
         ? createBossLoot(Math.random, this.raidRules.lootDepthBonus)
-        : createLoot(Math.random, (enemy.kind === "rival" ? 0.12 : 0.03) + this.raidRules.lootDepthBonus);
+        : createLoot(Math.random, (enemy.kind === "rival" ? 0.12 : enemy.kind === "mimic" ? 0.18 : 0.03) + this.raidRules.lootDepthBonus);
     this.spawnPickup(drop, enemy.group.position.clone());
     this.showThreatVitals(enemy);
   }
@@ -1396,6 +1407,18 @@ export class DarkPixGame {
 
   private openChest(chest: Chest): void {
     chest.opened = true;
+    if (chest.mimic) {
+      chest.group.visible = false;
+      this.spawnEnemy("mimic", chest.group.position.x, chest.group.position.z);
+      const mimic = this.enemies.at(-1);
+      if (mimic) {
+        mimic.alerted = true;
+        mimic.cooldown = 0.35;
+      }
+      this.feed("THE COFFER HAS TEETH · the mimic wakes", "danger");
+      this.audio.danger();
+      return;
+    }
     const lid = chest.group.getObjectByName("lid");
     if (lid) {
       lid.rotation.x = -1.1;
