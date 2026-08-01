@@ -136,12 +136,13 @@ describe("persistent raid consequences", () => {
     expect(settlement.profile.deaths).toBe(1);
     expect(settlement.lost.map((item) => item.id).sort()).toEqual(["starter-blade", "starter-jack"]);
 
-    const checkpoint = createRaidEscrow("ranger", "standard", [], 123, 2, 3, undefined, { skeleton: 1, rival: 1, boss: 1 }, 31);
+    const checkpoint = createRaidEscrow("ranger", "standard", [], 123, 2, 3, undefined, { skeleton: 1, rival: 1, boss: 1 }, 31, 2);
     const recoveredCheckpoint = settleInterruptedRaid(createProfile(), checkpoint);
-    expect(checkpoint).toMatchObject({ startedAt: 123, depthReached: 2, kills: 3, killsByKind: { skeleton: 1, rival: 1, boss: 1 }, variationSeed: 31 });
+    expect(checkpoint).toMatchObject({ startedAt: 123, depthReached: 2, kills: 3, killsByKind: { skeleton: 1, rival: 1, boss: 1 }, variationSeed: 31, unseenStrikes: 2 });
     expect(recoveredCheckpoint.xpGained).toBe(165);
     expect(recoveredCheckpoint.profile.threatKills).toMatchObject({ skeleton: 1, rival: 1, boss: 1 });
     expect(recoveredCheckpoint.profile.raidHistory[0]?.variationSeed).toBe(31);
+    expect(recoveredCheckpoint.profile.raidHistory[0]?.unseenStrikes).toBe(2);
 
     const standardProfile = createProfile();
     standardProfile.xp.ranger = 700;
@@ -183,6 +184,7 @@ describe("persistent raid consequences", () => {
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], kills: 2, killsByKind: { skeleton: 99, rival: 99 } })?.killsByKind).toEqual({ skeleton: 2, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 });
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], kills: 2 })?.killsByKind).toEqual({ skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 });
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], variationSeed: 32 })?.variationSeed).toBeUndefined();
+    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], unseenStrikes: 999 })?.unseenStrikes).toBe(32);
   });
 
   it("fails closed on malformed runtime identity and inventory fields", () => {
@@ -273,7 +275,7 @@ describe("persistent raid consequences", () => {
     expect(result.extracts).toBe(0);
     expect(result.highTollExtracts).toBe(0);
     expect(result.ashenExtracts).toBe(0);
-    expect(result.version).toBe(13);
+    expect(result.version).toBe(14);
     expect(result.xp.reaver).toBe(0);
     expect(result.xp.ranger).toBe(0);
     expect(result.xp.cleric).toBe(0);
@@ -283,6 +285,7 @@ describe("persistent raid consequences", () => {
     expect(result.boneBountyPaid).toBe(false);
     expect(result.rivalBountyPaid).toBe(false);
     expect(result.streakBountyPaid).toBe(false);
+    expect(result.quietKnivesPaid).toBe(false);
     expect(result.lastCommissionDay).toBe("");
     expect(result.preferredClass).toBe("vanguard");
     expect(result.raidHistory).toEqual([]);
@@ -293,7 +296,7 @@ describe("persistent raid consequences", () => {
     legacy.version = 7;
     legacy.xp = { vanguard: 700, cutpurse: 350, hexbound: 0, reaver: 0, ranger: 0, cleric: 0 };
     const migrated = normalizeProfile(legacy);
-    expect(migrated.version).toBe(13);
+    expect(migrated.version).toBe(14);
     expect(migrated.xp.vanguard).toBe(700);
     expect(migrated.xp.cutpurse).toBe(350);
     expect(migrated.xp.shapeshifter).toBe(0);
@@ -303,7 +306,7 @@ describe("persistent raid consequences", () => {
   it("migrates pre-bestiary profiles with empty bounded ledgers", () => {
     const legacy = { ...createProfile(), version: 8, threatKills: undefined, boneBountyPaid: undefined, rivalBountyPaid: undefined };
     const migrated = normalizeProfile(legacy);
-    expect(migrated.version).toBe(13);
+    expect(migrated.version).toBe(14);
     expect(migrated.threatKills).toEqual({ skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 });
     expect(migrated.boneBountyPaid).toBe(false);
     expect(migrated.rivalBountyPaid).toBe(false);
@@ -315,7 +318,7 @@ describe("persistent raid consequences", () => {
     const legacy = { ...createProfile(), version: 11, streakBountyPaid: undefined };
     legacy.raidHistory = [{ completedAt: 1, classId: "vanguard", raidMode: "standard", reason: "extracted", depthReached: 1, kills: 0, elapsed: 40, goldDelta: 10, xpDelta: 170, gearLost: 0, bossKilled: false }];
     const migrated = normalizeProfile(legacy);
-    expect(migrated.version).toBe(13);
+    expect(migrated.version).toBe(14);
     expect(migrated.streakBountyPaid).toBe(false);
     expect(migrated.raidHistory).toHaveLength(1);
   });
@@ -323,8 +326,15 @@ describe("persistent raid consequences", () => {
   it("migrates version 12 profiles into an unclaimed daily commission", () => {
     const legacy = { ...createProfile(), version: 12, lastCommissionDay: undefined };
     const migrated = normalizeProfile(legacy);
-    expect(migrated.version).toBe(13);
+    expect(migrated.version).toBe(14);
     expect(migrated.lastCommissionDay).toBe("");
+  });
+
+  it("migrates version 13 profiles into an unpaid Quiet Knives contract", () => {
+    const legacy = { ...createProfile(), version: 13, quietKnivesPaid: undefined };
+    const migrated = normalizeProfile(legacy);
+    expect(migrated.version).toBe(14);
+    expect(migrated.quietKnivesPaid).toBe(false);
   });
 
   it("records a bounded newest-first contract journal", () => {
@@ -379,6 +389,7 @@ describe("persistent raid consequences", () => {
       xpDelta: -700,
       gearLost: 2,
       bossKilled: true,
+      unseenStrikes: 0,
       variationSeed: 31,
     };
     const profile = normalizeProfile({ ...createProfile(), raidHistory: [{ ...valid }, { ...valid, classId: "dragon" }, null] });
@@ -462,6 +473,34 @@ describe("persistent raid consequences", () => {
     expect(contractRecordSummary(broken.profile).currentExtractStreak).toBe(0);
     expect(restarted.streakBountyPaid).toBe(false);
     expect(contractRecordSummary(restarted.profile).currentExtractStreak).toBe(1);
+  });
+
+  it("pays Quiet Knives once for three unseen marks followed by extraction", () => {
+    const profile = createProfile();
+    profile.extracts = 1;
+    const result = {
+      reason: "extracted" as const,
+      raidMode: "standard" as const,
+      depthReached: 1 as const,
+      classId: "cutpurse" as const,
+      loot: [],
+      equippedIds: [],
+      kills: 0,
+      elapsed: 90,
+      goldFound: 0,
+      unseenStrikes: 3,
+    };
+    const first = settleRaid(profile, result);
+    expect(first.quietKnivesPaid).toBe(true);
+    expect(first.goldGained).toBe(140);
+    expect(first.profile.quietKnivesPaid).toBe(true);
+    expect(first.profile.raidHistory[0]?.unseenStrikes).toBe(3);
+    const repeated = settleRaid(first.profile, result);
+    expect(repeated.quietKnivesPaid).toBe(false);
+    expect(repeated.goldGained).toBe(0);
+    const failed = settleRaid(profile, { ...result, reason: "slain" });
+    expect(failed.quietKnivesPaid).toBe(false);
+    expect(failed.profile.quietKnivesPaid).toBe(false);
   });
 
   it("persists bounded bestiary kills and pays guild bounties only on extraction", () => {

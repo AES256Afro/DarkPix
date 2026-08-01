@@ -17,6 +17,7 @@ import { rarityShape } from "./rarity";
 import { raidReadinessSummary } from "./readiness";
 import { MAX_TORCH_FUEL_SECONDS, addTorchFuel, spendTorchFuel } from "./light";
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
+import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike } from "./stealth";
 import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
 import { directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "./zone";
@@ -111,7 +112,7 @@ export interface DarkPixGameOptions {
   preferences: GamePreferences;
   variationSeed?: number;
   onFinish: (result: RaidResult) => void;
-  onCheckpoint?: (depthReached: DungeonDepth, kills: number, killsByKind: Readonly<Record<ThreatKind, number>>) => boolean;
+  onCheckpoint?: (depthReached: DungeonDepth, kills: number, killsByKind: Readonly<Record<ThreatKind, number>>, unseenStrikes: number) => boolean;
 }
 
 const PLAYER_HEIGHT = 1.67;
@@ -210,6 +211,7 @@ export class DarkPixGame {
   private spellLabelHud!: HTMLElement;
   private raidClock!: HTMLElement;
   private journalHud!: HTMLElement;
+  private stealthHud!: HTMLElement;
   private lootHud!: HTMLElement;
   private objectiveHud!: HTMLElement;
   private promptHud!: HTMLElement;
@@ -246,6 +248,8 @@ export class DarkPixGame {
   private selectedThrowableId?: string;
   private kills = 0;
   private readonly killsByKind: Record<ThreatKind, number> = { skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 };
+  private unseenStrikes = 0;
+  private readonly markedUnseenThreats = new Set<number>();
   private bossKilled = false;
   private readonly consumedIds: string[] = [];
   private sigils = 0;
@@ -351,7 +355,7 @@ export class DarkPixGame {
             <section class="objective-panel">
               <span class="eyebrow">CONTRACT</span>
               <strong class="objective-copy">WARDEN SIGILS 0 / 2</strong>
-              <span>unseal an extraction</span>
+              <span class="stealth-copy">unseal · unseen marks 0 / ${QUIET_KNIVES_TARGET}</span>
             </section>
           </div>
           <div class="event-feed" role="status"></div>
@@ -405,6 +409,7 @@ export class DarkPixGame {
     this.spellLabelHud = this.mount.querySelector<HTMLElement>(".spells span")!;
     this.raidClock = this.mount.querySelector<HTMLElement>(".raid-clock")!;
     this.journalHud = this.mount.querySelector<HTMLElement>(".journal-copy")!;
+    this.stealthHud = this.mount.querySelector<HTMLElement>(".stealth-copy")!;
     this.lootHud = this.mount.querySelector<HTMLElement>(".loot-count")!;
     this.objectiveHud = this.mount.querySelector<HTMLElement>(".objective-copy")!;
     this.promptHud = this.mount.querySelector<HTMLElement>(".interaction-prompt")!;
@@ -1139,6 +1144,7 @@ export class DarkPixGame {
         <span><small>RESERVES</small><strong>${this.availableConsumables().length} REMEDY · ${this.availableThrowables().length} THROW</strong></span>
         <span><small>CAMPFIRE</small><strong>${readiness.campfire}</strong></span>
         <span><small>TORCH</small><strong>${readiness.torch}</strong></span>
+        <span><small>UNSEEN MARKS</small><strong>${Math.min(QUIET_KNIVES_TARGET, this.unseenStrikes)} / ${QUIET_KNIVES_TARGET}</strong></span>
       </div>
       <div class="pause-ledger-items">
         ${remainingPacked.map((item) => itemRow(item, "PACKED")).join("")}
@@ -1646,7 +1652,8 @@ export class DarkPixGame {
       * (spell?.damageMultiplier ?? 1)
       * riposteMultiplier,
     );
-    this.damageEnemy(best, damage, headshot, limbHit, Boolean(spell?.cripples && !headshot), riposte);
+    const unseenStrike = this.recordUnseenStrike(best);
+    this.damageEnemy(best, damage, headshot, limbHit, Boolean(spell?.cripples && !headshot), riposte, true, true, true, unseenStrike);
     if (this.options.classId === "hexbound") this.spawnSpellTrail(cameraPosition, forward, bestDistance, spell?.color ?? HEX_SPELLS.ash_bolt.color);
     if (this.options.classId === "ranger") this.spawnArrowTrail(cameraPosition, forward, bestDistance);
     this.mouseAccumulator.x = 0;
@@ -1721,6 +1728,7 @@ export class DarkPixGame {
     credited = true,
     alertPlayer = true,
     announce = true,
+    unseenStrike = false,
   ): void {
     enemy.hp -= amount;
     if (alertPlayer) enemy.alerted = true;
@@ -1739,7 +1747,7 @@ export class DarkPixGame {
       enemy.crippled = true;
       enemy.speed *= 0.72;
     }
-    if (announce) this.feed(`${riposte ? "RIPOSTE · " : ""}${headshot ? "HEADSHOT · " : forcedCripple ? "FROSTBITE · " : limbHit ? "LIMB HIT · " : ""}${enemy.name} takes ${amount}.${crippledNow ? " Its stride breaks." : ""}`, enemy.kind === "rival" ? "rival" : "combat");
+    if (announce) this.feed(`${unseenStrike ? "UNSEEN STRIKE · " : ""}${riposte ? "RIPOSTE · " : ""}${headshot ? "HEADSHOT · " : forcedCripple ? "FROSTBITE · " : limbHit ? "LIMB HIT · " : ""}${enemy.name} takes ${amount}.${crippledNow ? " Its stride breaks." : ""}`, enemy.kind === "rival" ? "rival" : "combat");
     enemy.group.scale.set(enemy.baseScale * 1.14, enemy.baseScale * 0.9, enemy.baseScale * 1.14);
     if (enemy.kind === "boss" && enemy.hp > 0 && enemy.hp <= enemy.maxHp / 2 && !enemy.group.userData.enraged) {
       enemy.group.userData.enraged = true;
@@ -1814,9 +1822,17 @@ export class DarkPixGame {
   }
 
   private checkpointRaid(): void {
-    const saved = this.options.onCheckpoint?.(this.depth, this.kills, { ...this.killsByKind }) ?? true;
+    const saved = this.options.onCheckpoint?.(this.depth, this.kills, { ...this.killsByKind }, this.unseenStrikes) ?? true;
     this.journalHud.textContent = saved ? "journal secure" : "journal write failed · do not refresh";
     this.journalHud.classList.toggle("failed", !saved);
+  }
+
+  private recordUnseenStrike(enemy: Enemy): boolean {
+    if (!markUnseenStrike(this.markedUnseenThreats, enemy)) return false;
+    this.unseenStrikes += 1;
+    this.stealthHud.textContent = `unseal · unseen marks ${Math.min(QUIET_KNIVES_TARGET, this.unseenStrikes)} / ${QUIET_KNIVES_TARGET}`;
+    this.checkpointRaid();
+    return true;
   }
 
   private updateEnemies(delta: number): void {
@@ -2399,7 +2415,8 @@ export class DarkPixGame {
       * (headshot ? 1.35 : 1)
       * (best.kind === "rival" ? 1 : this.loadoutBonuses.undeadDamageMultiplier),
     );
-    this.damageEnemy(best, damage, headshot, false);
+    const unseenStrike = this.recordUnseenStrike(best);
+    this.damageEnemy(best, damage, headshot, false, false, false, true, true, true, unseenStrike);
   }
 
   private availableThrowables(): Item[] {
@@ -3115,6 +3132,7 @@ export class DarkPixGame {
       elapsed: this.elapsed,
       goldFound: treasureGoldTotal(this.raidLoot),
       bossKilled: this.bossKilled,
+      unseenStrikes: this.unseenStrikes,
       finishedAt: Date.now(),
       variationSeed: this.variationSeed,
     };

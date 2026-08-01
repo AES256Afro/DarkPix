@@ -39,7 +39,7 @@ export interface ClassDefinition {
 }
 
 export interface Profile {
-  version: 13;
+  version: 14;
   gold: number;
   xp: Record<ClassId, number>;
   stash: Item[];
@@ -52,6 +52,7 @@ export interface Profile {
   boneBountyPaid: boolean;
   rivalBountyPaid: boolean;
   streakBountyPaid: boolean;
+  quietKnivesPaid: boolean;
   lastCommissionDay: string;
   preferredClass: ClassId;
   raidHistory: RaidJournalEntry[];
@@ -69,6 +70,7 @@ export interface RaidJournalEntry {
   xpDelta: number;
   gearLost: number;
   bossKilled: boolean;
+  unseenStrikes?: number;
   variationSeed?: number;
 }
 
@@ -101,6 +103,7 @@ export interface RaidResult {
   elapsed: number;
   goldFound: number;
   bossKilled?: boolean;
+  unseenStrikes?: number;
   finishedAt?: number;
   variationSeed?: number;
 }

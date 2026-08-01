@@ -11,6 +11,7 @@ import { persistBeforeClearingEscrow } from "./game/persistence";
 import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfile, loadRaidEscrow, normalizeRaidResult, purchaseItem, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
 import { rarityMark } from "./game/rarity";
+import { QUIET_KNIVES_REWARD, QUIET_KNIVES_TARGET } from "./game/stealth";
 import type { DarkPixGame } from "./game/game";
 import type { ClassId, GamePreferences, Item, Profile, RaidMode, RaidResult } from "./game/types";
 
@@ -310,8 +311,13 @@ function renderLobby(): void {
               <div><small>THREE RETURNS WITHOUT FUNERAL</small><strong>${profile.streakBountyPaid ? "Lantern oath honored" : "Extract three times in a row"}</strong><p>${profile.streakBountyPaid ? "The Ironmonger paid 300g for the completed survival oath." : "Any failed or abandoned contract breaks the chain. Reward: 300g on the third consecutive extraction."}</p></div>
               <b>${profile.streakBountyPaid ? "PAID" : `${Math.min(3, contractRecord.currentExtractStreak)} / 3`}</b>
             </section>
-            <section class="contract-card daily">
+            <section class="contract-card">
               <span class="wax-seal">VIII</span>
+              <div><small>QUIET KNIVES, OPEN PASSAGE</small><strong>${profile.quietKnivesPaid ? "Silent tithe settled" : `Mark ${QUIET_KNIVES_TARGET} unaware threats`}</strong><p>${profile.quietKnivesPaid ? `The guild paid ${QUIET_KNIVES_REWARD}g for a return written before the crypt could answer.` : `Strike ${QUIET_KNIVES_TARGET} unique non-boss threats before they detect you, then extract. Reward: ${QUIET_KNIVES_REWARD}g.`}</p></div>
+              <b>${profile.quietKnivesPaid ? "PAID" : `0 / ${QUIET_KNIVES_TARGET}`}</b>
+            </section>
+            <section class="contract-card daily">
+              <span class="wax-seal">IX</span>
               <div><small>DAILY IRONMONGER COMMISSION · ${todaysCommission.day}</small><strong>${commissionClaimed ? "Commission settled" : todaysCommission.title}</strong><p>${commissionClaimed ? `${todaysCommission.reward}g paid for today's live return.` : `Defeat ${todaysCommission.target} ${todaysCommission.kind}${todaysCommission.target === 1 ? "" : "s"} in one raid and extract. Reward: ${todaysCommission.reward}g. Resets at 00:00 UTC.`}</p></div>
               <b>${commissionClaimed ? "PAID TODAY" : `0 / ${todaysCommission.target}`}</b>
             </section>
@@ -331,7 +337,7 @@ function renderLobby(): void {
                   const xp = entry.xpDelta >= 0 ? `+${entry.xpDelta} XP` : `${entry.xpDelta} XP`;
                   return `<article class="journal-entry ${entry.reason === "extracted" ? "survived" : "failed"}">
                     <span>${CLASS_RUNES[entry.classId]}</span>
-                    <div><small>${journalDate(entry.completedAt)} · ${rules.name.toUpperCase()} · ${floor}${validRaidVariationSeed(entry.variationSeed) ? ` · ${raidVariationSeal(entry.variationSeed)}` : ""}</small><strong>${outcome}${entry.bossKilled ? " · KEEPER FELLED" : ""}</strong><p>${CLASSES[entry.classId].name} · ${formatTime(entry.elapsed)} · ${entry.kills} kills${entry.gearLost ? ` · ${entry.gearLost} gear lost` : ""}</p></div>
+                    <div><small>${journalDate(entry.completedAt)} · ${rules.name.toUpperCase()} · ${floor}${validRaidVariationSeed(entry.variationSeed) ? ` · ${raidVariationSeal(entry.variationSeed)}` : ""}</small><strong>${outcome}${entry.bossKilled ? " · KEEPER FELLED" : ""}</strong><p>${CLASSES[entry.classId].name} · ${formatTime(entry.elapsed)} · ${entry.kills} kills${entry.unseenStrikes ? ` · ${entry.unseenStrikes} unseen` : ""}${entry.gearLost ? ` · ${entry.gearLost} gear lost` : ""}</p></div>
                     <b>${entry.goldDelta > 0 ? `+${entry.goldDelta}G` : "0G"}<small>${xp}</small></b>
                   </article>`;
                 }).join("") : `<div class="empty-stash"><strong>NO CONTRACTS RECORDED</strong><span>Your next verdict will be preserved here.</span></div>`}
@@ -605,8 +611,8 @@ async function startRaid(): Promise<void> {
       equipped,
       preferences,
       variationSeed,
-      onCheckpoint: (depthReached, kills, killsByKind) => {
-        escrow = createRaidEscrow(escrow.classId, escrow.raidMode, escrow.equippedIds, escrow.startedAt, depthReached, kills, escrow.goldBeforeEntry, killsByKind, escrow.variationSeed);
+      onCheckpoint: (depthReached, kills, killsByKind, unseenStrikes) => {
+        escrow = createRaidEscrow(escrow.classId, escrow.raidMode, escrow.equippedIds, escrow.startedAt, depthReached, kills, escrow.goldBeforeEntry, killsByKind, escrow.variationSeed, unseenStrikes);
         const saved = beginRaidEscrow(escrow);
         if (!saved) console.warn("DarkPix could not update the active raid escrow checkpoint");
         return saved;
@@ -672,7 +678,7 @@ function finishRaid(result: RaidResult): void {
       ? "THE IRON SOUL WAS EXTINGUISHED"
       : result.reason === "abandoned" ? "THE CONTRACT WAS FORFEIT" : "YOUR TORCH WENT OUT";
   const detail = extracted
-    ? `${result.depthReached === 2 ? "The Ashen Depth's passage" : "The blue passage"} seals behind you. ${settlement.overflow.length ? `${settlement.overflow.length} overflow item${settlement.overflow.length === 1 ? " was" : "s were"} sold by the porter for ${settlement.overflowGold}g.` : "Everything in your haul fits safely in the stash."}${result.depthReached === 2 ? " The red-depth veterancy bonus is recorded." : ""}${settlement.firstContractPaid ? " The Taverner's 100g bounty is paid." : ""}${settlement.bossContractPaid ? " The 150g Tollkeeper bounty is paid." : ""}${settlement.highTollContractPaid ? " The 200g Deeper Wager bounty is paid." : result.raidMode === "high_toll" ? " The High Toll veterancy bonus is recorded." : ""}${settlement.ashenContractPaid ? " The 250g Ash Below Ash bounty is paid." : ""}${settlement.boneBountyPaid ? " The 175g Ossuary Ledger bounty is paid." : ""}${settlement.rivalBountyPaid ? " The 225g Guildless Knives bounty is paid." : ""}${settlement.streakBountyPaid ? " The 300g Three Returns bounty is paid." : ""}${settlement.commissionPaid ? ` The daily Ironmonger commission pays ${settlement.commissionReward}g.` : ""}`
+    ? `${result.depthReached === 2 ? "The Ashen Depth's passage" : "The blue passage"} seals behind you. ${settlement.overflow.length ? `${settlement.overflow.length} overflow item${settlement.overflow.length === 1 ? " was" : "s were"} sold by the porter for ${settlement.overflowGold}g.` : "Everything in your haul fits safely in the stash."}${result.depthReached === 2 ? " The red-depth veterancy bonus is recorded." : ""}${settlement.firstContractPaid ? " The Taverner's 100g bounty is paid." : ""}${settlement.bossContractPaid ? " The 150g Tollkeeper bounty is paid." : ""}${settlement.highTollContractPaid ? " The 200g Deeper Wager bounty is paid." : result.raidMode === "high_toll" ? " The High Toll veterancy bonus is recorded." : ""}${settlement.ashenContractPaid ? " The 250g Ash Below Ash bounty is paid." : ""}${settlement.boneBountyPaid ? " The 175g Ossuary Ledger bounty is paid." : ""}${settlement.rivalBountyPaid ? " The 225g Guildless Knives bounty is paid." : ""}${settlement.streakBountyPaid ? " The 300g Three Returns bounty is paid." : ""}${settlement.quietKnivesPaid ? ` The ${QUIET_KNIVES_REWARD}g Quiet Knives bounty is paid.` : ""}${settlement.commissionPaid ? ` The daily Ironmonger commission pays ${settlement.commissionReward}g.` : ""}`
     : `${settlement.classXpLost > 0 ? `${settlement.classXpLost} ${CLASSES[result.classId].name} XP is erased by the Iron Soul oath.` : result.raidMode === "iron_soul" ? "The Iron Soul oath finds no veterancy left to erase." : "Your class remembers."} Your carried gear and every unsecured find remain ${result.depthReached === 2 ? "in the Ashen Depth" : "below"}.${result.depthReached === 2 && result.raidMode !== "iron_soul" ? " Some red-depth veterancy survives." : ""}${rules.entryFee ? ` The ${rules.entryFee}g entry fee is gone.` : ""}`;
   const nextStep = extracted
     ? settlement.overflow.length
@@ -704,7 +710,7 @@ function finishRaid(result: RaidResult): void {
           <span><small>CLASS XP</small><strong>${settlement.classXpLost > 0 ? `-${settlement.classXpLost}` : `+${settlement.xpGained}`}</strong></span>
         </div>
         <p class="xp-breakdown">XP LEDGER · presence ${xpBreakdown.presence} · kills ${xpBreakdown.kills} · extraction ${xpBreakdown.extraction} · depth ${xpBreakdown.depth} · ${xpBreakdown.multiplier.toFixed(2)}x${xpBreakdown.forfeited ? " · FORFEITED BY IRON SOUL" : ` = ${xpBreakdown.total}`}</p>
-        <p class="threat-breakdown">THREAT LEDGER · ${threatBreakdown || "NO CREDITED KILLS"}</p>
+        <p class="threat-breakdown">THREAT LEDGER · ${threatBreakdown || "NO CREDITED KILLS"} · UNSEEN MARKS ${result.unseenStrikes ?? 0}</p>
         <div class="result-haul">
           <div class="panel-heading"><span><small>${extracted ? "SETTLED" : "ABANDONED"}</small><strong>${extracted ? "Recovered haul" : "Lost below"}</strong></span><b>${recordedItems.length} ITEMS</b></div>
           <div class="result-items">

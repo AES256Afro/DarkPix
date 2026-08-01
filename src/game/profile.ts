@@ -5,6 +5,7 @@ import { depthXpBonus } from "./depth";
 import { HAUL_CAPACITY, treasureGoldTotal } from "./haul";
 import { merchantCommission, validUtcDayKey } from "./commission";
 import { validRaidVariationSeed } from "./contract";
+import { MAX_UNSEEN_STRIKES, QUIET_KNIVES_REWARD, QUIET_KNIVES_TARGET } from "./stealth";
 
 const PROFILE_KEY = "darkpix-profile-v1";
 const RAID_ESCROW_KEY = "darkpix-active-raid-v1";
@@ -42,7 +43,7 @@ const STARTER_STASH: Item[] = [
 
 export function createProfile(): Profile {
   return {
-    version: 13,
+    version: 14,
     gold: 75,
     xp: { vanguard: 0, cutpurse: 0, hexbound: 0, reaver: 0, ranger: 0, cleric: 0, shapeshifter: 0, minstrel: 0 },
     stash: STARTER_STASH.map((item) => ({ ...item })),
@@ -55,6 +56,7 @@ export function createProfile(): Profile {
     boneBountyPaid: false,
     rivalBountyPaid: false,
     streakBountyPaid: false,
+    quietKnivesPaid: false,
     lastCommissionDay: "",
     preferredClass: "vanguard",
     raidHistory: [],
@@ -114,6 +116,7 @@ function normalizeRaidJournalEntry(value: unknown): RaidJournalEntry | undefined
     xpDelta: signedInteger(entry.xpDelta, MAX_CLASS_XP),
     gearLost: nonnegativeInteger(entry.gearLost, 24),
     bossKilled: entry.bossKilled === true,
+    unseenStrikes: nonnegativeInteger(entry.unseenStrikes, MAX_UNSEEN_STRIKES),
   };
   if (validRaidVariationSeed(entry.variationSeed)) normalized.variationSeed = entry.variationSeed;
   return normalized;
@@ -162,7 +165,7 @@ export function normalizeProfile(value: unknown): Profile {
     ? candidate.raidHistory.map(normalizeRaidJournalEntry).filter((entry): entry is RaidJournalEntry => Boolean(entry)).slice(0, RAID_HISTORY_LIMIT)
     : [];
   return {
-    version: 13,
+    version: 14,
     gold: nonnegativeInteger(candidate.gold, MAX_GOLD),
     xp: {
       vanguard: nonnegativeInteger(xp.vanguard, MAX_CLASS_XP),
@@ -191,6 +194,7 @@ export function normalizeProfile(value: unknown): Profile {
     boneBountyPaid: typeof candidate.boneBountyPaid === "boolean" ? candidate.boneBountyPaid : false,
     rivalBountyPaid: typeof candidate.rivalBountyPaid === "boolean" ? candidate.rivalBountyPaid : false,
     streakBountyPaid: typeof candidate.streakBountyPaid === "boolean" ? candidate.streakBountyPaid : false,
+    quietKnivesPaid: typeof candidate.quietKnivesPaid === "boolean" ? candidate.quietKnivesPaid : false,
     lastCommissionDay: validUtcDayKey(candidate.lastCommissionDay) ? candidate.lastCommissionDay : "",
     preferredClass: validClass(candidate.preferredClass) ? candidate.preferredClass : fallback.preferredClass,
     raidHistory,
@@ -294,6 +298,7 @@ export function normalizeRaidResult(profile: Profile, value: unknown, currentTim
     elapsed: nonnegativeInteger(candidate.elapsed, 86_400),
     goldFound: treasureGoldTotal(loot),
     bossKilled,
+    unseenStrikes: nonnegativeInteger(candidate.unseenStrikes, MAX_UNSEEN_STRIKES),
     ...(finishedAt === undefined ? {} : { finishedAt }),
     ...(validRaidVariationSeed(candidate.variationSeed) ? { variationSeed: candidate.variationSeed } : {}),
   };
@@ -326,6 +331,7 @@ export interface RaidEscrow {
   kills: number;
   killsByKind: Record<ThreatKind, number>;
   variationSeed?: number;
+  unseenStrikes: number;
   entryFee: number;
   goldBeforeEntry?: number;
   goldAfterEntry?: number;
@@ -341,6 +347,7 @@ export function createRaidEscrow(
   goldBeforeEntry?: number,
   killsByKind: Partial<Record<ThreatKind, number>> = {},
   variationSeed?: number,
+  unseenStrikes = 0,
 ): RaidEscrow {
   const entryFee = raidRules(raidMode).entryFee;
   const safeGoldBeforeEntry = Number.isFinite(goldBeforeEntry) ? nonnegativeInteger(goldBeforeEntry, MAX_GOLD) : undefined;
@@ -354,6 +361,7 @@ export function createRaidEscrow(
     kills: Math.min(1_000, nonnegativeInteger(kills)),
     killsByKind: boundedThreatKills(kills, killsByKind),
     ...(validRaidVariationSeed(variationSeed) ? { variationSeed } : {}),
+    unseenStrikes: nonnegativeInteger(unseenStrikes, MAX_UNSEEN_STRIKES),
     entryFee,
     ...(safeGoldBeforeEntry === undefined ? {} : {
       goldBeforeEntry: safeGoldBeforeEntry,
@@ -376,6 +384,7 @@ export function normalizeRaidEscrow(value: unknown): RaidEscrow | undefined {
     candidate.goldBeforeEntry,
     candidate.killsByKind,
     candidate.variationSeed,
+    candidate.unseenStrikes,
   );
 }
 
@@ -423,6 +432,7 @@ export function settleInterruptedRaid(profile: Profile, escrow: RaidEscrow): Rai
     kills: escrow.kills,
     killsByKind: escrow.killsByKind,
     bossKilled: escrow.killsByKind.boss > 0,
+    unseenStrikes: escrow.unseenStrikes,
     variationSeed: escrow.variationSeed,
     elapsed: 0,
     goldFound: 0,
@@ -441,6 +451,7 @@ export interface RaidSettlement {
   boneBountyPaid: boolean;
   rivalBountyPaid: boolean;
   streakBountyPaid: boolean;
+  quietKnivesPaid: boolean;
   commissionPaid: boolean;
   commissionReward: number;
   overflowGold: number;
@@ -509,6 +520,7 @@ export function settleRaid(profile: Profile, result: RaidResult, currentTimestam
     boneBountyPaid: false,
     rivalBountyPaid: false,
     streakBountyPaid: false,
+    quietKnivesPaid: false,
     commissionPaid: false,
     commissionReward: 0,
     overflowGold: 0,
@@ -525,6 +537,7 @@ export function settleRaid(profile: Profile, result: RaidResult, currentTimestam
     const boneBountyReward = !next.boneBountyPaid && boneKillCount(next) >= BONE_BOUNTY_TARGET ? 175 : 0;
     const rivalBountyReward = !next.rivalBountyPaid && next.threatKills.rival >= RIVAL_BOUNTY_TARGET ? 225 : 0;
     const streakBountyReward = !next.streakBountyPaid && contractRecordSummary(next).currentExtractStreak >= 2 ? 300 : 0;
+    const quietKnivesReward = !next.quietKnivesPaid && (result.unseenStrikes ?? 0) >= QUIET_KNIVES_TARGET ? QUIET_KNIVES_REWARD : 0;
     const commissionTimestamp = Number.isFinite(result.finishedAt) && Number(result.finishedAt) > 0 ? Number(result.finishedAt) : undefined;
     const commission = commissionTimestamp === undefined ? undefined : merchantCommission(commissionTimestamp);
     const commissionReward = commission && next.lastCommissionDay !== commission.day && raidThreatKills[commission.kind] >= commission.target ? commission.reward : 0;
@@ -535,11 +548,13 @@ export function settleRaid(profile: Profile, result: RaidResult, currentTimestam
     settlement.boneBountyPaid = boneBountyReward > 0;
     settlement.rivalBountyPaid = rivalBountyReward > 0;
     settlement.streakBountyPaid = streakBountyReward > 0;
+    settlement.quietKnivesPaid = quietKnivesReward > 0;
     settlement.commissionPaid = commissionReward > 0;
     settlement.commissionReward = commissionReward;
     if (boneBountyReward) next.boneBountyPaid = true;
     if (rivalBountyReward) next.rivalBountyPaid = true;
     if (streakBountyReward) next.streakBountyPaid = true;
+    if (quietKnivesReward) next.quietKnivesPaid = true;
     if (commissionReward && commission) next.lastCommissionDay = commission.day;
     next.extracts = Math.min(MAX_OUTCOME_COUNT, next.extracts + 1);
     if (bossKilled) next.bossVictories = Math.min(MAX_OUTCOME_COUNT, next.bossVictories + 1);
@@ -563,7 +578,7 @@ export function settleRaid(profile: Profile, result: RaidResult, currentTimestam
     const availableGoldCapacity = Math.max(0, MAX_GOLD - next.gold);
     settlement.goldGained = Math.min(
       availableGoldCapacity,
-      treasureGoldTotal(transferable) + firstContractReward + bossContractReward + highTollContractReward + ashenContractReward + boneBountyReward + rivalBountyReward + streakBountyReward + commissionReward + settlement.overflowGold,
+      treasureGoldTotal(transferable) + firstContractReward + bossContractReward + highTollContractReward + ashenContractReward + boneBountyReward + rivalBountyReward + streakBountyReward + quietKnivesReward + commissionReward + settlement.overflowGold,
     );
     next.stash = [...next.stash, ...settlement.banked];
     next.gold += settlement.goldGained;
@@ -588,6 +603,7 @@ export function settleRaid(profile: Profile, result: RaidResult, currentTimestam
     xpDelta: settlement.classXpLost > 0 ? -settlement.classXpLost : settlement.xpGained,
     gearLost: settlement.lost.length,
     bossKilled,
+    unseenStrikes: result.unseenStrikes,
   };
   if (validRaidVariationSeed(result.variationSeed)) journalEntry.variationSeed = result.variationSeed;
   next.raidHistory = [journalEntry, ...next.raidHistory].slice(0, RAID_HISTORY_LIMIT);

@@ -14,7 +14,7 @@ Status: Complete
 
 - First-person movement, crouch stealth, pixel-scaled 3D rendering, stamina-costed directional melee with recovery windows, ranged weapons, magic, guards, parries, ripostes, sidesteps, class abilities, and an exact paused-raid readiness ledger
 - Eight persistent disciplines with levels, perks, equipment, interruptible treatment remedies, throwing weapons, and local preferences
-- Loot capacity, item rarity, randomized modifiers, stash risk, dependable light provisions, merchants, rotating daily commissions, reputation-gated crafting, save backup, and authoritative local raid settlement
+- Loot capacity, item rarity, randomized modifiers, stash risk, dependable light provisions, merchants, one-time stealth bounty, rotating daily commissions, reputation-gated crafting, save backup, and authoritative local raid settlement
 - Closing darkness, finite hoodable torch fuel, two extraction sites, red descent, two floors, traps, second-floor ash vents, mimics, hidden room, campfire, blood reliquary, bosses, and loot-scavenging AI rival delvers that can fight crypt threats or race for extraction
 - Standard, High Toll, and Iron Soul contracts with distinct loss and reward rules
 
@@ -25,7 +25,7 @@ Exit evidence: automated domain tests, production TypeScript build, container he
 Status: Complete for local-first play
 
 - Risked equipment leaves the stash only after a failed verdict
-- Active-raid escrow checkpoints the layout seal, depth, and bounded total and per-threat kills, settles refreshes and interrupted tabs as abandonment, and clears only after the verdict is durably saved
+- Active-raid escrow checkpoints the layout seal, depth, unseen marks, and bounded total and per-threat kills, settles refreshes and interrupted tabs as abandonment, and clears only after the verdict is durably saved
 - The live HUD exposes checkpoint storage failure instead of silently leaving refresh recovery stale
 - Paid-contract escrow reconciles the authoritative before/after gold balance when entry is interrupted between storage writes
 - Consumed packed items remain consumed after extraction or failure
@@ -35,7 +35,7 @@ Status: Complete for local-first play
 - Pre-raid and verdict value ledgers derive loadout risk, fees, Iron Soul XP exposure, and net wealth change from actual contract state
 - Verdicts itemize the bounded per-threat kill evidence used by bestiary, commission, and boss settlement
 - Future-dated verdicts cannot pre-claim a later daily commission or poison the contract journal clock
-- Version 13 migrates older profiles into a bounded single-day commission claim without changing prior progress
+- Version 14 migrates older profiles into the Quiet Knives contract without changing prior progress
 - Class XP, contracts, bestiary ledgers, survival streaks, raid history, settings, and backup import/export survive compatible profile migrations
 - Iron Soul failure clears the selected discipline's XP while preserving the rest of the profile
 
@@ -47,7 +47,7 @@ Status: Complete for the current map
 
 - Encounter mirroring, extraction-site selection, trap formations, rival archetypes, and campfire placement produce 32 bounded raid configurations with stable `PT-00` through `PT-1F` contract seals
 - Contract-critical locations remain reachable in topology tests
-- Threat windups, directional pre-hit and impact markers, guard cone, pre-action strike stamina cost, chain telegraphs, safe annulus, darkness bearing, channel interruption reasons, crosshair scaling, rarity rank marks, and loose-loot silhouettes expose actionable state
+- Threat windups, directional pre-hit and impact markers, guard cone, pre-action strike stamina cost, unique unseen marks, chain telegraphs, safe annulus, darkness bearing, channel interruption reasons, crosshair scaling, rarity rank marks, and loose-loot silhouettes expose actionable state
 - Critical vigor, stamina, spell memory, and torch fuel can redirect the wayfinder to an unused campfire
 - Reduced motion suppresses decorative loading, camera, enemy-step, loot, flame, and portal loops while retaining functional combat telegraphs
 - High contrast strengthens darkness and checkpoint state, navigation, combat warnings, threat vitals, resources, and interaction panels
