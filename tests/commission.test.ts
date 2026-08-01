@@ -60,5 +60,6 @@ describe("daily Ironmonger commissions", () => {
     const base = { raidMode: "standard" as const, depthReached: 1 as const, classId: "vanguard" as const, loot: [], equippedIds: [], kills: commission.target, killsByKind, elapsed: 60, goldFound: 0, finishedAt };
     expect(settleRaid(profile, { ...base, reason: "extracted" }).commissionPaid).toBe(false);
     expect(settleRaid(profile, { ...base, reason: "slain", killsByKind: { [commission.kind]: commission.target } }).commissionPaid).toBe(false);
+    expect(settleRaid(profile, { ...base, reason: "extracted", killsByKind: { [commission.kind]: commission.target }, finishedAt: undefined }).commissionPaid).toBe(false);
   });
 });

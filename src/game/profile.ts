@@ -411,9 +411,9 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     const boneBountyReward = !next.boneBountyPaid && boneKillCount(next) >= BONE_BOUNTY_TARGET ? 175 : 0;
     const rivalBountyReward = !next.rivalBountyPaid && next.threatKills.rival >= RIVAL_BOUNTY_TARGET ? 225 : 0;
     const streakBountyReward = !next.streakBountyPaid && contractRecordSummary(next).currentExtractStreak >= 2 ? 300 : 0;
-    const commissionTimestamp = Number.isFinite(result.finishedAt) && Number(result.finishedAt) > 0 ? Number(result.finishedAt) : Date.now();
-    const commission = merchantCommission(commissionTimestamp);
-    const commissionReward = next.lastCommissionDay !== commission.day && raidThreatKills[commission.kind] >= commission.target ? commission.reward : 0;
+    const commissionTimestamp = Number.isFinite(result.finishedAt) && Number(result.finishedAt) > 0 ? Number(result.finishedAt) : undefined;
+    const commission = commissionTimestamp === undefined ? undefined : merchantCommission(commissionTimestamp);
+    const commissionReward = commission && next.lastCommissionDay !== commission.day && raidThreatKills[commission.kind] >= commission.target ? commission.reward : 0;
     settlement.firstContractPaid = firstContractReward > 0;
     settlement.bossContractPaid = bossContractReward > 0;
     settlement.highTollContractPaid = highTollContractReward > 0;
@@ -426,7 +426,7 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     if (boneBountyReward) next.boneBountyPaid = true;
     if (rivalBountyReward) next.rivalBountyPaid = true;
     if (streakBountyReward) next.streakBountyPaid = true;
-    if (commissionReward) next.lastCommissionDay = commission.day;
+    if (commissionReward && commission) next.lastCommissionDay = commission.day;
     next.extracts = Math.min(MAX_OUTCOME_COUNT, next.extracts + 1);
     if (result.bossKilled) next.bossVictories = Math.min(MAX_OUTCOME_COUNT, next.bossVictories + 1);
     if (result.raidMode === "high_toll") next.highTollExtracts = Math.min(MAX_OUTCOME_COUNT, next.highTollExtracts + 1);
