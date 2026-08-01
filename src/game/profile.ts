@@ -362,6 +362,7 @@ export function settleInterruptedRaid(profile: Profile, escrow: RaidEscrow): Rai
     equippedIds: escrow.equippedIds,
     kills: escrow.kills,
     killsByKind: escrow.killsByKind,
+    bossKilled: escrow.killsByKind.boss > 0,
     variationSeed: escrow.variationSeed,
     elapsed: 0,
     goldFound: 0,
@@ -425,10 +426,12 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
   const risked = new Set(boundedItemIds(result.equippedIds));
   const consumed = new Set(boundedItemIds(result.consumedIds, 24).filter((id) => risked.has(id)).slice(0, 2));
   if (consumed.size) next.stash = next.stash.filter((item) => !consumed.has(item.id));
-  const xpGain = raidXpBreakdown(result).total;
+  const raidThreatKills = boundedThreatKills(result.kills, result.killsByKind);
+  const bossKilled = result.bossKilled === true && raidThreatKills.boss > 0;
+  const depthReached = result.depthReached === 2 && raidThreatKills.boss > 0 ? 2 : 1;
+  const xpGain = raidXpBreakdown({ ...result, bossKilled, depthReached }).total;
   next.xp[result.classId] = Math.min(MAX_CLASS_XP, next.xp[result.classId] + xpGain);
   next.preferredClass = result.classId;
-  const raidThreatKills = boundedThreatKills(result.kills, result.killsByKind);
   for (const kind of THREAT_KINDS) next.threatKills[kind] = Math.min(MAX_OUTCOME_COUNT, next.threatKills[kind] + raidThreatKills[kind]);
   const settlement: RaidSettlement = {
     profile: next,
@@ -452,9 +455,9 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
 
   if (result.reason === "extracted") {
     const firstContractReward = next.extracts === 0 ? 100 : 0;
-    const bossContractReward = result.bossKilled && next.bossVictories === 0 ? 150 : 0;
+    const bossContractReward = bossKilled && next.bossVictories === 0 ? 150 : 0;
     const highTollContractReward = result.raidMode === "high_toll" && next.highTollExtracts === 0 ? 200 : 0;
-    const ashenContractReward = result.depthReached === 2 && next.ashenExtracts === 0 ? 250 : 0;
+    const ashenContractReward = depthReached === 2 && next.ashenExtracts === 0 ? 250 : 0;
     const boneBountyReward = !next.boneBountyPaid && boneKillCount(next) >= BONE_BOUNTY_TARGET ? 175 : 0;
     const rivalBountyReward = !next.rivalBountyPaid && next.threatKills.rival >= RIVAL_BOUNTY_TARGET ? 225 : 0;
     const streakBountyReward = !next.streakBountyPaid && contractRecordSummary(next).currentExtractStreak >= 2 ? 300 : 0;
@@ -475,9 +478,9 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     if (streakBountyReward) next.streakBountyPaid = true;
     if (commissionReward && commission) next.lastCommissionDay = commission.day;
     next.extracts = Math.min(MAX_OUTCOME_COUNT, next.extracts + 1);
-    if (result.bossKilled) next.bossVictories = Math.min(MAX_OUTCOME_COUNT, next.bossVictories + 1);
+    if (bossKilled) next.bossVictories = Math.min(MAX_OUTCOME_COUNT, next.bossVictories + 1);
     if (result.raidMode === "high_toll") next.highTollExtracts = Math.min(MAX_OUTCOME_COUNT, next.highTollExtracts + 1);
-    if (result.depthReached === 2) next.ashenExtracts = Math.min(MAX_OUTCOME_COUNT, next.ashenExtracts + 1);
+    if (depthReached === 2) next.ashenExtracts = Math.min(MAX_OUTCOME_COUNT, next.ashenExtracts + 1);
     const knownIds = new Set(next.stash.map((item) => item.id));
     const transferable: Item[] = [];
     for (const item of result.loot) {
@@ -514,13 +517,13 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     classId: result.classId,
     raidMode: rules.mode,
     reason: result.reason,
-    depthReached: result.depthReached === 2 ? 2 : 1,
+    depthReached,
     kills: Math.min(1_000, nonnegativeInteger(result.kills)),
     elapsed: nonnegativeInteger(result.elapsed, 86_400),
     goldDelta: settlement.goldGained,
     xpDelta: settlement.classXpLost > 0 ? -settlement.classXpLost : settlement.xpGained,
     gearLost: settlement.lost.length,
-    bossKilled: result.bossKilled === true,
+    bossKilled,
   };
   if (validRaidVariationSeed(result.variationSeed)) journalEntry.variationSeed = result.variationSeed;
   next.raidHistory = [journalEntry, ...next.raidHistory].slice(0, RAID_HISTORY_LIMIT);

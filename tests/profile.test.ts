@@ -134,11 +134,11 @@ describe("persistent raid consequences", () => {
     expect(settlement.profile.deaths).toBe(1);
     expect(settlement.lost.map((item) => item.id).sort()).toEqual(["starter-blade", "starter-jack"]);
 
-    const checkpoint = createRaidEscrow("ranger", "standard", [], 123, 2, 3, undefined, { skeleton: 2, rival: 1 }, 31);
+    const checkpoint = createRaidEscrow("ranger", "standard", [], 123, 2, 3, undefined, { skeleton: 1, rival: 1, boss: 1 }, 31);
     const recoveredCheckpoint = settleInterruptedRaid(createProfile(), checkpoint);
-    expect(checkpoint).toMatchObject({ startedAt: 123, depthReached: 2, kills: 3, killsByKind: { skeleton: 2, rival: 1 }, variationSeed: 31 });
+    expect(checkpoint).toMatchObject({ startedAt: 123, depthReached: 2, kills: 3, killsByKind: { skeleton: 1, rival: 1, boss: 1 }, variationSeed: 31 });
     expect(recoveredCheckpoint.xpGained).toBe(165);
-    expect(recoveredCheckpoint.profile.threatKills).toMatchObject({ skeleton: 2, rival: 1 });
+    expect(recoveredCheckpoint.profile.threatKills).toMatchObject({ skeleton: 1, rival: 1, boss: 1 });
     expect(recoveredCheckpoint.profile.raidHistory[0]?.variationSeed).toBe(31);
 
     const standardProfile = createProfile();
@@ -275,6 +275,7 @@ describe("persistent raid consequences", () => {
         loot: [],
         equippedIds: [],
         kills: index,
+        killsByKind: index === 11 ? { boss: 1 } : undefined,
         elapsed: 60 + index,
         goldFound: index,
         bossKilled: index === 11,
@@ -447,6 +448,7 @@ describe("persistent raid consequences", () => {
       loot: [],
       equippedIds: [],
       kills: 1,
+      killsByKind: { boss: 1 },
       elapsed: 60,
       goldFound: 0,
       bossKilled: true,
@@ -461,6 +463,19 @@ describe("persistent raid consequences", () => {
     const failed = settleRaid(createProfile(), { ...victory, reason: "slain" });
     expect(failed.profile.bossVictories).toBe(0);
     expect(failed.goldGained).toBe(0);
+  });
+
+  it("requires typed boss evidence for boss and Ashen claims", () => {
+    const profile = createProfile();
+    profile.extracts = 1;
+    const forged = settleRaid(profile, {
+      reason: "extracted", depthReached: 2, classId: "vanguard", loot: [], equippedIds: [], kills: 1,
+      killsByKind: { skeleton: 1 }, elapsed: 180, goldFound: 0, bossKilled: true,
+    });
+    expect(forged.bossContractPaid).toBe(false);
+    expect(forged.ashenContractPaid).toBe(false);
+    expect(forged.profile).toMatchObject({ bossVictories: 0, ashenExtracts: 0 });
+    expect(forged.profile.raidHistory[0]).toMatchObject({ depthReached: 1, bossKilled: false });
   });
 
   it("awards the High Toll XP multiplier without changing death persistence", () => {
@@ -488,11 +503,11 @@ describe("persistent raid consequences", () => {
   });
 
   it("records red-depth veterancy on both escape and death", () => {
-    const base = { classId: "vanguard" as const, loot: [], equippedIds: [], kills: 0, elapsed: 220, goldFound: 0, depthReached: 2 as const };
+    const base = { classId: "vanguard" as const, loot: [], equippedIds: [], kills: 1, killsByKind: { boss: 1 }, bossKilled: true, elapsed: 220, goldFound: 0, depthReached: 2 as const };
     const escaped = settleRaid(createProfile(), { ...base, reason: "extracted" });
     const fallen = settleRaid(createProfile(), { ...base, reason: "slain" });
-    expect(escaped.xpGained).toBe(350);
-    expect(fallen.xpGained).toBe(90);
+    expect(escaped.xpGained).toBe(385);
+    expect(fallen.xpGained).toBe(125);
   });
 
   it("pays the first successful High Toll contract once and never for standard or failed raids", () => {
@@ -524,7 +539,8 @@ describe("persistent raid consequences", () => {
       classId: "ranger" as const,
       loot: [],
       equippedIds: [],
-      kills: 0,
+      kills: 1,
+      killsByKind: { boss: 1 },
       elapsed: 180,
       goldFound: 0,
       bossKilled: true,
