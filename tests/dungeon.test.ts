@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DUNGEON, dartTrapTargetDistance, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists, encounterPosition, selectRaidVariation } from "../src/game/dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES } from "../src/game/depth";
 import { continuousHold, targetDistanceInView } from "../src/game/targeting";
-import { cardinalDirection, circlesOverlap, movementOffset, relativeDirectionToSource } from "../src/game/navigation";
+import { cardinalDirection, circlesOverlap, movementOffset, recoveryNeed, relativeDirectionToSource } from "../src/game/navigation";
 import { directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "../src/game/zone";
 import type { Vec2 } from "../src/game/types";
 
@@ -158,6 +158,15 @@ describe("contract wayfinding", () => {
     expect(Math.hypot(...Object.values(movementOffset(0, 1, 1, 1.5)))).toBeCloseTo(1.5);
     expect(movementOffset(0, Number.NaN, 0, 2)).toEqual({ x: 0, z: 0 });
     expect(movementOffset(0, 1, 0, -2)).toEqual({ x: 0, z: 0 });
+  });
+
+  it("requests campfire guidance only for critical recoverable resources", () => {
+    expect(recoveryNeed(100, 100, 100, 100, 0, true)).toBe("MEMORY");
+    expect(recoveryNeed(32, 100, 100, 100, 6, false)).toBe("VIGOR");
+    expect(recoveryNeed(100, 100, 12, 100, 6, false)).toBe("STAMINA");
+    expect(recoveryNeed(33, 100, 13, 100, 6, false)).toBeUndefined();
+    expect(recoveryNeed(Number.NaN, 100, 100, 100, 6, false)).toBeUndefined();
+    expect(recoveryNeed(10, 0, 10, 0, 6, false)).toBeUndefined();
   });
 
   it("keeps physical threat circles from stacking", () => {

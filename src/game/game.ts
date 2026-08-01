@@ -7,7 +7,7 @@ import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encou
 import { ASHEN_CHESTS, ASHEN_ENEMIES, bossRingActive, bossRingCooldown, depthRules } from "./depth";
 import { HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGold } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, pickupDecision, type LoadoutStats } from "./loadout";
-import { cardinalDirection, circlesOverlap, movementOffset, relativeDirectionToSource } from "./navigation";
+import { cardinalDirection, circlesOverlap, movementOffset, recoveryNeed, relativeDirectionToSource } from "./navigation";
 import { raidRules, type RaidRules } from "./raid";
 import { consumablesInUseOrder, nextConsumableId, nextThrowableId, resolveConsumableId, resolveThrowableId, throwablesInUseOrder } from "./quickslots";
 import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./resolution";
@@ -2583,16 +2583,27 @@ export class DarkPixGame {
     let target: THREE.Vector3 | undefined;
     let label = "WARDEN";
     const looseSigil = this.pickups.find((pickup) => !pickup.collected && pickup.item.kind === "sigil");
+    const recovery = recoveryNeed(
+      this.health,
+      this.maxHealth,
+      this.stamina,
+      this.definition.maxStamina,
+      this.spellCharges,
+      this.options.classId === "hexbound",
+    );
     if (looseSigil) {
       target = looseSigil.group.position;
       label = "SIGIL";
-    } else if (!this.portalUnlocked) {
+    } else if (this.portalUnlocked) {
+      target = this.portal.position;
+      label = "PASSAGE";
+    } else if (!this.campfireUsed && recovery) {
+      target = this.campfire.position;
+      label = `CAMPFIRE ${recovery}`;
+    } else {
       const livingWardens = this.enemies.filter((enemy) => enemy.alive && enemy.kind === "warden");
       livingWardens.sort((left, right) => left.group.position.distanceToSquared(this.camera.position) - right.group.position.distanceToSquared(this.camera.position));
       target = livingWardens[0]?.group.position;
-    } else {
-      target = this.portal.position;
-      label = "PASSAGE";
     }
 
     if (!target) {

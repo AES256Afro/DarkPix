@@ -45,3 +45,19 @@ export function movementOffset(yaw: number, strafe: number, forward: number, dis
     z: z === 0 ? 0 : z,
   };
 }
+
+export type RecoveryNeed = "MEMORY" | "VIGOR" | "STAMINA" | undefined;
+
+export function recoveryNeed(
+  health: number,
+  maximumHealth: number,
+  stamina: number,
+  maximumStamina: number,
+  spellCharges: number,
+  usesSpellMemory: boolean,
+): RecoveryNeed {
+  if (usesSpellMemory && Number.isFinite(spellCharges) && spellCharges <= 0) return "MEMORY";
+  if (Number.isFinite(health) && Number.isFinite(maximumHealth) && maximumHealth > 0 && health / maximumHealth <= 0.32) return "VIGOR";
+  if (Number.isFinite(stamina) && Number.isFinite(maximumStamina) && maximumStamina > 0 && stamina / maximumStamina <= 0.12) return "STAMINA";
+  return undefined;
+}
