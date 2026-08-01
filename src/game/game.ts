@@ -703,7 +703,10 @@ export class DarkPixGame {
       return;
     }
     this.paused = document.pointerLockElement !== this.renderer.domElement;
-    if (this.paused) this.clearHeldInputs();
+    if (this.paused) {
+      this.clearHeldInputs();
+      this.audio.pause();
+    }
     this.lockOverlay.classList.toggle("hidden", !this.paused || this.ended);
     if (!this.paused) {
       this.audio.start();
@@ -725,6 +728,7 @@ export class DarkPixGame {
     if (this.ended) return;
     this.paused = true;
     this.clearHeldInputs();
+    this.audio.pause();
     this.lockOverlay.classList.remove("hidden");
     if (document.pointerLockElement === this.renderer.domElement) void document.exitPointerLock();
   }
@@ -748,6 +752,7 @@ export class DarkPixGame {
     this.contextLost = true;
     this.paused = true;
     this.clearHeldInputs();
+    this.audio.pause();
     this.setLockOverlayCopy("REKINDLING THE CRYPT", "The renderer was interrupted. Waiting for the torch to return.");
     this.lockOverlay.classList.remove("hidden");
     if (document.pointerLockElement === this.renderer.domElement) void document.exitPointerLock();
@@ -764,15 +769,34 @@ export class DarkPixGame {
 
   private requestPointerLock = (): void => {
     if (this.ended || this.contextLost) return;
+    if (typeof this.renderer.domElement.requestPointerLock !== "function") {
+      this.paused = true;
+      this.clearHeldInputs();
+      this.audio.pause();
+      this.setLockOverlayCopy("CURSOR RITUAL FAILED", "This browser cannot bind a first-person cursor. Return to the lobby and use a desktop browser.");
+      this.lockOverlay.classList.remove("hidden");
+      return;
+    }
     this.paused = false;
     this.lockOverlay.classList.add("hidden");
     this.audio.start();
     this.clock.getDelta();
-    const pointerLockRequest = this.renderer.domElement.requestPointerLock();
-    void pointerLockRequest.catch(() => {
-      this.feed("Pointer lock unavailable. Keyboard controls remain active.", "system");
-    });
+    try {
+      const pointerLockRequest = this.renderer.domElement.requestPointerLock();
+      void pointerLockRequest.catch(() => this.handlePointerLockFailure());
+    } catch {
+      this.handlePointerLockFailure();
+    }
   };
+
+  private handlePointerLockFailure(): void {
+    this.paused = true;
+    this.clearHeldInputs();
+    this.audio.pause();
+    this.setLockOverlayCopy("CURSOR UNBOUND", "Click to try again. If the browser keeps refusing, allow pointer lock for this site.");
+    this.lockOverlay.classList.remove("hidden");
+    this.feed("The browser refused pointer lock. The raid remains paused.", "system");
+  }
 
   private frame = (): void => {
     this.animationFrame = requestAnimationFrame(this.frame);
@@ -1463,6 +1487,7 @@ export class DarkPixGame {
     if (this.ended) return;
     this.ended = true;
     this.paused = true;
+    this.audio.pause();
     if (document.pointerLockElement === this.renderer.domElement) void document.exitPointerLock();
     const result: RaidResult = {
       reason,

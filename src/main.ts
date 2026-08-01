@@ -343,6 +343,12 @@ function renderLobby(): void {
 }
 
 async function startRaid(): Promise<void> {
+  if (typeof HTMLCanvasElement.prototype.requestPointerLock !== "function") {
+    merchantNotice = "DarkPix raids require pointer lock. Use a current desktop browser to descend.";
+    renderLobby();
+    document.querySelector("#stash")?.scrollIntoView({ behavior: "smooth" });
+    return;
+  }
   const equipped = profile.stash.filter((item) => equippedIds.has(item.id));
   app.innerHTML = `<main class="game-mount" aria-label="DarkPix dungeon raid"><div class="crypt-loading" role="status"><span>DP</span><strong>OPENING THE PALE TOLL</strong><small>Kindling the dungeon renderer</small></div></main>`;
   const mount = app.querySelector<HTMLElement>(".game-mount");
