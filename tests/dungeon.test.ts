@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DUNGEON, dungeonCollides, dungeonLineOfSight, dungeonPathExists } from "../src/game/dungeon";
 import { targetDistanceInView } from "../src/game/targeting";
+import { cardinalDirection } from "../src/game/navigation";
 
 describe("Crypt of the Pale Toll topology", () => {
   it("keeps every contract-critical location reachable from the player start", () => {
@@ -30,5 +31,14 @@ describe("deliberate interaction targeting", () => {
     expect(targetDistanceInView(origin, facing, { x: 0.4, z: -2 }, 2.6)).toBeLessThan(2.6);
     expect(targetDistanceInView(origin, facing, { x: 0, z: 2 }, 2.6)).toBe(Number.POSITIVE_INFINITY);
     expect(targetDistanceInView(origin, facing, { x: 0, z: -3 }, 2.6)).toBe(Number.POSITIVE_INFINITY);
+  });
+});
+
+describe("contract wayfinding", () => {
+  it("maps world vectors to stable eight-way headings", () => {
+    expect(cardinalDirection({ x: 0, z: -1 })).toBe("N");
+    expect(cardinalDirection({ x: 1, z: 0 })).toBe("E");
+    expect(cardinalDirection({ x: -1, z: 1 })).toBe("SW");
+    expect(cardinalDirection({ x: 0, z: 0 })).toBe("HERE");
   });
 });

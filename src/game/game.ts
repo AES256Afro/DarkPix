@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { AudioDirector } from "./audio";
 import { CLASSES, RARITY_COLOR, createLoot, createSigil, formatTime, progressionBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight } from "./dungeon";
+import { cardinalDirection } from "./navigation";
 import { targetDistanceInView } from "./targeting";
 import type { ClassId, GamePreferences, Item, RaidEndReason, RaidResult } from "./types";
 
@@ -139,6 +140,8 @@ export class DarkPixGame {
   private promptHud!: HTMLElement;
   private feedHud!: HTMLElement;
   private directionHud!: HTMLElement;
+  private compassHeadingHud!: HTMLElement;
+  private wayfinderHud!: HTMLElement;
   private lockOverlay!: HTMLElement;
   private damageOverlay!: HTMLElement;
   private extractProgress!: HTMLElement;
@@ -213,7 +216,7 @@ export class DarkPixGame {
               <strong class="raid-clock">3:30</strong>
               <span class="zone-copy">darkness dormant</span>
             </section>
-            <div class="compass"><span>W</span><strong>⊙</strong><span>E</span></div>
+            <div class="compass"><span class="compass-heading">N</span><strong class="wayfinder">WARDEN · SEEK</strong><span>⌖</span></div>
             <section class="objective-panel">
               <span class="eyebrow">CONTRACT</span>
               <strong class="objective-copy">WARDEN SIGILS 0 / 2</strong>
@@ -266,6 +269,8 @@ export class DarkPixGame {
     this.promptHud = this.mount.querySelector<HTMLElement>(".interaction-prompt")!;
     this.feedHud = this.mount.querySelector<HTMLElement>(".event-feed")!;
     this.directionHud = this.mount.querySelector<HTMLElement>(".attack-direction")!;
+    this.compassHeadingHud = this.mount.querySelector<HTMLElement>(".compass-heading")!;
+    this.wayfinderHud = this.mount.querySelector<HTMLElement>(".wayfinder")!;
     this.lockOverlay = this.mount.querySelector<HTMLElement>(".lock-overlay")!;
     this.damageOverlay = this.mount.querySelector<HTMLElement>(".damage-flash")!;
     this.extractProgress = this.mount.querySelector<HTMLElement>(".extract-meter i")!;
@@ -1067,6 +1072,7 @@ export class DarkPixGame {
     this.raidClock.classList.toggle("urgent", RAID_DURATION - this.elapsed < 45);
     this.lootHud.textContent = `${this.raidLoot.length} item${this.raidLoot.length === 1 ? "" : "s"} · ${this.goldFound}g`;
     this.objectiveHud.textContent = this.portalUnlocked ? "BLUE PASSAGE OPEN" : `WARDEN SIGILS ${this.sigils} / 2`;
+    this.updateWayfinder();
     this.directionHud.textContent = this.attackDirection;
     this.directionHud.classList.toggle("active", this.mouseAccumulator.x !== 0 || this.mouseAccumulator.y !== 0);
     if (!this.interactHeld || !this.portalUnlocked) {
@@ -1077,6 +1083,33 @@ export class DarkPixGame {
       this.portalAnnounced = true;
       this.feed("The dark advances. Wardens carry what the passage needs.", "danger");
     }
+  }
+
+  private updateWayfinder(): void {
+    const facing = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    this.compassHeadingHud.textContent = cardinalDirection({ x: facing.x, z: facing.z });
+
+    let target: THREE.Vector3 | undefined;
+    let label = "WARDEN";
+    const looseSigil = this.pickups.find((pickup) => !pickup.collected && pickup.item.kind === "sigil");
+    if (looseSigil) {
+      target = looseSigil.group.position;
+      label = "SIGIL";
+    } else if (!this.portalUnlocked) {
+      const livingWardens = this.enemies.filter((enemy) => enemy.alive && enemy.kind === "warden");
+      livingWardens.sort((left, right) => left.group.position.distanceToSquared(this.camera.position) - right.group.position.distanceToSquared(this.camera.position));
+      target = livingWardens[0]?.group.position;
+    } else {
+      target = this.portal.position;
+      label = "PASSAGE";
+    }
+
+    if (!target) {
+      this.wayfinderHud.textContent = "SEARCH THE CRYPT";
+      return;
+    }
+    const delta = { x: target.x - this.camera.position.x, z: target.z - this.camera.position.z };
+    this.wayfinderHud.textContent = `${label} · ${cardinalDirection(delta)} ${Math.round(Math.hypot(delta.x, delta.z))}m`;
   }
 
   private feed(message: string, tone: "system" | "danger" | "combat" | "loot" | "rival"): void {

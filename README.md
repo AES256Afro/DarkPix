@@ -36,6 +36,7 @@ Mouse sensitivity, crypt brightness, audio, and reduced camera motion can be adj
 - Choose Vanguard, Cutpurse, or Hexbound. Class XP and levels persist across every outcome.
 - Pack up to two stash items. Their power applies in the raid, but they are lost if the delver dies.
 - Defeat two Ossuary Wardens and take their sigils.
+- Follow the contract wayfinder toward the nearest living Warden, loose sigil, or unlocked blue passage.
 - Search four coffers across an interconnected dungeon while fighting monsters and one AI rival delver.
 - Hold `E` at the blue passage in the southeast reliquary to bank the haul.
 - Death discards all raid loot and equipped risk items. The player can always return with base class equipment.

@@ -211,8 +211,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .contract-panel > span:last-child, .objective-panel > span:last-child { color: #6f6b63; font: 8px ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase; }
 .objective-panel { justify-self: end; align-items: end; border-right: 2px solid #426a6a; border-left: 0; background: linear-gradient(-90deg, rgba(9,8,7,.76), transparent); text-align: right; }
 .objective-panel strong { margin: 5px 0 3px; color: #96c4c0; font: 800 10px ui-monospace, monospace; letter-spacing: .1em; }
-.compass { display: flex; width: 170px; align-items: center; justify-content: space-between; padding-top: 7px; border-top: 1px solid rgba(208,197,177,.28); color: #81796d; font: 700 8px ui-monospace, monospace; }
-.compass strong { color: #c59966; font-size: 15px; }
+.compass { display: flex; width: 250px; align-items: center; justify-content: space-between; gap: 12px; padding-top: 7px; border-top: 1px solid rgba(208,197,177,.28); color: #81796d; font: 700 8px ui-monospace, monospace; }
+.compass strong { color: #c59966; font-size: 9px; letter-spacing: .08em; text-align: center; }
 .event-feed { position: absolute; top: 19%; left: 50%; min-width: 300px; padding: 9px 16px; transform: translate(-50%, -8px); border-top: 1px solid rgba(191,169,132,.24); border-bottom: 1px solid rgba(191,169,132,.24); background: linear-gradient(90deg, transparent, rgba(6,5,4,.68), transparent); color: #b7aa98; font: 800 9px ui-monospace, monospace; letter-spacing: .09em; text-align: center; opacity: 0; text-shadow: 0 2px 5px #000; }
 .event-feed.show { animation: feed-show 3.4s ease both; }
 .event-feed[data-tone="danger"] { color: #d77a66; }
