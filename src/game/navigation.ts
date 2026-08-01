@@ -16,6 +16,12 @@ export function circlesOverlap(left: Vec2, leftRadius: number, right: Vec2, righ
 
 export type RelativeDirection = "FRONT" | "RIGHT" | "BACK" | "LEFT" | "CENTER";
 
+export interface DirectionalCue {
+  direction: RelativeDirection;
+  marker: "▲" | "▶" | "▼" | "◀" | "◆";
+  text: string;
+}
+
 export function relativeDirectionToSource(yaw: number, origin: Vec2, source: Vec2): RelativeDirection {
   const safeYaw = Number.isFinite(yaw) ? yaw : 0;
   const dx = source.x - origin.x;
@@ -30,6 +36,13 @@ export function relativeDirectionToSource(yaw: number, origin: Vec2, source: Vec
   if (angle >= Math.PI / 4 && angle < Math.PI * 3 / 4) return "RIGHT";
   if (angle <= -Math.PI / 4 && angle > -Math.PI * 3 / 4) return "LEFT";
   return "BACK";
+}
+
+export function directionalCue(yaw: number, origin: Vec2, source: Vec2, label: string): DirectionalCue {
+  const direction = relativeDirectionToSource(yaw, origin, source);
+  const marker = direction === "FRONT" ? "▲" : direction === "RIGHT" ? "▶" : direction === "BACK" ? "▼" : direction === "LEFT" ? "◀" : "◆";
+  const safeLabel = label.trim().toUpperCase().slice(0, 24) || "THREAT";
+  return { direction, marker, text: `${marker} ${safeLabel} · ${direction}` };
 }
 
 export function movementOffset(yaw: number, strafe: number, forward: number, distance: number): Vec2 {

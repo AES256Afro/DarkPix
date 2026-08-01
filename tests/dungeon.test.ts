@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DUNGEON, dartTrapTargetDistance, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists, encounterPosition, selectRaidVariation } from "../src/game/dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES } from "../src/game/depth";
 import { channelInterruptionReason, continuousHold, targetDistanceInView } from "../src/game/targeting";
-import { cardinalDirection, circlesOverlap, movementOffset, recoveryNeed, relativeDirectionToSource } from "../src/game/navigation";
+import { cardinalDirection, circlesOverlap, directionalCue, movementOffset, recoveryNeed, relativeDirectionToSource } from "../src/game/navigation";
 import { directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "../src/game/zone";
 import type { Vec2 } from "../src/game/types";
 
@@ -158,6 +158,12 @@ describe("contract wayfinding", () => {
     expect(relativeDirectionToSource(Math.PI / 2, origin, { x: -4, z: 0 })).toBe("FRONT");
     expect(relativeDirectionToSource(0, origin, origin)).toBe("CENTER");
     expect(relativeDirectionToSource(Number.NaN, origin, { x: 0, z: -4 })).toBe("FRONT");
+  });
+
+  it("pairs directional warnings with shapes and text", () => {
+    const origin = { x: 0, z: 0 };
+    expect(directionalCue(0, origin, { x: 4, z: 0 }, "strike")).toEqual({ direction: "RIGHT", marker: "▶", text: "▶ STRIKE · RIGHT" });
+    expect(directionalCue(0, origin, origin, " ")).toEqual({ direction: "CENTER", marker: "◆", text: "◆ THREAT · CENTER" });
   });
 
   it("turns local sidestep input into a bounded world offset", () => {

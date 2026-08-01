@@ -7,7 +7,7 @@ import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encou
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
 import { HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGoldTotal } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, pickupDecision, type LoadoutStats } from "./loadout";
-import { cardinalDirection, circlesOverlap, movementOffset, recoveryNeed, relativeDirectionToSource } from "./navigation";
+import { cardinalDirection, circlesOverlap, directionalCue, movementOffset, recoveryNeed } from "./navigation";
 import { raidRules, type RaidRules } from "./raid";
 import { consumablesInUseOrder, nextConsumableId, nextThrowableId, resolveConsumableId, resolveThrowableId, throwablesInUseOrder } from "./quickslots";
 import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./resolution";
@@ -318,7 +318,7 @@ export class DarkPixGame {
         <div class="pixel-grid" aria-hidden="true"></div>
         <div class="darkness-vignette" aria-hidden="true"></div>
         <div class="damage-flash" aria-hidden="true"></div>
-        <div class="damage-direction" aria-hidden="true"></div>
+        <div class="damage-direction" role="status" aria-live="polite" aria-atomic="true"></div>
         <div class="raid-hud">
           <div class="hud-top">
             <section class="contract-panel">
@@ -1375,6 +1375,7 @@ export class DarkPixGame {
       trap.windup = 0.62;
       if (Number.isFinite(playerDistance)) {
         this.feed("WALL PORTS GLOW · leave the dart lane", "danger");
+        this.showDirectionalCue(origin, "DART LANE", 0.8, "warning");
         this.audio.tone(880, 0.08, "square", 0.07);
       }
     }
@@ -1842,6 +1843,7 @@ export class DarkPixGame {
         enemy.windup = pattern.windup;
         enemy.windupDuration = pattern.windup;
         this.feed("CHAIN LASH · break sight, retreat, or raise your guard", "danger");
+        this.showDirectionalCue(enemy.group.position, "CHAIN", pattern.windup + 0.18, "warning");
         this.audio.tone(52, 0.22, "sawtooth", 0.11);
         continue;
       }
@@ -1884,6 +1886,7 @@ export class DarkPixGame {
         const pattern = enemyAttackPattern(enemy.kind, Boolean(enemy.group.userData.enraged), false);
         enemy.windup = pattern.windup;
         enemy.windupDuration = pattern.windup;
+        this.showDirectionalCue(enemy.group.position, enemy.attackStyle === "ranged" ? "MISSILE" : "STRIKE", pattern.windup + 0.18, "warning");
         this.audio.tone(enemy.kind === "boss" ? 58 : 110, 0.08, "square", 0.04);
       }
     }
@@ -1986,21 +1989,25 @@ export class DarkPixGame {
     this.damageOverlay.classList.remove("pulse");
     void this.damageOverlay.offsetWidth;
     this.damageOverlay.classList.add("pulse");
-    if (sourcePosition) {
-      const direction = relativeDirectionToSource(
-        this.yaw,
-        { x: this.camera.position.x, z: this.camera.position.z },
-        sourcePosition,
-      );
-      const marker = direction === "FRONT" ? "▲" : direction === "RIGHT" ? "▶" : direction === "BACK" ? "▼" : direction === "LEFT" ? "◀" : "◆";
-      this.damageDirectionHud.textContent = `${marker} ${direction === "CENTER" ? "IMPACT" : direction}`;
-      this.damageDirectionHud.dataset.direction = direction.toLowerCase();
-      this.damageDirectionTimer = 1.15;
-      this.damageDirectionHud.classList.add("visible");
-    }
+    if (sourcePosition) this.showDirectionalCue(sourcePosition, "IMPACT", 1.15, "impact");
     this.audio.danger();
     this.feed(`${source} wounds you for ${Math.round(appliedDamage)}.${channelBroken ? " CHANNEL BROKEN." : ""}`, "danger");
     if (this.health <= 0) this.finish(source === "the dark" ? "darkness" : "slain");
+  }
+
+  private showDirectionalCue(sourcePosition: Vec2, label: string, duration: number, phase: "warning" | "impact"): void {
+    if (phase === "warning" && this.damageDirectionHud.dataset.phase === "impact" && this.damageDirectionTimer > 0.35) return;
+    const cue = directionalCue(
+      this.yaw,
+      { x: this.camera.position.x, z: this.camera.position.z },
+      sourcePosition,
+      label,
+    );
+    this.damageDirectionHud.textContent = cue.text;
+    this.damageDirectionHud.dataset.direction = cue.direction.toLowerCase();
+    this.damageDirectionHud.dataset.phase = phase;
+    this.damageDirectionTimer = Math.max(0.1, Number.isFinite(duration) ? duration : 0.1);
+    this.damageDirectionHud.classList.add("visible");
   }
 
   private useConsumable(): void {

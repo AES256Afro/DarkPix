@@ -278,6 +278,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 @keyframes damage-pulse { 0% { opacity: .9; } 100% { opacity: 0; } }
 .damage-direction { position: absolute; top: 50%; left: 50%; z-index: 4; padding: 4px 7px; border: 1px solid rgba(205,91,67,.46); background: rgba(20,5,4,.78); color: #e18a74; font: 800 7px ui-monospace, monospace; letter-spacing: .1em; opacity: 0; pointer-events: none; text-shadow: 0 1px 2px #000; transition: opacity .12s; }
 .damage-direction.visible { opacity: 1; }
+.damage-direction[data-phase="warning"] { border-color: rgba(214,166,82,.62); background: rgba(22,14,4,.82); color: #e6c176; }
 .damage-direction[data-direction="front"] { transform: translate(-50%, -66px); }
 .damage-direction[data-direction="right"] { transform: translate(46px, -50%); }
 .damage-direction[data-direction="back"] { transform: translate(-50%, 44px); }
