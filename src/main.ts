@@ -625,7 +625,8 @@ async function startRaid(): Promise<void> {
 function finishRaid(result: RaidResult): void {
   activeGame?.destroy();
   activeGame = undefined;
-  result = normalizeRaidResult(profile, result);
+  const settledAt = Date.now();
+  result = normalizeRaidResult(profile, result, settledAt);
   const extracted = result.reason === "extracted";
   const rules = raidRules(result.raidMode);
   const riskedIds = new Set(result.equippedIds);
@@ -639,7 +640,7 @@ function finishRaid(result: RaidResult): void {
     .filter(([, count]) => count > 0)
     .map(([kind, count]) => `${kind.toUpperCase()} ${count}`)
     .join(" · ");
-  const settlement = settleRaid(profile, result);
+  const settlement = settleRaid(profile, result, settledAt);
   const riskedValue = itemValueTotal(riskedBeforeSettlement);
   const valueSummary = raidValueSummary({
     extracted,

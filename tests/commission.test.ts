@@ -40,12 +40,12 @@ describe("daily Ironmonger commissions", () => {
       goldFound: 7,
       finishedAt,
     };
-    const first = settleRaid(profile, result);
+    const first = settleRaid(profile, result, finishedAt);
     expect(first.commissionPaid).toBe(true);
     expect(first.commissionReward).toBe(commission.reward);
     expect(first.goldGained).toBe(commission.reward);
     expect(first.profile.lastCommissionDay).toBe(commission.day);
-    const repeated = settleRaid(first.profile, result);
+    const repeated = settleRaid(first.profile, result, finishedAt);
     expect(repeated.commissionPaid).toBe(false);
     expect(repeated.commissionReward).toBe(0);
     expect(repeated.goldGained).toBe(0);
@@ -58,8 +58,36 @@ describe("daily Ironmonger commissions", () => {
     profile.extracts = 1;
     const killsByKind: Partial<Record<ThreatKind, number>> = { [commission.kind]: Math.max(0, commission.target - 1) };
     const base = { raidMode: "standard" as const, depthReached: 1 as const, classId: "vanguard" as const, loot: [], equippedIds: [], kills: commission.target, killsByKind, elapsed: 60, goldFound: 0, finishedAt };
-    expect(settleRaid(profile, { ...base, reason: "extracted" }).commissionPaid).toBe(false);
-    expect(settleRaid(profile, { ...base, reason: "slain", killsByKind: { [commission.kind]: commission.target } }).commissionPaid).toBe(false);
-    expect(settleRaid(profile, { ...base, reason: "extracted", killsByKind: { [commission.kind]: commission.target }, finishedAt: undefined }).commissionPaid).toBe(false);
+    expect(settleRaid(profile, { ...base, reason: "extracted" }, finishedAt).commissionPaid).toBe(false);
+    expect(settleRaid(profile, { ...base, reason: "slain", killsByKind: { [commission.kind]: commission.target } }, finishedAt).commissionPaid).toBe(false);
+    expect(settleRaid(profile, { ...base, reason: "extracted", killsByKind: { [commission.kind]: commission.target }, finishedAt: undefined }, finishedAt).commissionPaid).toBe(false);
+  });
+
+  it("rejects a future-dated commission claim and journals settlement time instead", () => {
+    const settledAt = Date.UTC(2026, 7, 1, 12);
+    const finishedAt = Date.UTC(2026, 7, 2, 12);
+    const commission = merchantCommission(finishedAt);
+    const profile = createProfile();
+    profile.extracts = 1;
+    profile.boneBountyPaid = true;
+    profile.rivalBountyPaid = true;
+    profile.streakBountyPaid = true;
+    const settlement = settleRaid(profile, {
+      reason: "extracted",
+      raidMode: "standard",
+      depthReached: 1,
+      classId: "vanguard",
+      loot: [],
+      equippedIds: [],
+      kills: commission.target,
+      killsByKind: { [commission.kind]: commission.target },
+      elapsed: 60,
+      goldFound: 0,
+      finishedAt,
+    }, settledAt);
+    expect(settlement.commissionPaid).toBe(false);
+    expect(settlement.commissionReward).toBe(0);
+    expect(settlement.profile.lastCommissionDay).toBe("");
+    expect(settlement.profile.raidHistory[0]?.completedAt).toBe(settledAt);
   });
 });

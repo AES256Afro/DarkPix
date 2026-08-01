@@ -13,6 +13,7 @@ export const MAX_ITEM_POWER = 100;
 export const MAX_ITEM_VALUE = 99_999;
 export const MAX_RAID_SIGILS = 4;
 export const MAX_RAID_LOOT_ITEMS = HAUL_CAPACITY + MAX_RAID_SIGILS;
+export const MAX_RAID_CLOCK_SKEW_MS = 5 * 60 * 1_000;
 const MAX_CLASS_XP = 99_999_999;
 const MAX_OUTCOME_COUNT = 9_999_999;
 export const RAID_HISTORY_LIMIT = 10;
@@ -251,9 +252,12 @@ export function raidThreatKillLedger(result: Pick<RaidResult, "kills" | "killsBy
   return { total, byKind: boundedThreatKills(total, result.killsByKind) };
 }
 
-export function normalizeRaidResult(profile: Profile, value: unknown): RaidResult {
+export function normalizeRaidResult(profile: Profile, value: unknown, currentTimestamp = Date.now()): RaidResult {
   const next = normalizeProfile(profile);
   const candidate = value && typeof value === "object" ? value as Partial<RaidResult> : {};
+  const settledAt = Number.isFinite(currentTimestamp) && currentTimestamp > 0
+    ? nonnegativeInteger(currentTimestamp)
+    : Date.now();
   const loot: Item[] = [];
   let ordinaryLoot = 0;
   let sigils = 0;
@@ -274,7 +278,7 @@ export function normalizeRaidResult(profile: Profile, value: unknown): RaidResul
   const kills = Math.min(1_000, nonnegativeInteger(candidate.kills));
   const killsByKind = boundedThreatKills(kills, candidate.killsByKind);
   const bossKilled = candidate.bossKilled === true && killsByKind.boss > 0;
-  const finishedAt = Number.isFinite(candidate.finishedAt) && Number(candidate.finishedAt) > 0
+  const finishedAt = Number.isFinite(candidate.finishedAt) && Number(candidate.finishedAt) > 0 && Number(candidate.finishedAt) <= settledAt + MAX_RAID_CLOCK_SKEW_MS
     ? nonnegativeInteger(candidate.finishedAt)
     : undefined;
   return {
@@ -476,9 +480,12 @@ export function raidXpBreakdown(result: RaidResult): RaidXpBreakdown {
   };
 }
 
-export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement {
+export function settleRaid(profile: Profile, result: RaidResult, currentTimestamp = Date.now()): RaidSettlement {
   const next = normalizeProfile(profile);
-  result = normalizeRaidResult(next, result);
+  const settledAt = Number.isFinite(currentTimestamp) && currentTimestamp > 0
+    ? nonnegativeInteger(currentTimestamp)
+    : Date.now();
+  result = normalizeRaidResult(next, result, settledAt);
   const rules = raidRules(result.raidMode);
   const risked = new Set(boundedItemIds(result.equippedIds));
   const consumed = new Set(boundedItemIds(result.consumedIds, 24).filter((id) => risked.has(id)).slice(0, 2));
@@ -570,7 +577,7 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     next.stash = next.stash.filter((item) => !risked.has(item.id));
   }
   const journalEntry: RaidJournalEntry = {
-    completedAt: nonnegativeInteger(result.finishedAt ?? Date.now()),
+    completedAt: nonnegativeInteger(result.finishedAt ?? settledAt),
     classId: result.classId,
     raidMode: rules.mode,
     reason: result.reason,
