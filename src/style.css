@@ -134,6 +134,11 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .panel-heading strong { margin-top: 3px; color: #d5ccbf; font: 400 22px Georgia, serif; }
 .panel-heading > b { color: #70695f; font: 700 9px ui-monospace, monospace; letter-spacing: .1em; }
 .panel-intro { margin: 12px 0 20px; color: #706a61; font: 11px/1.55 Georgia, serif; }
+.stash-toolbar { display: flex; align-items: end; gap: 18px; margin: 12px 0 20px; }
+.stash-toolbar .panel-intro { flex: 1; margin: 0; }
+.stash-sort { display: flex; flex-direction: column; gap: 4px; color: #746c61; font: 700 7px ui-monospace, monospace; letter-spacing: .14em; }
+.stash-sort select { min-width: 92px; padding: 7px 25px 7px 8px; border: 1px solid #3a3329; border-radius: 0; background: #171410; color: #b3a794; font: 700 8px ui-monospace, monospace; text-transform: uppercase; cursor: pointer; }
+.stash-sort select:focus-visible { outline: 1px solid #b97847; outline-offset: 2px; }
 .stash-list { display: grid; gap: 5px; max-height: 360px; padding-right: 4px; overflow: auto; }
 .stash-item { display: grid; grid-template-columns: 10px minmax(0, 1fr) 48px auto auto; align-items: center; gap: 11px; min-height: 54px; padding: 8px 10px; border: 1px solid #28251f; background: #141210; }
 .stash-item.selected { border-color: color-mix(in srgb, var(--rarity), #8d5738 45%); background: #1b1611; }

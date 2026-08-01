@@ -235,7 +235,10 @@ describe("local game preferences", () => {
       brightness: 0.75,
       muted: false,
       reducedMotion: true,
+      stashSort: "recent",
     });
+    expect(normalizePreferences({ stashSort: "value" }).stashSort).toBe("value");
+    expect(normalizePreferences({ stashSort: "unknown" }).stashSort).toBe("recent");
     expect(normalizePreferences(null)).toEqual(DEFAULT_PREFERENCES);
   });
 });

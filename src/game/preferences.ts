@@ -1,4 +1,4 @@
-import type { GamePreferences } from "./types";
+import type { GamePreferences, StashSort } from "./types";
 
 const PREFERENCES_KEY = "darkpix-preferences-v1";
 
@@ -7,7 +7,10 @@ export const DEFAULT_PREFERENCES: GamePreferences = {
   brightness: 1,
   muted: false,
   reducedMotion: false,
+  stashSort: "recent",
 };
+
+const STASH_SORTS = new Set<StashSort>(["recent", "rarity", "value", "kind"]);
 
 function clampNumber(value: unknown, minimum: number, maximum: number, fallback: number): number {
   const number = Number(value);
@@ -23,6 +26,7 @@ export function normalizePreferences(value: unknown): GamePreferences {
     brightness: clampNumber(candidate.brightness, 0.75, 1.4, DEFAULT_PREFERENCES.brightness),
     muted: typeof candidate.muted === "boolean" ? candidate.muted : DEFAULT_PREFERENCES.muted,
     reducedMotion: typeof candidate.reducedMotion === "boolean" ? candidate.reducedMotion : DEFAULT_PREFERENCES.reducedMotion,
+    stashSort: STASH_SORTS.has(candidate.stashSort as StashSort) ? candidate.stashSort as StashSort : DEFAULT_PREFERENCES.stashSort,
   };
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { equippedPower, loadoutStats, physicalDamageAfterArmor, toggleEquippedItem } from "../src/game/loadout";
+import { equippedPower, loadoutStats, physicalDamageAfterArmor, sortStash, toggleEquippedItem } from "../src/game/loadout";
 import type { Item } from "../src/game/types";
 
 const items: Item[] = [
@@ -10,6 +10,20 @@ const items: Item[] = [
 ];
 
 describe("risk loadout", () => {
+  it("sorts a stash without mutating its authoritative acquisition order", () => {
+    const stash: Item[] = [
+      items[0]!,
+      { ...items[2]!, rarity: "Epic", value: 55 },
+      { ...items[1]!, rarity: "Rare", value: 90 },
+      items[3]!,
+    ];
+    expect(sortStash(stash, "recent").map((item) => item.id)).toEqual(["draught", "blade-2", "jack", "blade-1"]);
+    expect(sortStash(stash, "rarity").map((item) => item.id)).toEqual(["jack", "blade-2", "draught", "blade-1"]);
+    expect(sortStash(stash, "value").map((item) => item.id)).toEqual(["blade-2", "jack", "draught", "blade-1"]);
+    expect(sortStash(stash, "kind").map((item) => item.id)).toEqual(["blade-2", "blade-1", "jack", "draught"]);
+    expect(stash.map((item) => item.id)).toEqual(["blade-1", "jack", "blade-2", "draught"]);
+  });
+
   it("replaces a weapon in the same slot instead of stacking its power", () => {
     const first = toggleEquippedItem(new Set(), items, "blade-1");
     const replacement = toggleEquippedItem(first, items, "blade-2");

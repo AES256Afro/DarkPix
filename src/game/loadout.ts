@@ -1,4 +1,21 @@
-import type { Item } from "./types";
+import type { Item, ItemKind, Rarity, StashSort } from "./types";
+
+const RARITY_RANK: Record<Rarity, number> = {
+  Worn: 0,
+  Common: 1,
+  Uncommon: 2,
+  Rare: 3,
+  Epic: 4,
+  Legendary: 5,
+};
+
+const KIND_RANK: Record<ItemKind, number> = {
+  weapon: 0,
+  armor: 1,
+  consumable: 2,
+  treasure: 3,
+  sigil: 4,
+};
 
 export interface LoadoutStats {
   health: number;
@@ -23,6 +40,26 @@ export function toggleEquippedItem(selectedIds: ReadonlySet<string>, stash: Item
   }
   if (next.size < Math.max(0, Math.floor(limit))) next.add(targetId);
   return next;
+}
+
+export function sortStash(items: readonly Item[], mode: StashSort): Item[] {
+  if (mode === "recent") return [...items].reverse();
+  return items
+    .map((item, index) => ({ item, index }))
+    .sort((left, right) => {
+      const primary = mode === "rarity"
+        ? RARITY_RANK[right.item.rarity] - RARITY_RANK[left.item.rarity]
+        : mode === "value"
+          ? right.item.value - left.item.value
+          : KIND_RANK[left.item.kind] - KIND_RANK[right.item.kind];
+      if (primary !== 0) return primary;
+      const rarity = RARITY_RANK[right.item.rarity] - RARITY_RANK[left.item.rarity];
+      if (rarity !== 0) return rarity;
+      const power = right.item.power - left.item.power;
+      if (power !== 0) return power;
+      return left.index - right.index;
+    })
+    .map(({ item }) => item);
 }
 
 export function equippedPower(items: Item[], kind: "weapon" | "armor"): number {

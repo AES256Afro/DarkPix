@@ -2,7 +2,7 @@ import "./style.css";
 import { escapeHtml } from "./html";
 import { createSaveBackup, parseSaveBackup } from "./game/backup";
 import { CLASSES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses } from "./game/data";
-import { toggleEquippedItem } from "./game/loadout";
+import { sortStash, toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { craftItem, loadProfile, purchaseItem, saveProfile, settleRaid } from "./game/profile";
 import type { DarkPixGame } from "./game/game";
@@ -63,6 +63,7 @@ function renderLobby(): void {
   const nextLevelXp = level * 350;
   const levelProgress = ((classXp % 350) / 350) * 100;
   const stashValue = profile.stash.reduce((sum, item) => sum + item.value, 0);
+  const displayedStash = sortStash(profile.stash, preferences.stashSort);
   app.innerHTML = `
     <main class="lobby">
       <header class="lobby-header">
@@ -121,9 +122,17 @@ function renderLobby(): void {
         <div class="lower-grid">
           <section class="loadout-panel" id="stash">
             <div class="panel-heading"><span><small>RISK LOADOUT</small><strong>Stash</strong></span><b>${profile.stash.length} / 24</b></div>
-            <p class="panel-intro">Pack up to two pieces, with one weapon and one armor slot. Consumables use any open slot. Death removes packed items from your stash.</p>
+            <div class="stash-toolbar">
+              <p class="panel-intro">Pack up to two pieces, with one weapon and one armor slot. Consumables use any open slot. Death removes packed items from your stash.</p>
+              <label class="stash-sort"><span>ORDER</span><select data-stash-sort aria-label="Sort stash">
+                <option value="recent" ${preferences.stashSort === "recent" ? "selected" : ""}>Newest</option>
+                <option value="rarity" ${preferences.stashSort === "rarity" ? "selected" : ""}>Rarity</option>
+                <option value="value" ${preferences.stashSort === "value" ? "selected" : ""}>Value</option>
+                <option value="kind" ${preferences.stashSort === "kind" ? "selected" : ""}>Type</option>
+              </select></label>
+            </div>
             <div class="stash-list">
-              ${profile.stash.length ? profile.stash.map((item) => itemMarkup(item, true)).join("") : `<div class="empty-stash"><strong>THE CHEST IS BARE</strong><span>You can still descend with class equipment.</span></div>`}
+              ${displayedStash.length ? displayedStash.map((item) => itemMarkup(item, true)).join("") : `<div class="empty-stash"><strong>THE CHEST IS BARE</strong><span>You can still descend with class equipment.</span></div>`}
             </div>
             <div class="merchant-market" id="merchant">
               <div class="panel-heading"><span><small>THE IRONMONGER</small><strong>Provision bench</strong></span><b>${profile.extracts >= 3 ? "TRUSTED" : profile.extracts >= 1 ? "KNOWN" : "UNPROVEN"}</b></div>
@@ -277,6 +286,11 @@ function renderLobby(): void {
       const output = app.querySelector<HTMLOutputElement>(`[data-output="${key}"]`);
       if (output) output.textContent = key === "brightness" ? `${Math.round(Number(input.value) * 100)}%` : `${Number(input.value).toFixed(1)}x`;
     });
+  });
+  app.querySelector<HTMLSelectElement>("[data-stash-sort]")?.addEventListener("change", (event) => {
+    preferences = { ...preferences, stashSort: (event.currentTarget as HTMLSelectElement).value as GamePreferences["stashSort"] };
+    persistPreferences();
+    renderLobby();
   });
   app.querySelector<HTMLButtonElement>('[data-save-action="export"]')?.addEventListener("click", () => {
     const backup = createSaveBackup(profile, preferences, release);

@@ -4,6 +4,8 @@ export type Rarity = "Worn" | "Common" | "Uncommon" | "Rare" | "Epic" | "Legenda
 
 export type ItemKind = "weapon" | "armor" | "treasure" | "consumable" | "sigil";
 
+export type StashSort = "recent" | "rarity" | "value" | "kind";
+
 export interface Item {
   id: string;
   name: string;
@@ -46,6 +48,7 @@ export interface GamePreferences {
   brightness: number;
   muted: boolean;
   reducedMotion: boolean;
+  stashSort: StashSort;
 }
 
 export type RaidEndReason = "extracted" | "slain" | "darkness";
