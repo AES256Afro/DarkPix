@@ -84,19 +84,38 @@ export function saveProfile(profile: Profile): void {
 
 export function applyRaidResult(profile: Profile, result: RaidResult): Profile {
   const next = normalizeProfile(profile);
+  const consumed = new Set(result.consumedIds ?? []);
+  if (consumed.size) next.stash = next.stash.filter((item) => !consumed.has(item.id));
   const xpGain = 30 + result.kills * 35 + (result.reason === "extracted" ? 140 : 0);
   next.xp[result.classId] += xpGain;
   next.preferredClass = result.classId;
 
   if (result.reason === "extracted") {
+    const firstContractReward = next.extracts === 0 ? 100 : 0;
     next.extracts += 1;
-    next.gold += result.goldFound;
+    next.gold += result.goldFound + firstContractReward;
     const transferable = result.loot.filter((item) => item.kind !== "sigil");
-    next.stash = [...next.stash, ...transferable].slice(-24);
+    const availableSlots = Math.max(0, 24 - next.stash.length);
+    const banked = transferable.slice(0, availableSlots);
+    const overflow = transferable.slice(availableSlots);
+    next.stash = [...next.stash, ...banked];
+    next.gold += overflow.reduce((sum, item) => sum + Math.max(1, Math.floor(item.value * 0.5)), 0);
   } else {
     next.deaths += 1;
     const risked = new Set(result.equippedIds);
     next.stash = next.stash.filter((item) => !risked.has(item.id));
   }
   return next;
+}
+
+export type PurchaseOutcome = "purchased" | "insufficient_gold" | "stash_full";
+
+export function purchaseItem(profile: Profile, item: Item, price: number): { profile: Profile; outcome: PurchaseOutcome } {
+  const next = normalizeProfile(profile);
+  const safePrice = Math.max(0, Math.floor(price));
+  if (next.stash.length >= 24) return { profile: next, outcome: "stash_full" };
+  if (next.gold < safePrice) return { profile: next, outcome: "insufficient_gold" };
+  next.gold -= safePrice;
+  next.stash.push({ ...item });
+  return { profile: next, outcome: "purchased" };
 }

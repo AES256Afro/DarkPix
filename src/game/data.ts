@@ -1,5 +1,11 @@
 import type { ClassDefinition, ClassId, Item, Rarity } from "./types";
 
+export interface MerchantOffer {
+  sku: string;
+  price: number;
+  item: Omit<Item, "id">;
+}
+
 export const CLASSES: Record<ClassId, ClassDefinition> = {
   vanguard: {
     id: "vanguard",
@@ -59,6 +65,24 @@ export const RARITY_COLOR: Record<Rarity, string> = {
   Legendary: "#e19b43",
 };
 
+export const MERCHANT_OFFERS: MerchantOffer[] = [
+  {
+    sku: "draught",
+    price: 28,
+    item: { name: "Coagulation draught", kind: "consumable", rarity: "Common", power: 0, value: 12, modifier: "Restores 36 vigor" },
+  },
+  {
+    sku: "falchion",
+    price: 46,
+    item: { name: "Riveted falchion", kind: "weapon", rarity: "Common", power: 5, value: 27, modifier: "+5 edge damage" },
+  },
+  {
+    sku: "jack",
+    price: 58,
+    item: { name: "Salvager jack", kind: "armor", rarity: "Common", power: 6, value: 34, modifier: "+6 maximum health" },
+  },
+];
+
 const LOOT_NAMES = {
   weapon: ["Riveted falchion", "Bone-handled dirk", "Crypt maul", "Ashwood longbow", "Grave cantor"],
   armor: ["Blackguard jack", "Mildewed brigandine", "Rat-catcher gloves", "Hollow helm", "Pilgrim boots"],
@@ -117,6 +141,14 @@ export function createSigil(): Item {
 
 export function levelForXp(xp: number): number {
   return 1 + Math.floor(Math.max(0, xp) / 350);
+}
+
+export function progressionBonuses(level: number): { health: number; damage: number } {
+  const earnedLevels = Math.max(0, Math.min(6, Math.floor(level) - 1));
+  return {
+    health: earnedLevels * 4,
+    damage: Math.floor(earnedLevels / 2),
+  };
 }
 
 export function formatTime(totalSeconds: number): string {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createLoot, formatTime, levelForXp, rarityFromRoll } from "../src/game/data";
-import { applyRaidResult, createProfile, normalizeProfile } from "../src/game/profile";
+import { createLoot, formatTime, levelForXp, progressionBonuses, rarityFromRoll } from "../src/game/data";
+import { applyRaidResult, createProfile, normalizeProfile, purchaseItem } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
 
 describe("loot generation", () => {
@@ -58,7 +58,7 @@ describe("persistent raid consequences", () => {
       goldFound: 21,
     });
     expect(result.extracts).toBe(1);
-    expect(result.gold).toBe(96);
+    expect(result.gold).toBe(196);
     expect(result.xp.hexbound).toBe(275);
     expect(result.stash.some((item) => item.id === loot.id)).toBe(true);
     expect(result.stash.some((item) => item.id === "starter-jack")).toBe(true);
@@ -71,6 +71,68 @@ describe("persistent raid consequences", () => {
     expect(result.stash).toEqual([]);
     expect(result.preferredClass).toBe("vanguard");
   });
+
+  it("pays the first extraction contract once", () => {
+    const result = {
+      reason: "extracted" as const,
+      classId: "vanguard" as const,
+      loot: [],
+      equippedIds: [],
+      kills: 0,
+      elapsed: 40,
+      goldFound: 10,
+    };
+    const first = applyRaidResult(createProfile(), result);
+    const second = applyRaidResult(first, result);
+    expect(first.gold).toBe(185);
+    expect(second.gold).toBe(195);
+  });
+
+  it("keeps a full stash intact and liquidates extraction overflow", () => {
+    const profile = createProfile();
+    const template = profile.stash[0]!;
+    profile.stash = Array.from({ length: 24 }, (_, index) => ({ ...template, id: `kept-${index}` }));
+    const overflow = { ...createLoot(() => 0.6), id: "overflow", value: 31 };
+    const result = applyRaidResult(profile, {
+      reason: "extracted",
+      classId: "vanguard",
+      loot: [overflow],
+      equippedIds: [],
+      kills: 0,
+      elapsed: 40,
+      goldFound: 0,
+    });
+    expect(result.stash).toHaveLength(24);
+    expect(result.stash.every((item) => item.id.startsWith("kept-"))).toBe(true);
+    expect(result.gold).toBe(190);
+  });
+
+  it("buys merchant stock only when gold and stash space permit", () => {
+    const profile = createProfile();
+    const item = { ...profile.stash[0]!, id: "merchant-test" };
+    const purchase = purchaseItem(profile, item, 46);
+    expect(purchase.outcome).toBe("purchased");
+    expect(purchase.profile.gold).toBe(29);
+    expect(purchase.profile.stash.some((entry) => entry.id === item.id)).toBe(true);
+    expect(purchaseItem(purchase.profile, { ...item, id: "too-costly" }, 999).outcome).toBe("insufficient_gold");
+  });
+
+  it("removes packed consumables after they are used in a successful raid", () => {
+    const profile = createProfile();
+    const potion = { ...profile.stash[0]!, id: "packed-potion", kind: "consumable" as const };
+    profile.stash.push(potion);
+    const result = applyRaidResult(profile, {
+      reason: "extracted",
+      classId: "vanguard",
+      loot: [],
+      equippedIds: [potion.id],
+      consumedIds: [potion.id],
+      kills: 0,
+      elapsed: 40,
+      goldFound: 0,
+    });
+    expect(result.stash.some((item) => item.id === potion.id)).toBe(false);
+  });
 });
 
 describe("display helpers", () => {
@@ -79,6 +141,9 @@ describe("display helpers", () => {
     expect(formatTime(-3)).toBe("0:00");
     expect(levelForXp(699)).toBe(2);
     expect(levelForXp(700)).toBe(3);
+    expect(progressionBonuses(1)).toEqual({ health: 0, damage: 0 });
+    expect(progressionBonuses(4)).toEqual({ health: 12, damage: 1 });
+    expect(progressionBonuses(99)).toEqual({ health: 24, damage: 3 });
   });
 });
 

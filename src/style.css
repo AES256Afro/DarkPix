@@ -121,7 +121,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 
 .lower-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(330px, .7fr); gap: 20px; margin-top: 54px; }
 .loadout-panel, .delver-sheet, .contract-card { border: 1px solid #29261f; background: #100f0d; }
-.loadout-panel { padding: 24px; }
+.loadout-panel { align-self: start; padding: 24px; }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; }
 .panel-heading > span { display: flex; flex-direction: column; }
 .panel-heading small { color: #796f62; font: 700 8px ui-monospace, monospace; letter-spacing: .15em; }
@@ -143,6 +143,16 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .empty-stash { display: grid; min-height: 110px; place-content: center; color: #645e55; text-align: center; }
 .empty-stash strong { font: 800 9px ui-monospace, monospace; letter-spacing: .16em; }
 .empty-stash span { margin-top: 6px; font: 11px Georgia, serif; }
+.merchant-market { margin: 26px -24px -24px; padding: 24px; border-top: 1px solid #332a20; background: #0e0c0a; }
+.merchant-offers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.merchant-offer { position: relative; display: grid; grid-template-columns: 5px minmax(0, 1fr) auto; min-height: 62px; align-items: center; gap: 10px; padding: 9px; border: 1px solid #28241e; background: #14110e; }
+.merchant-offer > i { width: 5px; height: 30px; background: var(--rarity); }
+.merchant-offer > span { display: flex; min-width: 0; flex-direction: column; }
+.merchant-offer strong { overflow: hidden; color: #bfb4a5; font: 11px Georgia, serif; text-overflow: ellipsis; white-space: nowrap; }
+.merchant-offer small { margin-top: 4px; overflow: hidden; color: #6e665b; font: 7px ui-monospace, monospace; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.merchant-offer button { padding: 8px; border: 1px solid #5b442e; background: #2c2118; color: #dbac70; font: 800 8px ui-monospace, monospace; cursor: pointer; }
+.merchant-offer button:hover { border-color: #9d6740; filter: brightness(1.18); }
+.merchant-notice { min-height: 16px; margin: 13px 0 0; color: #7c7061; font: 9px/1.4 ui-monospace, monospace; }
 .right-rail { display: grid; gap: 12px; }
 .delver-sheet { padding: 24px; }
 .level-track { height: 3px; margin: 20px 0 15px; background: #27241f; }
@@ -247,7 +257,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .return-button { width: 100%; margin-top: 26px; padding: 16px; border: 1px solid #794a30; background: #382117; color: #dbc4a6; font: 800 10px ui-monospace, monospace; letter-spacing: .15em; cursor: pointer; }.return-button:hover { filter: brightness(1.2); }
 
 @media (max-width: 900px) {
-  .lobby-header { grid-template-columns: 1fr auto; }.lobby-nav { display: none; }.class-grid { grid-template-columns: 1fr; }.class-card { min-height: 185px; }.lower-grid { grid-template-columns: 1fr; }.hero { min-height: 700px; }.hero-stats { display: none; }
+  .lobby-header { grid-template-columns: 1fr auto; }.lobby-nav { display: none; }.class-grid { grid-template-columns: 1fr; }.class-card { min-height: 185px; }.lower-grid { grid-template-columns: 1fr; }.merchant-offers { grid-template-columns: 1fr; }.hero { min-height: 700px; }.hero-stats { display: none; }
   .hud-top { padding: 14px; }.contract-panel, .objective-panel { width: 165px; }.compass { display: none; }.hud-top { grid-template-columns: 1fr 1fr; }.hud-bottom { grid-template-columns: 1fr 1fr; padding: 15px; }.quick-slots { display: none; }.haul-panel { grid-column: 2; }.bars { width: 160px; }
 }
 

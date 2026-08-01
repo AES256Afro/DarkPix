@@ -54,6 +54,7 @@ export interface RaidResult {
   classId: ClassId;
   loot: Item[];
   equippedIds: string[];
+  consumedIds?: string[];
   kills: number;
   elapsed: number;
   goldFound: number;

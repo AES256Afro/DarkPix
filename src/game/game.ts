@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
-import { CLASSES, RARITY_COLOR, createLoot, createSigil, formatTime } from "./data";
+import { CLASSES, RARITY_COLOR, createLoot, createSigil, formatTime, progressionBonuses } from "./data";
 import { DUNGEON } from "./dungeon";
 import { targetDistanceInView } from "./targeting";
 import type { ClassId, GamePreferences, Item, RaidEndReason, RaidResult } from "./types";
@@ -44,6 +44,7 @@ interface Chest {
 
 export interface DarkPixGameOptions {
   classId: ClassId;
+  classLevel: number;
   equipped: Item[];
   preferences: GamePreferences;
   onFinish: (result: RaidResult) => void;
@@ -110,6 +111,7 @@ export class DarkPixGame {
   private readonly pickups: Pickup[] = [];
   private readonly chests: Chest[] = [];
   private readonly raidLoot: Item[] = [];
+  private readonly carriedConsumables: Item[];
   private readonly weapon = new THREE.Group();
   private readonly shield = new THREE.Group();
   private readonly portal = new THREE.Group();
@@ -117,6 +119,7 @@ export class DarkPixGame {
   private readonly campfire = new THREE.Group();
   private readonly resizeObserver: ResizeObserver;
   private readonly maxHealth: number;
+  private readonly damageBonus: number;
   private healthFill!: HTMLElement;
   private staminaFill!: HTMLElement;
   private spellFill!: HTMLElement;
@@ -137,6 +140,7 @@ export class DarkPixGame {
   private spellCharges = 6;
   private kills = 0;
   private goldFound = 0;
+  private readonly consumedIds: string[] = [];
   private sigils = 0;
   private portalUnlocked = false;
   private portalAnnounced = false;
@@ -164,8 +168,11 @@ export class DarkPixGame {
     this.options = options;
     this.audio = new AudioDirector(!options.preferences.muted);
     this.definition = CLASSES[options.classId];
+    const progression = progressionBonuses(options.classLevel);
     const armorBonus = options.equipped.filter((item) => item.kind === "armor").reduce((sum, item) => sum + item.power, 0);
-    this.maxHealth = this.definition.maxHealth + armorBonus;
+    this.maxHealth = this.definition.maxHealth + armorBonus + progression.health;
+    this.damageBonus = progression.damage;
+    this.carriedConsumables = options.equipped.filter((item) => item.kind === "consumable").map((item) => ({ ...item }));
     this.health = this.maxHealth;
     this.stamina = this.definition.maxStamina;
     this.resizeObserver = new ResizeObserver(() => this.resize());
@@ -218,7 +225,7 @@ export class DarkPixGame {
             </section>
             <section class="quick-slots">
               <div><kbd>1</kbd><span class="slot-icon weapon-icon"></span><small>${this.definition.weapon}</small></div>
-              <div><kbd>F</kbd><span class="slot-icon potion-icon"></span><small>Coagulation draught</small></div>
+              <div><kbd>F</kbd><span class="slot-icon potion-icon"></span><small>${this.carriedConsumables.length ? `Packed draught ×${this.carriedConsumables.length}` : "Recovered draught"}</small></div>
               <div><kbd>E</kbd><span class="slot-icon hand-icon"></span><small>Interact / extract</small></div>
             </section>
             <section class="haul-panel">
@@ -696,7 +703,7 @@ export class DarkPixGame {
       return;
     }
 
-    let damage = this.definition.damage + this.options.equipped.filter((item) => item.kind === "weapon").reduce((sum, item) => sum + item.power, 0);
+    let damage = this.definition.damage + this.damageBonus + this.options.equipped.filter((item) => item.kind === "weapon").reduce((sum, item) => sum + item.power, 0);
     if (this.attackDirection === "OVERHEAD") damage *= 1.18;
     if (this.attackDirection === "THRUST") damage *= 1.08;
     if (this.options.classId === "cutpurse" && !best.alerted) damage *= 2;
@@ -797,13 +804,16 @@ export class DarkPixGame {
   private usePotion(): void {
     if (this.paused || this.ended || this.health >= this.maxHealth) return;
     const potionIndex = this.raidLoot.findIndex((item) => item.kind === "consumable");
-    if (potionIndex < 0) {
+    const recoveredPotion = potionIndex >= 0 ? this.raidLoot.splice(potionIndex, 1)[0] : undefined;
+    const packedPotion = recoveredPotion ? undefined : this.carriedConsumables.shift();
+    const potion = recoveredPotion ?? packedPotion;
+    if (!potion) {
       this.feed("No draught in your unsecured haul.", "danger");
       return;
     }
-    const [potion] = this.raidLoot.splice(potionIndex, 1);
+    if (packedPotion) this.consumedIds.push(packedPotion.id);
     this.health = Math.min(this.maxHealth, this.health + 36);
-    this.feed(`${potion?.name ?? "Draught"} restores 36 vigor.`, "loot");
+    this.feed(`${potion.name} restores 36 vigor.`, "loot");
     this.audio.loot();
   }
 
@@ -1025,6 +1035,7 @@ export class DarkPixGame {
       classId: this.options.classId,
       loot: [...this.raidLoot],
       equippedIds: this.options.equipped.map((item) => item.id),
+      consumedIds: [...this.consumedIds],
       kills: this.kills,
       elapsed: this.elapsed,
       goldFound: this.goldFound,

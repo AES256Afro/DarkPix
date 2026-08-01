@@ -1,8 +1,8 @@
 import "./style.css";
-import { CLASSES, RARITY_COLOR, formatTime, levelForXp } from "./game/data";
+import { CLASSES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, progressionBonuses } from "./game/data";
 import { DarkPixGame } from "./game/game";
 import { loadPreferences, savePreferences } from "./game/preferences";
-import { applyRaidResult, loadProfile, saveProfile } from "./game/profile";
+import { applyRaidResult, loadProfile, purchaseItem, saveProfile } from "./game/profile";
 import type { ClassId, GamePreferences, Item, Profile, RaidResult } from "./game/types";
 
 const foundApp = document.querySelector<HTMLDivElement>("#app");
@@ -14,6 +14,7 @@ let preferences: GamePreferences = loadPreferences();
 let selectedClass: ClassId = profile.preferredClass;
 let equippedIds = new Set<string>();
 let activeGame: DarkPixGame | undefined;
+let merchantNotice = "";
 
 function itemMarkup(item: Item, riskable = false): string {
   const selected = equippedIds.has(item.id);
@@ -33,6 +34,7 @@ function renderLobby(): void {
   const chosen = CLASSES[selectedClass];
   const classXp = profile.xp[selectedClass];
   const level = levelForXp(classXp);
+  const bonuses = progressionBonuses(level);
   const nextLevelXp = level * 350;
   const levelProgress = ((classXp % 350) / 350) * 100;
   const stashValue = profile.stash.reduce((sum, item) => sum + item.value, 0);
@@ -97,6 +99,18 @@ function renderLobby(): void {
             <div class="stash-list">
               ${profile.stash.length ? profile.stash.map((item) => itemMarkup(item, true)).join("") : `<div class="empty-stash"><strong>THE CHEST IS BARE</strong><span>You can still descend with class equipment.</span></div>`}
             </div>
+            <div class="merchant-market" id="merchant">
+              <div class="panel-heading"><span><small>THE IRONMONGER</small><strong>Provision bench</strong></span><b>GOLD ACCEPTED</b></div>
+              <p class="panel-intro">Buy dependable supplies between raids. Purchased gear enters the stash and is still lost if packed into a failed delve.</p>
+              <div class="merchant-offers">
+                ${MERCHANT_OFFERS.map((offer) => `
+                  <article class="merchant-offer" style="--rarity:${RARITY_COLOR[offer.item.rarity]}">
+                    <i></i><span><strong>${offer.item.name}</strong><small>${offer.item.modifier ?? `${offer.item.rarity} ${offer.item.kind}`}</small></span>
+                    <button type="button" data-merchant-sku="${offer.sku}" aria-label="Buy ${offer.item.name} for ${offer.price} gold">${offer.price}g</button>
+                  </article>`).join("")}
+              </div>
+              <p class="merchant-notice" role="status">${merchantNotice || "The ironmonger does not offer refunds."}</p>
+            </div>
           </section>
 
           <aside class="right-rail">
@@ -106,12 +120,13 @@ function renderLobby(): void {
               <div class="sheet-line"><span>Experience</span><strong>${classXp} / ${nextLevelXp}</strong></div>
               <div class="sheet-line"><span>Raid weapon</span><strong>${chosen.weapon}</strong></div>
               <div class="sheet-line"><span>Class art</span><strong>${chosen.ability}</strong></div>
+              <div class="sheet-line"><span>Veterancy</span><strong>+${bonuses.health} vigor · +${bonuses.damage} damage</strong></div>
               <div class="risk-total"><span>GEAR AT RISK</span><strong>${equippedIds.size} / 2</strong></div>
             </section>
             <section class="contract-card" id="contracts">
               <span class="wax-seal">I</span>
-              <div><small>THE TAVERNER'S FIRST DEBT</small><strong>${profile.extracts > 0 ? "Debt honored" : "Escape the Pale Toll"}</strong><p>${profile.extracts > 0 ? "The tavern remembers your name. More contracts are coming." : "Return alive once with anything worth keeping."}</p></div>
-              <b>${profile.extracts > 0 ? "COMPLETE" : "0 / 1"}</b>
+              <div><small>THE TAVERNER'S FIRST DEBT</small><strong>${profile.extracts > 0 ? "Debt honored" : "Escape the Pale Toll"}</strong><p>${profile.extracts > 0 ? "The 100g bounty was paid. The tavern remembers your name." : "Return alive once with anything worth keeping. Reward: 100g."}</p></div>
+              <b>${profile.extracts > 0 ? "PAID" : "0 / 1"}</b>
             </section>
             <section class="settings-panel" aria-labelledby="settings-heading">
               <div class="panel-heading"><span><small>ACCESSIBILITY</small><strong id="settings-heading">Delver settings</strong></span><b>LOCAL</b></div>
@@ -155,7 +170,27 @@ function renderLobby(): void {
       profile.gold += item.value;
       profile.stash = profile.stash.filter((candidate) => candidate.id !== id);
       equippedIds.delete(item.id);
+      merchantNotice = `${item.name} sold for ${item.value}g.`;
       saveProfile(profile);
+      renderLobby();
+    });
+  });
+  app.querySelectorAll<HTMLButtonElement>("[data-merchant-sku]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const offer = MERCHANT_OFFERS.find((candidate) => candidate.sku === button.dataset.merchantSku);
+      if (!offer) return;
+      const item: Item = {
+        ...offer.item,
+        id: `merchant-${offer.sku}-${crypto.randomUUID()}`,
+      };
+      const purchase = purchaseItem(profile, item, offer.price);
+      profile = purchase.profile;
+      merchantNotice = purchase.outcome === "purchased"
+        ? `${offer.item.name} added to the stash.`
+        : purchase.outcome === "stash_full"
+          ? "The stash is full. Sell something before buying."
+          : `You need ${offer.price - profile.gold}g more for ${offer.item.name}.`;
+      if (purchase.outcome === "purchased") saveProfile(profile);
       renderLobby();
     });
   });
@@ -180,6 +215,7 @@ function startRaid(): void {
   if (!mount) return;
   activeGame = new DarkPixGame(mount, {
     classId: selectedClass,
+    classLevel: levelForXp(profile.xp[selectedClass]),
     equipped,
     preferences,
     onFinish: finishRaid,
@@ -190,13 +226,18 @@ function finishRaid(result: RaidResult): void {
   activeGame?.destroy();
   activeGame = undefined;
   const oldStash = [...profile.stash];
+  const extracted = result.reason === "extracted";
+  const firstContractPaid = extracted && profile.extracts === 0;
+  const transferable = result.loot.filter((item) => item.kind !== "sigil");
+  const overflow = extracted ? transferable.slice(Math.max(0, 24 - oldStash.length)) : [];
+  const overflowGold = overflow.reduce((sum, item) => sum + Math.max(1, Math.floor(item.value * 0.5)), 0);
+  const settlementGold = result.goldFound + (firstContractPaid ? 100 : 0) + overflowGold;
   profile = applyRaidResult(profile, result);
   saveProfile(profile);
-  const extracted = result.reason === "extracted";
   const lost = extracted ? [] : oldStash.filter((item) => result.equippedIds.includes(item.id));
   const headline = extracted ? "YOU RETURNED" : result.reason === "darkness" ? "THE DARK TOOK YOU" : "YOUR TORCH WENT OUT";
   const detail = extracted
-    ? "The blue passage seals behind you. Everything in your haul is now safe."
+    ? `The blue passage seals behind you. ${overflow.length ? `${overflow.length} overflow item${overflow.length === 1 ? " was" : "s were"} sold by the porter for ${overflowGold}g.` : "Everything in your haul fits safely in the stash."}${firstContractPaid ? " The Taverner's 100g bounty is paid." : ""}`
     : "Your class remembers. Your carried gear and every unsecured find remain below.";
   app.innerHTML = `
     <main class="result-screen ${extracted ? "success" : "failure"}">
@@ -209,7 +250,7 @@ function finishRaid(result: RaidResult): void {
         <div class="result-metrics">
           <span><small>TIME BELOW</small><strong>${formatTime(result.elapsed)}</strong></span>
           <span><small>THREATS FELLED</small><strong>${result.kills}</strong></span>
-          <span><small>GOLD ${extracted ? "KEPT" : "LOST"}</small><strong>${result.goldFound}g</strong></span>
+          <span><small>GOLD ${extracted ? "SETTLED" : "LOST"}</small><strong>${extracted ? settlementGold : result.goldFound}g</strong></span>
           <span><small>CLASS XP</small><strong>+${30 + result.kills * 35 + (extracted ? 140 : 0)}</strong></span>
         </div>
         <div class="result-haul">
