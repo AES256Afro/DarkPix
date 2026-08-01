@@ -352,4 +352,25 @@ describe("Emberforge crafting", () => {
     expect(refused.outcome).toBe("insufficient_gold");
     expect(refused.profile.stash.some((item) => item.name === recipe.ingredientName)).toBe(true);
   });
+
+  it("offers unique, slot-neutral recipes for recovered dungeon relics", () => {
+    expect(new Set(CRAFTING_RECIPES.map((recipe) => recipe.id)).size).toBe(CRAFTING_RECIPES.length);
+    for (const [index, recipe] of CRAFTING_RECIPES.entries()) {
+      const profile = createProfile();
+      profile.gold = 1_000;
+      profile.stash.push({
+        id: `material-${index}`,
+        name: recipe.ingredientName,
+        kind: recipe.ingredientKind,
+        rarity: "Rare",
+        power: 0,
+        value: 50,
+      });
+      const before = profile.stash.length;
+      const result = craftItem(profile, recipe, `output-${index}`);
+      expect(result.outcome).toBe("crafted");
+      expect(result.profile.stash).toHaveLength(before);
+      expect(result.profile.stash.some((item) => item.id === `output-${index}` && item.name === recipe.output.name)).toBe(true);
+    }
+  });
 });

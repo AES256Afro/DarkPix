@@ -173,7 +173,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .merchant-offer button:hover { border-color: #9d6740; filter: brightness(1.18); }
 .merchant-offer.locked { opacity: .48; }
 .merchant-offer button:disabled { border-color: #332e28; background: #171512; color: #665f56; cursor: not-allowed; filter: none; }
-.forge-recipes { margin-top: 9px; }
+.forge-recipes { display: grid; gap: 6px; margin-top: 9px; }
 .forge-recipe { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 16px; padding: 13px; border: 1px solid #33271f; background: linear-gradient(90deg, #17100c, #100e0c); }
 .forge-recipe.ready { border-color: #74452d; box-shadow: inset 3px 0 #a45d35; }
 .forge-recipe span { display: flex; flex-direction: column; }

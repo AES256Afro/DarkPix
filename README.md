@@ -54,7 +54,7 @@ Mouse sensitivity, crypt brightness, audio, reduced camera motion, and stash ord
 - Spend gold at the Ironmonger on consumables and gear. Successful extracts unlock Uncommon stock and, after three returns, a Rare weapon. Packed draughts are consumed when used, and a full stash sends extraction overflow to the porter for an automatic half-value sale.
 - Rare-or-better, crafted, and currently packed items require a second explicit confirmation before they can be sold from the stash.
 - Rolled and merchant gear modifiers directly affect edge damage, armor mitigation, maximum vigor, movement, interaction speed, or damage against undead threats. Persisted numeric modifiers are bounded before they affect runtime stats.
-- Forge a recovered Tollkeeper chain and 80g into the Epic Chainbreaker's ward without consuming an extra stash slot.
+- Forge a recovered Tollkeeper chain into the Epic Chainbreaker's ward, a Saint's broken seal into the Rare Saintless edge, or a Sepulcher ruby into the Epic Ruby cantor. Every recipe replaces its material in place, so it remains safe at the stash limit.
 - The first successful extraction pays a one-time 100g contract bounty. The first raid that kills the Tollkeeper and still extracts pays a separate 150g bounty and records a persistent boss victory. Class levels grant bounded veterancy bonuses through level seven plus discipline-specific perks at levels 2, 4, and 6.
 
 The current vertical slice simulates the PvP side with a hostile AI rival. Networked solo, duo, and trio matchmaking, proximity voice, merchant reputation, crafting, and additional maps are future systems, not part of this build.

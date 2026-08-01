@@ -166,7 +166,7 @@ function renderLobby(): void {
                   const affordable = profile.gold >= recipe.goldCost;
                   return `<article class="forge-recipe ${hasMaterial && affordable ? "ready" : ""}">
                     <span><small>EMBERFORGE RECIPE</small><strong>${recipe.name}</strong><p>${recipe.ingredientName} + ${recipe.goldCost}g</p></span>
-                    <button type="button" data-recipe-id="${recipe.id}" ${hasMaterial && affordable ? "" : "disabled"}>${!hasMaterial ? "NEED CHAIN" : !affordable ? `NEED ${recipe.goldCost}g` : "FORGE"}</button>
+                    <button type="button" data-recipe-id="${recipe.id}" ${hasMaterial && affordable ? "" : "disabled"}>${!hasMaterial ? "NEED RELIC" : !affordable ? `NEED ${recipe.goldCost}g` : "FORGE"}</button>
                   </article>`;
                 }).join("")}
               </div>

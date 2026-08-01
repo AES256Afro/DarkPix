@@ -173,6 +173,36 @@ export const CRAFTING_RECIPES: CraftingRecipe[] = [
       modifier: "+7 armor",
     },
   },
+  {
+    id: "saintless-edge",
+    name: "Saintless edge",
+    ingredientName: "Saint's broken seal",
+    ingredientKind: "treasure",
+    goldCost: 65,
+    output: {
+      name: "Saintless edge",
+      kind: "weapon",
+      rarity: "Rare",
+      power: 13,
+      value: 148,
+      modifier: "+5 edge damage",
+    },
+  },
+  {
+    id: "ruby-cantor",
+    name: "Ruby cantor",
+    ingredientName: "Sepulcher ruby",
+    ingredientKind: "treasure",
+    goldCost: 120,
+    output: {
+      name: "Ruby cantor",
+      kind: "weapon",
+      rarity: "Epic",
+      power: 18,
+      value: 245,
+      modifier: "+12% undead damage",
+    },
+  },
 ];
 
 export function merchantOfferUnlocked(offer: MerchantOffer, extracts: number): boolean {
