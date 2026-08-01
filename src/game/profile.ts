@@ -143,7 +143,7 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
   const next = normalizeProfile(profile);
   const consumed = new Set(result.consumedIds ?? []);
   if (consumed.size) next.stash = next.stash.filter((item) => !consumed.has(item.id));
-  const baseXpGain = 30
+  const baseXpGain = (result.reason === "abandoned" ? 0 : 30)
     + Math.min(1_000, nonnegativeInteger(result.kills)) * 35
     + (result.reason === "extracted" ? 140 : 0)
     + depthXpBonus(result.depthReached, result.reason === "extracted");

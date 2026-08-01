@@ -54,6 +54,24 @@ describe("persistent raid consequences", () => {
     expect(result.stash).toHaveLength(1);
   });
 
+  it("settles an abandoned raid as gear loss without granting idle XP", () => {
+    const profile = createProfile();
+    const result = settleRaid(profile, {
+      reason: "abandoned",
+      classId: "reaver",
+      loot: [createLoot(() => 0.7)],
+      equippedIds: ["starter-blade"],
+      kills: 0,
+      elapsed: 4,
+      goldFound: 20,
+    });
+    expect(result.profile.deaths).toBe(1);
+    expect(result.profile.xp.reaver).toBe(0);
+    expect(result.profile.gold).toBe(75);
+    expect(result.profile.stash.some((item) => item.id === "starter-blade")).toBe(false);
+    expect(result.banked).toEqual([]);
+  });
+
   it("banks unsecured loot and gold only after extraction", () => {
     const profile = createProfile();
     const loot = createLoot(() => 0.8);

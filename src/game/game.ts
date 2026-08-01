@@ -171,6 +171,8 @@ export class DarkPixGame {
   private compassHeadingHud!: HTMLElement;
   private wayfinderHud!: HTMLElement;
   private lockOverlay!: HTMLElement;
+  private resumeButton!: HTMLButtonElement;
+  private abandonButton!: HTMLButtonElement;
   private damageOverlay!: HTMLElement;
   private extractProgress!: HTMLElement;
   private abilityHud!: HTMLElement;
@@ -213,6 +215,7 @@ export class DarkPixGame {
   private abilityCooldown = 0;
   private concealmentTimer = 0;
   private rageTimer = 0;
+  private abandonArmed = false;
   private renderScale = 0;
   private frameTimeTotal = 0;
   private frameSamples = 0;
@@ -300,12 +303,16 @@ export class DarkPixGame {
             </section>
           </div>
         </div>
-        <button class="lock-overlay" type="button">
+        <div class="lock-overlay">
           <span class="sigil-mark">DP</span>
-          <strong>ENTER THE CRYPT</strong>
-          <small>Click to bind the cursor</small>
+          <strong data-lock-title>ENTER THE CRYPT</strong>
+          <small data-lock-detail>Bind the cursor when you are ready</small>
+          <span class="lock-actions">
+            <button class="resume-raid" type="button">BIND CURSOR / RESUME</button>
+            <button class="abandon-raid" type="button">ABANDON RAID</button>
+          </span>
           <span class="control-line">WASD move · mouse look · LMB strike · RMB guard · E interact · R red descent · F heal · G drop · T torch · Shift sprint</span>
-        </button>
+        </div>
       </div>`;
     const host = this.mount.querySelector<HTMLElement>(".render-host");
     if (!host) throw new Error("Game render host was not created");
@@ -326,6 +333,8 @@ export class DarkPixGame {
     this.compassHeadingHud = this.mount.querySelector<HTMLElement>(".compass-heading")!;
     this.wayfinderHud = this.mount.querySelector<HTMLElement>(".wayfinder")!;
     this.lockOverlay = this.mount.querySelector<HTMLElement>(".lock-overlay")!;
+    this.resumeButton = this.mount.querySelector<HTMLButtonElement>(".resume-raid")!;
+    this.abandonButton = this.mount.querySelector<HTMLButtonElement>(".abandon-raid")!;
     this.damageOverlay = this.mount.querySelector<HTMLElement>(".damage-flash")!;
     this.extractProgress = this.mount.querySelector<HTMLElement>(".extract-meter i")!;
     this.abilityHud = this.mount.querySelector<HTMLElement>(".ability-slot small")!;
@@ -701,7 +710,8 @@ export class DarkPixGame {
     this.renderer.domElement.addEventListener("webglcontextrestored", this.onContextRestored);
     this.renderer.domElement.addEventListener("contextmenu", this.onContextMenu);
     this.renderer.domElement.addEventListener("click", this.requestPointerLock);
-    this.lockOverlay.addEventListener("click", this.requestPointerLock);
+    this.resumeButton.addEventListener("click", this.requestPointerLock);
+    this.abandonButton.addEventListener("click", this.onAbandonRaid);
   }
 
   private onKeyDown = (event: KeyboardEvent): void => {
@@ -768,6 +778,10 @@ export class DarkPixGame {
     if (this.paused) {
       this.clearHeldInputs();
       this.audio.pause();
+      if (!this.ended) {
+        this.resetAbandonConfirmation();
+        this.setLockOverlayCopy("RETURN TO THE CRYPT", "Bind the cursor when you are ready.");
+      }
     }
     this.lockOverlay.classList.toggle("hidden", !this.paused || this.ended);
     if (!this.paused) {
@@ -792,6 +806,8 @@ export class DarkPixGame {
     this.paused = true;
     this.clearHeldInputs();
     this.audio.pause();
+    this.resetAbandonConfirmation();
+    this.setLockOverlayCopy("RETURN TO THE CRYPT", "Bind the cursor when you are ready.");
     this.lockOverlay.classList.remove("hidden");
     if (document.pointerLockElement === this.renderer.domElement) void document.exitPointerLock();
   }
@@ -803,11 +819,31 @@ export class DarkPixGame {
   };
 
   private setLockOverlayCopy(title: string, detail: string): void {
-    const titleElement = this.lockOverlay.querySelector<HTMLElement>("strong");
-    const detailElement = this.lockOverlay.querySelector<HTMLElement>("small");
+    const titleElement = this.lockOverlay.querySelector<HTMLElement>("[data-lock-title]");
+    const detailElement = this.lockOverlay.querySelector<HTMLElement>("[data-lock-detail]");
     if (titleElement) titleElement.textContent = title;
     if (detailElement) detailElement.textContent = detail;
   }
+
+  private resetAbandonConfirmation(): void {
+    this.abandonArmed = false;
+    this.abandonButton.classList.remove("armed");
+    this.abandonButton.textContent = "ABANDON RAID";
+  }
+
+  private onAbandonRaid = (): void => {
+    if (this.ended) return;
+    if (!this.abandonArmed) {
+      this.abandonArmed = true;
+      this.abandonButton.classList.add("armed");
+      this.abandonButton.textContent = "CONFIRM LOSS OF GEAR AND HAUL";
+      this.setLockOverlayCopy("FORFEIT THE CONTRACT?", "This counts as a death. Your class persists, but equipped gear and unsecured loot do not.");
+      return;
+    }
+    this.abandonButton.disabled = true;
+    this.abandonButton.textContent = "FORFEITING...";
+    this.finish("abandoned");
+  };
 
   private onContextLost = (event: Event): void => {
     event.preventDefault();
@@ -816,6 +852,7 @@ export class DarkPixGame {
     this.paused = true;
     this.clearHeldInputs();
     this.audio.pause();
+    this.resetAbandonConfirmation();
     this.setLockOverlayCopy("REKINDLING THE CRYPT", "The renderer was interrupted. Waiting for the torch to return.");
     this.lockOverlay.classList.remove("hidden");
     if (document.pointerLockElement === this.renderer.domElement) void document.exitPointerLock();
@@ -825,6 +862,7 @@ export class DarkPixGame {
     if (this.ended) return;
     this.contextLost = false;
     this.paused = true;
+    this.resetAbandonConfirmation();
     this.setLockOverlayCopy("RETURN TO THE CRYPT", "Renderer restored. Click to bind the cursor again.");
     this.lockOverlay.classList.remove("hidden");
     this.feed("The torch catches. The crypt is visible again.", "system");
@@ -832,6 +870,7 @@ export class DarkPixGame {
 
   private requestPointerLock = (): void => {
     if (this.ended || this.contextLost) return;
+    this.resetAbandonConfirmation();
     if (typeof this.renderer.domElement.requestPointerLock !== "function") {
       this.paused = true;
       this.clearHeldInputs();
@@ -1834,7 +1873,8 @@ export class DarkPixGame {
     this.renderer.domElement.removeEventListener("webglcontextrestored", this.onContextRestored);
     this.renderer.domElement.removeEventListener("contextmenu", this.onContextMenu);
     this.renderer.domElement.removeEventListener("click", this.requestPointerLock);
-    this.lockOverlay.removeEventListener("click", this.requestPointerLock);
+    this.resumeButton.removeEventListener("click", this.requestPointerLock);
+    this.abandonButton.removeEventListener("click", this.onAbandonRaid);
     this.audio.stop();
     disposeSceneResources(this.scene);
     this.renderer.renderLists.dispose();

@@ -460,7 +460,11 @@ function finishRaid(result: RaidResult): void {
         ...settlement.lost.map((item) => ({ item, outcome: "GEAR LOST" })),
         ...result.loot.map((item) => ({ item, outcome: "HAUL LOST" })),
       ];
-  const headline = extracted ? "YOU RETURNED" : result.reason === "darkness" ? "THE DARK TOOK YOU" : "YOUR TORCH WENT OUT";
+  const headline = extracted
+    ? "YOU RETURNED"
+    : result.reason === "darkness"
+      ? "THE DARK TOOK YOU"
+      : result.reason === "abandoned" ? "THE CONTRACT WAS FORFEIT" : "YOUR TORCH WENT OUT";
   const detail = extracted
     ? `${result.depthReached === 2 ? "The Ashen Depth's passage" : "The blue passage"} seals behind you. ${settlement.overflow.length ? `${settlement.overflow.length} overflow item${settlement.overflow.length === 1 ? " was" : "s were"} sold by the porter for ${settlement.overflowGold}g.` : "Everything in your haul fits safely in the stash."}${result.depthReached === 2 ? " The red-depth veterancy bonus is recorded." : ""}${settlement.firstContractPaid ? " The Taverner's 100g bounty is paid." : ""}${settlement.bossContractPaid ? " The 150g Tollkeeper bounty is paid." : ""}${settlement.highTollContractPaid ? " The 200g Deeper Wager bounty is paid." : result.raidMode === "high_toll" ? " The High Toll veterancy bonus is recorded." : ""}`
     : `Your class remembers. Your carried gear and every unsecured find remain ${result.depthReached === 2 ? "in the Ashen Depth" : "below"}.${result.depthReached === 2 ? " Some red-depth veterancy survives." : ""}${result.raidMode === "high_toll" ? ` The ${rules.entryFee}g entry fee is gone.` : ""}`;

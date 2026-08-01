@@ -57,7 +57,7 @@ export interface GamePreferences {
   stashSort: StashSort;
 }
 
-export type RaidEndReason = "extracted" | "slain" | "darkness";
+export type RaidEndReason = "extracted" | "slain" | "darkness" | "abandoned";
 
 export interface RaidResult {
   reason: RaidEndReason;

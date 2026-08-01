@@ -295,11 +295,17 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .haul-panel { justify-self: end; display: flex; min-width: 205px; padding: 11px 13px; flex-direction: column; align-items: end; border-right: 2px solid #88643a; background: linear-gradient(-90deg, rgba(10,9,7,.82), transparent); }
 .haul-panel strong { margin: 4px 0; color: #d9c59e; font: 400 18px Georgia, serif; }
 .haul-panel > span:last-child { color: #735e49; font: 700 7px ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; }
-.lock-overlay { position: absolute; inset: 0; z-index: 10; display: flex; border: 0; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle, rgba(13,15,14,.62), rgba(3,3,3,.94)); color: #d9d0c2; cursor: pointer; backdrop-filter: blur(3px); }
+.lock-overlay { position: absolute; inset: 0; z-index: 10; display: flex; border: 0; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle, rgba(13,15,14,.62), rgba(3,3,3,.94)); color: #d9d0c2; backdrop-filter: blur(3px); }
 .lock-overlay.hidden { display: none; }
 .sigil-mark { display: grid; width: 72px; height: 72px; margin-bottom: 18px; place-items: center; border: 1px solid #826041; color: #d99b5d; font: 400 20px Georgia, serif; transform: rotate(45deg); }
 .lock-overlay strong { font: 400 31px Georgia, serif; letter-spacing: .07em; }
 .lock-overlay small { margin-top: 8px; color: #958b7c; font: 700 9px ui-monospace, monospace; letter-spacing: .14em; text-transform: uppercase; }
+.lock-actions { display: flex; gap: 9px; margin-top: 24px; }
+.lock-actions button { min-width: 190px; padding: 13px 17px; border: 1px solid #60442f; background: #2d1d14; color: #d3b590; font: 800 9px ui-monospace, monospace; letter-spacing: .11em; cursor: pointer; }
+.lock-actions button:hover { filter: brightness(1.18); }
+.lock-actions .abandon-raid { border-color: #3a332c; background: rgba(16,14,12,.84); color: #766d63; }
+.lock-actions .abandon-raid.armed { border-color: #8d3d30; background: #381713; color: #e0a296; }
+.lock-actions button:disabled { cursor: wait; opacity: .65; }
 .control-line { margin-top: 38px; color: #666057; font: 8px ui-monospace, monospace; letter-spacing: .07em; }
 
 .result-screen { position: relative; display: grid; min-height: 100vh; padding: 60px 22px; place-items: center; overflow: hidden; background: #070707; }
@@ -328,5 +334,5 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 
 @media (max-width: 580px) {
   .lobby-header { height: 58px; padding: 0 18px; }.account-strip > span { display: none; }.brand strong { font-size: 14px; }.hero { min-height: 640px; }.hero-content { margin-top: 35px; }.hero h1 { font-size: 68px; }.hero-decree { max-width: 290px; font-size: 15px; }.lobby-body { padding-top: 50px; }.section-heading p { display: none; }.class-card { grid-template-columns: 55px 1fr; padding: 18px; }.class-rune { width: 40px; height: 52px; }.stash-item { grid-template-columns: 7px 1fr auto; }.item-value { display: none; }.risk-item, .sell-item { grid-row: 2; }.result-card { padding: 35px 20px; }.result-metrics { grid-template-columns: repeat(2, 1fr); }.result-metrics span:nth-child(2) { border-right: 0; }.result-items { grid-template-columns: 1fr; }
-  .objective-panel { display: none; }.hud-top { grid-template-columns: 1fr; }.hud-bottom { grid-template-columns: 1fr; }.haul-panel { display: none; }.interaction-prompt { bottom: 125px; }.control-line { max-width: 290px; line-height: 1.6; }.lock-overlay strong { font-size: 24px; }
+  .objective-panel { display: none; }.hud-top { grid-template-columns: 1fr; }.hud-bottom { grid-template-columns: 1fr; }.haul-panel { display: none; }.interaction-prompt { bottom: 125px; }.control-line { max-width: 290px; line-height: 1.6; }.lock-overlay strong { font-size: 24px; }.lock-actions { width: min(310px, 88vw); flex-direction: column; }.lock-actions button { width: 100%; }
 }
