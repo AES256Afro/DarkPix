@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
-import { attackDamage, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, type ThreatKind } from "./combat";
+import { attackDamage, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat, type ThreatKind } from "./combat";
 import { CLASSES, CLASS_ABILITIES, RARITY_COLOR, classPerkBonuses, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, type ClassPerkBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { HAUL_CAPACITY, canAddToHaul, dropLeastValuable, haulCount, treasureGold } from "./haul";
@@ -947,10 +947,22 @@ export class DarkPixGame {
       const targetScale = trap.active > 0 ? 1 : 0.04;
       trap.spikes.scale.y = THREE.MathUtils.lerp(trap.spikes.scale.y, targetScale, delta * 22);
       const distance = Math.hypot(this.camera.position.x - trap.group.position.x, this.camera.position.z - trap.group.position.z);
-      if (distance >= 0.82 || trap.cooldown > 0) continue;
+      if (trap.cooldown > 0) continue;
+      if (distance < 0.82) {
+        trap.cooldown = 3.2;
+        trap.active = 0.72;
+        this.hurt(trap.damage, "a floor trap");
+        continue;
+      }
+      const victim = this.enemies.find((enemy) => enemy.alive && Math.hypot(
+        enemy.group.position.x - trap.group.position.x,
+        enemy.group.position.z - trap.group.position.z,
+      ) < (enemy.kind === "boss" ? 1.05 : 0.78));
+      if (!victim) continue;
       trap.cooldown = 3.2;
       trap.active = 0.72;
-      this.hurt(trap.damage, "a floor trap");
+      this.damageEnemy(victim, trapDamageAgainstThreat(trap.damage, victim.kind), false, false);
+      this.feed(`FLOOR TRAP · ${victim.name} is impaled`, "combat");
     }
   }
 

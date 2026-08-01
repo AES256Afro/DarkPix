@@ -65,3 +65,9 @@ export function guardFacesThreat(facing: Vec2, toThreat: Vec2, minimumAlignment 
   const alignment = (facing.x * toThreat.x + facing.z * toThreat.z) / (facingLength * threatLength);
   return alignment >= Math.min(1, Math.max(-1, minimumAlignment));
 }
+
+export function trapDamageAgainstThreat(baseDamage: number, kind: ThreatKind): number {
+  const safeDamage = Number.isFinite(baseDamage) ? Math.max(0, baseDamage) : 0;
+  const multiplier = kind === "boss" ? 0.55 : kind === "rival" ? 1 : 1.3;
+  return Math.round(safeDamage * multiplier);
+}

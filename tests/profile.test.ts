@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CLASS_ABILITIES, CRAFTING_RECIPES, MERCHANT_OFFERS, classPerkBonuses, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll } from "../src/game/data";
 import { applyRaidResult, craftItem, createProfile, normalizeProfile, purchaseItem, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
-import { attackDamage, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic } from "../src/game/combat";
+import { attackDamage, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat } from "../src/game/combat";
 
 describe("loot generation", () => {
   it("maps rarity thresholds deterministically", () => {
@@ -309,6 +309,14 @@ describe("directional combat damage", () => {
     expect(healthPercent(-10, 100)).toBe(0);
     expect(healthPercent(140, 100)).toBe(100);
     expect(healthPercent(5, 0)).toBe(0);
+  });
+
+  it("lets traps punish lesser threats without trivializing the keeper", () => {
+    expect(trapDamageAgainstThreat(20, "skeleton")).toBe(26);
+    expect(trapDamageAgainstThreat(20, "mimic")).toBe(26);
+    expect(trapDamageAgainstThreat(20, "rival")).toBe(20);
+    expect(trapDamageAgainstThreat(20, "boss")).toBe(11);
+    expect(trapDamageAgainstThreat(Number.NaN, "skeleton")).toBe(0);
   });
 });
 
