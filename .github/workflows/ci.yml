@@ -49,4 +49,5 @@ jobs:
           curl -fsSI http://127.0.0.1:18092/ | grep -qi '^strict-transport-security: max-age=31536000'
           curl -fsS http://127.0.0.1:18092/manifest.webmanifest | grep -q '"short_name": "DarkPix"'
           curl -fsS http://127.0.0.1:18092/sw.js | grep -q 'SKIP_WAITING'
-          curl -fsSI http://127.0.0.1:18092/sw.js | grep -qi '^cache-control: no-cache'
+          curl -fsSI 'http://127.0.0.1:18092/sw.js?v=dev' | grep -qi '^cache-control: no-store, max-age=0, must-revalidate'
+          curl -fsSI 'http://127.0.0.1:18092/sw.js?v=dev' | grep -qi '^cloudflare-cdn-cache-control: no-store'

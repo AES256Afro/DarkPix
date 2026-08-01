@@ -70,9 +70,11 @@ check_public_release() {
   if command -v curl >/dev/null 2>&1; then
     observed_release="$(curl -fsS --max-time 8 "$darkpix_public_url/version.txt" 2>/dev/null)" || return 1
     curl -fsSI --max-time 8 "$darkpix_public_url/" 2>/dev/null | grep -qi '^strict-transport-security: max-age=31536000' || return 1
+    curl -fsSI --max-time 8 "$darkpix_public_url/sw.js?v=$darkpix_release" 2>/dev/null | grep -qi '^cache-control:.*no-store' || return 1
   elif command -v wget >/dev/null 2>&1; then
     observed_release="$(wget -q -T 8 -O - "$darkpix_public_url/version.txt" 2>/dev/null)" || return 1
     wget -q -T 8 --server-response --spider "$darkpix_public_url/" 2>&1 | grep -qi 'strict-transport-security: max-age=31536000' || return 1
+    wget -q -T 8 --server-response --spider "$darkpix_public_url/sw.js?v=$darkpix_release" 2>&1 | grep -qi 'cache-control:.*no-store' || return 1
   else
     echo "curl or wget is required to verify the public release." >&2
     return 1

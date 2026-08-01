@@ -85,7 +85,7 @@ function registerOfflineWorker(): void {
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (reloadForUpdate) location.reload();
   });
-  void navigator.serviceWorker.register("/sw.js").then((registration) => {
+  void navigator.serviceWorker.register(`/sw.js?v=${encodeURIComponent(release)}`).then((registration) => {
     if (registration.waiting && navigator.serviceWorker.controller) showUpdatePrompt(registration);
     registration.addEventListener("updatefound", () => {
       const worker = registration.installing;
