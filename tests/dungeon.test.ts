@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DUNGEON, dungeonCollides, dungeonPathExists } from "../src/game/dungeon";
+import { DUNGEON, dungeonCollides, dungeonLineOfSight, dungeonPathExists } from "../src/game/dungeon";
 import { targetDistanceInView } from "../src/game/targeting";
 
 describe("Crypt of the Pale Toll topology", () => {
@@ -15,6 +15,11 @@ describe("Crypt of the Pale Toll topology", () => {
     expect(dungeonCollides(DUNGEON.playerStart)).toBe(false);
     expect(dungeonCollides({ x: -10, z: 14 })).toBe(true);
     expect(dungeonCollides({ x: -8, z: 5 })).toBe(true);
+  });
+
+  it("blocks sight through masonry while preserving an open-room sightline", () => {
+    expect(dungeonLineOfSight(DUNGEON.playerStart, DUNGEON.campfire)).toBe(false);
+    expect(dungeonLineOfSight(DUNGEON.playerStart, { x: -5, z: 12 })).toBe(true);
   });
 });
 

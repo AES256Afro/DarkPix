@@ -17,6 +17,10 @@ export interface TorchSpec extends Vec2 {
   rotation: number;
 }
 
+export interface TrapSpec extends Vec2 {
+  damage: number;
+}
+
 export const DUNGEON = {
   name: "Crypt of the Pale Toll",
   size: 44,
@@ -68,6 +72,12 @@ export const DUNGEON = {
     { x: -16, z: -15, depthBonus: 0.08 },
     { x: 4, z: -16, depthBonus: 0.12 },
   ] satisfies ChestSpec[],
+  traps: [
+    { x: 0, z: 8, damage: 16 },
+    { x: -15, z: 4, damage: 18 },
+    { x: 14, z: -4, damage: 20 },
+    { x: 0, z: -13, damage: 22 },
+  ] satisfies TrapSpec[],
   enemies: [
     { kind: "crawler", x: -5, z: 12 },
     { kind: "skeleton", x: 5, z: 9 },
@@ -118,4 +128,18 @@ export function dungeonPathExists(start: Vec2, target: Vec2, radius = 0.38, step
     }
   }
   return false;
+}
+
+export function dungeonLineOfSight(start: Vec2, target: Vec2, radius = 0.06): boolean {
+  const distance = Math.hypot(target.x - start.x, target.z - start.z);
+  const samples = Math.max(1, Math.ceil(distance / 0.2));
+  for (let index = 1; index < samples; index += 1) {
+    const progress = index / samples;
+    const point = {
+      x: start.x + (target.x - start.x) * progress,
+      z: start.z + (target.z - start.z) * progress,
+    };
+    if (dungeonCollides(point, radius)) return false;
+  }
+  return true;
 }

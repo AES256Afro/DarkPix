@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
 import { CLASSES, RARITY_COLOR, createLoot, createSigil, formatTime, progressionBonuses } from "./data";
-import { DUNGEON } from "./dungeon";
+import { DUNGEON, dungeonLineOfSight } from "./dungeon";
 import { targetDistanceInView } from "./targeting";
 import type { ClassId, GamePreferences, Item, RaidEndReason, RaidResult } from "./types";
 
@@ -40,6 +40,14 @@ interface Chest {
   group: THREE.Group;
   opened: boolean;
   depthBonus: number;
+}
+
+interface FloorTrap {
+  group: THREE.Group;
+  spikes: THREE.Group;
+  damage: number;
+  cooldown: number;
+  active: number;
 }
 
 export interface DarkPixGameOptions {
@@ -110,10 +118,12 @@ export class DarkPixGame {
   private readonly enemies: Enemy[] = [];
   private readonly pickups: Pickup[] = [];
   private readonly chests: Chest[] = [];
+  private readonly traps: FloorTrap[] = [];
   private readonly raidLoot: Item[] = [];
   private readonly carriedConsumables: Item[];
   private readonly weapon = new THREE.Group();
   private readonly shield = new THREE.Group();
+  private readonly delverTorch = new THREE.SpotLight(0xffb267, 5.2, 18, Math.PI / 3.8, 0.7, 1.25);
   private readonly portal = new THREE.Group();
   private readonly portalCore = new THREE.Mesh();
   private readonly campfire = new THREE.Group();
@@ -162,6 +172,7 @@ export class DarkPixGame {
   private pitch = 0;
   private messageTimer = 0;
   private vignette = 0;
+  private torchLit = true;
 
   constructor(mount: HTMLElement, options: DarkPixGameOptions) {
     this.mount = mount;
@@ -227,6 +238,7 @@ export class DarkPixGame {
               <div><kbd>1</kbd><span class="slot-icon weapon-icon"></span><small>${this.definition.weapon}</small></div>
               <div><kbd>F</kbd><span class="slot-icon potion-icon"></span><small>${this.carriedConsumables.length ? `Packed draught ×${this.carriedConsumables.length}` : "Recovered draught"}</small></div>
               <div><kbd>E</kbd><span class="slot-icon hand-icon"></span><small>Interact / extract</small></div>
+              <div><kbd>T</kbd><span class="slot-icon torch-icon"></span><small>Hood the torch</small></div>
             </section>
             <section class="haul-panel">
               <span class="eyebrow">UNSECURED HAUL</span>
@@ -239,7 +251,7 @@ export class DarkPixGame {
           <span class="sigil-mark">DP</span>
           <strong>ENTER THE CRYPT</strong>
           <small>Click to bind the cursor</small>
-          <span class="control-line">WASD move · mouse look · LMB strike · RMB guard · E interact · F heal · Shift sprint</span>
+          <span class="control-line">WASD move · mouse look · LMB strike · RMB guard · E interact · F heal · T torch · Shift sprint</span>
         </button>
       </div>`;
     const host = this.mount.querySelector<HTMLElement>(".render-host");
@@ -271,10 +283,9 @@ export class DarkPixGame {
     this.camera.rotation.order = "YXZ";
     this.camera.position.set(DUNGEON.playerStart.x, PLAYER_HEIGHT, DUNGEON.playerStart.z);
     this.scene.add(this.camera);
-    const delverTorch = new THREE.SpotLight(0xffb267, 5.2, 18, Math.PI / 3.8, 0.7, 1.25);
-    delverTorch.position.set(0.28, 0.05, 0.1);
-    delverTorch.target.position.set(0, -0.12, -1);
-    this.camera.add(delverTorch, delverTorch.target);
+    this.delverTorch.position.set(0.28, 0.05, 0.1);
+    this.delverTorch.target.position.set(0, -0.12, -1);
+    this.camera.add(this.delverTorch, this.delverTorch.target);
   }
 
   private createWorld(): void {
@@ -315,6 +326,7 @@ export class DarkPixGame {
     this.createCampfire(DUNGEON.campfire.x, DUNGEON.campfire.z);
     this.createPortal(DUNGEON.portal.x, DUNGEON.portal.z);
     DUNGEON.chests.forEach((chest) => this.createChest(chest.x, chest.z, chest.depthBonus));
+    DUNGEON.traps.forEach((trap) => this.createTrap(trap.x, trap.z, trap.damage));
     DUNGEON.enemies.forEach((enemy) => this.spawnEnemy(enemy.kind, enemy.x, enemy.z));
 
     this.scene.add(new THREE.HemisphereLight(0x59676b, 0x241611, 0.56));
@@ -391,6 +403,25 @@ export class DarkPixGame {
     light.position.y = 0.7;
     this.campfire.add(logA, logB, fire, light);
     this.scene.add(this.campfire);
+  }
+
+  private createTrap(x: number, z: number, damage: number): void {
+    const group = new THREE.Group();
+    group.position.set(x, 0.025, z);
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.07, 1.45), material(0x312e29));
+    const inset = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.075, 1.15), material(0x4a4033));
+    inset.position.y = 0.02;
+    const spikes = new THREE.Group();
+    for (const [spikeX, spikeZ] of [[-0.36, -0.36], [0.36, -0.36], [0, 0], [-0.36, 0.36], [0.36, 0.36]] as const) {
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.75, 4), material(0x777168));
+      spike.position.set(spikeX, 0.4, spikeZ);
+      spike.castShadow = true;
+      spikes.add(spike);
+    }
+    spikes.scale.y = 0.04;
+    group.add(plate, inset, spikes);
+    this.scene.add(group);
+    this.traps.push({ group, spikes, damage, cooldown: 0, active: 0 });
   }
 
   private createPortal(x: number, z: number): void {
@@ -546,6 +577,7 @@ export class DarkPixGame {
     this.keys.add(event.code);
     if (event.code === "KeyE") this.interactHeld = true;
     if (event.code === "KeyF" && !event.repeat) this.usePotion();
+    if (event.code === "KeyT" && !event.repeat) this.toggleTorch();
   };
 
   private onKeyUp = (event: KeyboardEvent): void => {
@@ -623,6 +655,7 @@ export class DarkPixGame {
     this.blockAge += this.blocking ? delta : 0;
     this.vignette = Math.max(0, this.vignette - delta * 1.8);
     this.updateMovement(delta);
+    this.updateTraps(delta);
     this.updateEnemies(delta);
     this.updateZone(delta);
     this.updateInteraction(delta);
@@ -672,6 +705,28 @@ export class DarkPixGame {
     );
   }
 
+  private toggleTorch(): void {
+    if (this.paused || this.ended) return;
+    this.torchLit = !this.torchLit;
+    this.delverTorch.intensity = this.torchLit ? 5.2 : 0;
+    this.feed(this.torchLit ? "Torch unhooded. You see farther, and so do they." : "Torch hooded. Stay close to the stones.", "system");
+    this.audio.tone(this.torchLit ? 310 : 140, 0.12, "sine", 0.08);
+  }
+
+  private updateTraps(delta: number): void {
+    for (const trap of this.traps) {
+      trap.cooldown = Math.max(0, trap.cooldown - delta);
+      trap.active = Math.max(0, trap.active - delta);
+      const targetScale = trap.active > 0 ? 1 : 0.04;
+      trap.spikes.scale.y = THREE.MathUtils.lerp(trap.spikes.scale.y, targetScale, delta * 22);
+      const distance = Math.hypot(this.camera.position.x - trap.group.position.x, this.camera.position.z - trap.group.position.z);
+      if (distance >= 0.82 || trap.cooldown > 0) continue;
+      trap.cooldown = 3.2;
+      trap.active = 0.72;
+      this.hurt(trap.damage, "a floor trap");
+    }
+  }
+
   private attack(): void {
     if (this.attackCooldown > 0 || this.blocking || this.stamina < 8) return;
     if (this.options.classId === "hexbound" && this.spellCharges <= 0) {
@@ -693,7 +748,11 @@ export class DarkPixGame {
       const toEnemy = enemy.group.position.clone().add(new THREE.Vector3(0, 1.1, 0)).sub(cameraPosition);
       const distance = toEnemy.length();
       const cone = this.options.classId === "hexbound" ? 0.965 : this.attackDirection === "SWEEP" ? 0.72 : 0.86;
-      if (distance <= this.definition.reach && toEnemy.normalize().dot(forward) > cone && distance < bestDistance) {
+      const visible = dungeonLineOfSight(
+        { x: cameraPosition.x, z: cameraPosition.z },
+        { x: enemy.group.position.x, z: enemy.group.position.z },
+      );
+      if (distance <= this.definition.reach && visible && toEnemy.normalize().dot(forward) > cone && distance < bestDistance) {
         best = enemy;
         bestDistance = distance;
       }
@@ -751,7 +810,11 @@ export class DarkPixGame {
       enemy.group.scale.lerp(new THREE.Vector3(1, 1, 1), delta * 7);
       const toPlayer = new THREE.Vector3(player.x - enemy.group.position.x, 0, player.z - enemy.group.position.z);
       const distance = toPlayer.length();
-      if (this.elapsed >= SPAWN_GRACE && distance < 10.5) enemy.alerted = true;
+      const awareness = this.torchLit ? 10.5 : 6.5;
+      if (this.elapsed >= SPAWN_GRACE && distance < awareness && dungeonLineOfSight(
+        { x: player.x, z: player.z },
+        { x: enemy.group.position.x, z: enemy.group.position.z },
+      )) enemy.alerted = true;
       if (!enemy.alerted) {
         enemy.group.rotation.y += Math.sin(this.elapsed * 0.35 + enemy.phase) * delta * 0.15;
         continue;
