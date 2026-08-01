@@ -56,7 +56,7 @@ npm test
 npm run build
 ```
 
-The automated suite covers loot rarity, deterministic item creation, profile migration, XP persistence, stash loss on death, authoritative extraction settlement, consumed-item slot recovery, merchant guardrails, preference normalization, deliberate interaction targeting, collision integrity, sightlines, wayfinding, migrating darkness, pursuit routes around walls, pathfinding from the player start to every contract-critical location, and deduplicated GPU resource cleanup between raids.
+The automated suite covers loot rarity, deterministic item creation, profile migration, XP persistence, stash loss on death, authoritative extraction settlement, consumed-item slot recovery, merchant guardrails, persisted-text encoding, preference normalization, deliberate interaction targeting, collision integrity, sightlines, wayfinding, migrating darkness, pursuit routes around walls, pathfinding from the player start to every contract-critical location, and deduplicated GPU resource cleanup between raids.
 
 ## Production deployment
 

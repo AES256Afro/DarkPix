@@ -1,4 +1,5 @@
 import "./style.css";
+import { escapeHtml } from "./html";
 import { CLASSES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, progressionBonuses } from "./game/data";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { loadProfile, purchaseItem, saveProfile, settleRaid } from "./game/profile";
@@ -37,13 +38,16 @@ function persistPreferences(): void {
 
 function itemMarkup(item: Item, riskable = false): string {
   const selected = equippedIds.has(item.id);
+  const itemId = escapeHtml(item.id);
+  const itemName = escapeHtml(item.name);
+  const itemModifier = item.modifier ? ` · ${escapeHtml(item.modifier)}` : "";
   return `
-    <article class="stash-item ${selected ? "selected" : ""}" data-item-id="${item.id}" style="--rarity:${RARITY_COLOR[item.rarity]}">
+    <article class="stash-item ${selected ? "selected" : ""}" data-item-id="${itemId}" style="--rarity:${RARITY_COLOR[item.rarity]}">
       <span class="item-gem"></span>
-      <span class="item-copy"><strong>${item.name}</strong><small>${item.rarity} ${item.kind}${item.modifier ? ` · ${item.modifier}` : ""}</small></span>
+      <span class="item-copy"><strong>${itemName}</strong><small>${item.rarity} ${item.kind}${itemModifier}</small></span>
       <span class="item-value">${item.value}g</span>
       ${riskable && item.kind !== "treasure" ? `<button class="risk-item" type="button">${selected ? "Packed" : "Pack"}</button>` : ""}
-      <button class="sell-item" type="button" aria-label="Sell ${item.name}">Sell</button>
+      <button class="sell-item" type="button" aria-label="Sell ${itemName}">Sell</button>
     </article>`;
 }
 
@@ -129,7 +133,7 @@ function renderLobby(): void {
                     <button type="button" data-merchant-sku="${offer.sku}" aria-label="Buy ${offer.item.name} for ${offer.price} gold">${offer.price}g</button>
                   </article>`).join("")}
               </div>
-              <p class="merchant-notice" role="status">${merchantNotice || "The ironmonger does not offer refunds."}</p>
+              <p class="merchant-notice" role="status">${escapeHtml(merchantNotice || "The ironmonger does not offer refunds.")}</p>
             </div>
           </section>
 
@@ -291,7 +295,7 @@ function finishRaid(result: RaidResult): void {
           <div class="panel-heading"><span><small>${extracted ? "SETTLED" : "ABANDONED"}</small><strong>${extracted ? "Recovered haul" : "Lost below"}</strong></span><b>${recordedItems.length} ITEMS</b></div>
           <div class="result-items">
             ${recordedItems.length ? recordedItems.map(({ item, outcome }) => `
-              <div class="result-item" style="--rarity:${RARITY_COLOR[item.rarity]}"><i></i><span><strong>${item.name}</strong><small>${item.rarity} ${item.kind} · ${outcome}</small></span><b>${item.value}g</b></div>`).join("") : `<div class="empty-stash"><strong>NOTHING TO RECORD</strong><span>The ledger remains clean.</span></div>`}
+              <div class="result-item" style="--rarity:${RARITY_COLOR[item.rarity]}"><i></i><span><strong>${escapeHtml(item.name)}</strong><small>${item.rarity} ${item.kind} · ${outcome}</small></span><b>${item.value}g</b></div>`).join("") : `<div class="empty-stash"><strong>NOTHING TO RECORD</strong><span>The ledger remains clean.</span></div>`}
           </div>
         </div>
         <button class="return-button" type="button">RETURN TO THE LAST LANTERN</button>

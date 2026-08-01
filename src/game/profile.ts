@@ -51,7 +51,7 @@ function validItem(value: unknown): value is Item {
     typeof item.name === "string" && item.name.length > 0 && item.name.length <= 120 &&
     typeof item.power === "number" && Number.isFinite(item.power) && item.power >= 0 &&
     typeof item.value === "number" && Number.isFinite(item.value) && item.value >= 0 &&
-    (item.modifier === undefined || typeof item.modifier === "string") &&
+    (item.modifier === undefined || (typeof item.modifier === "string" && item.modifier.length <= 160)) &&
     ["weapon", "armor", "treasure", "consumable", "sigil"].includes(item.kind ?? "") &&
     ["Worn", "Common", "Uncommon", "Rare", "Epic", "Legendary"].includes(item.rarity ?? "")
   );
