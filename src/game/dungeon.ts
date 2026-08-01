@@ -55,7 +55,10 @@ export const DUNGEON = {
     { x: 19, z: -7, width: 6, depth: 1 },
     { x: -4, z: 3, width: 12, depth: 1 },
     { x: 5, z: -3, width: 11, depth: 1 },
+    { x: -18, z: -10.5, width: 1, depth: 6 },
+    { x: -18, z: -18.5, width: 1, depth: 6 },
   ] satisfies WallSpec[],
+  secretPassage: { x: -18, z: -14.5, width: 1, depth: 2 } satisfies WallSpec,
   pillars: [
     { x: -19, z: 19 },
     { x: 19, z: 19 },

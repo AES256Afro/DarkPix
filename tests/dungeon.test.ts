@@ -14,6 +14,15 @@ describe("Crypt of the Pale Toll topology", () => {
     }
   });
 
+  it("keeps the hidden reliquary alcove sealed by one discoverable gap", () => {
+    const passage = DUNGEON.secretPassage;
+    const outside = { x: passage.x + 1.5, z: passage.z };
+    expect(dungeonCollides(passage, 0.1)).toBe(false);
+    expect(dungeonPathExists(outside, DUNGEON.shrine, 0.3)).toBe(true);
+    expect(DUNGEON.walls.some((wall) => wall.x === passage.x && wall.z < passage.z)).toBe(true);
+    expect(DUNGEON.walls.some((wall) => wall.x === passage.x && wall.z > passage.z)).toBe(true);
+  });
+
   it("marks exactly one deep coffer as the hidden mimic encounter", () => {
     const mimics = DUNGEON.chests.filter((chest) => chest.mimic);
     expect(mimics).toHaveLength(1);

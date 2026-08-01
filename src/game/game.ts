@@ -162,6 +162,8 @@ export class DarkPixGame {
   );
   private readonly campfire = new THREE.Group();
   private readonly shrine = new THREE.Group();
+  private readonly falseWall = new THREE.Group();
+  private falseWallCollider: WallCollider | undefined;
   private readonly resizeObserver: ResizeObserver;
   private readonly maxHealth: number;
   private readonly damageBonus: number;
@@ -208,6 +210,7 @@ export class DarkPixGame {
   private spawnGraceAnnounced = false;
   private campfireUsed = false;
   private shrineUsed = false;
+  private falseWallOpened = false;
   private ended = false;
   private paused = true;
   private contextLost = false;
@@ -403,6 +406,7 @@ export class DarkPixGame {
 
     const wallMat = new THREE.MeshStandardMaterial({ map: wallTexture, roughness: 0.96, color: 0x8b8479 });
     DUNGEON.walls.forEach((wall) => this.addWall(wall.x, wall.z, wall.width, wall.depth, wallMat));
+    this.createFalseWall(DUNGEON.secretPassage.x, DUNGEON.secretPassage.z, DUNGEON.secretPassage.width, DUNGEON.secretPassage.depth, wallMat);
 
     for (const { x, z } of DUNGEON.pillars) {
       const pillar = new THREE.Mesh(new THREE.BoxGeometry(1.1, 4, 1.1), wallMat);
@@ -434,6 +438,24 @@ export class DarkPixGame {
     wall.userData.solid = true;
     this.scene.add(wall);
     this.walls.push({ x, z, halfW: width / 2, halfD: depth / 2 });
+  }
+
+  private createFalseWall(x: number, z: number, width: number, depth: number, wallMaterial: THREE.Material): void {
+    this.falseWall.position.set(x, 0, z);
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(width, 4.2, depth), wallMaterial);
+    panel.position.y = 2.1;
+    panel.castShadow = true;
+    panel.receiveShadow = true;
+    const seamMaterial = material(0x3a342f, 0x120b08);
+    seamMaterial.emissiveIntensity = 0.12;
+    const verticalSeam = new THREE.Mesh(new THREE.BoxGeometry(0.025, 2.8, 0.025), seamMaterial);
+    verticalSeam.position.set(0.515, 1.75, 0.42);
+    const crossSeam = new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.025, 0.72), seamMaterial);
+    crossSeam.position.set(0.516, 1.18, 0);
+    this.falseWall.add(panel, verticalSeam, crossSeam);
+    this.scene.add(this.falseWall);
+    this.falseWallCollider = { x, z, halfW: width / 2, halfD: depth / 2 };
+    this.walls.push(this.falseWallCollider);
   }
 
   private addTorch(x: number, z: number, rotation: number, phase: number): void {
@@ -1838,7 +1860,7 @@ export class DarkPixGame {
 
   private updateInteraction(delta: number): void {
     let prompt = "";
-    let interactive: "pickup" | "chest" | "campfire" | "shrine" | "portal" | undefined;
+    let interactive: "pickup" | "chest" | "campfire" | "shrine" | "false_wall" | "portal" | undefined;
     let targetPickup: Pickup | undefined;
     let targetChest: Chest | undefined;
     let nearest = 2.6;
@@ -1880,6 +1902,11 @@ export class DarkPixGame {
       nearest = shrineDistance;
       interactive = "shrine";
     }
+    const falseWallDistance = this.falseWallOpened ? Number.POSITIVE_INFINITY : targetDistance(this.falseWall.position, 2.35);
+    if (falseWallDistance < nearest) {
+      nearest = falseWallDistance;
+      interactive = "false_wall";
+    }
     const portalDistance = this.portalUnlocked ? targetDistance(this.portal.position, 3.1) : Number.POSITIVE_INFINITY;
     if (Number.isFinite(portalDistance) && (interactive === undefined || portalDistance < nearest)) {
       nearest = portalDistance;
@@ -1892,6 +1919,7 @@ export class DarkPixGame {
     if (interactive === "chest") prompt = "[ E ] SEARCH IRONBOUND COFFER";
     if (interactive === "campfire") prompt = "[ HOLD E ] REST · RESTORE VIGOR AND SPELL MEMORY";
     if (interactive === "shrine") prompt = "[ E ] PAY 18 VIGOR TO THE BLOOD RELIQUARY";
+    if (interactive === "false_wall") prompt = "[ HOLD E ] TRACE THE MORTAR SEAM";
     const redDepthAvailable = interactive === "portal" && this.depth === 1 && this.bossKilled;
     if (interactive === "portal") prompt = redDepthAvailable
       ? "[ HOLD E ] EXTRACT BLUE · [ HOLD R ] DESCEND RED"
@@ -1900,8 +1928,8 @@ export class DarkPixGame {
     this.promptHud.classList.toggle("visible", Boolean(prompt));
 
     const descending = redDepthAvailable && this.descendHeld;
-    const channeling = descending || (this.interactHeld && (interactive === "portal" || interactive === "campfire"));
-    const channelDuration = (descending ? 2.4 : interactive === "campfire" ? 2.2 : 1.8) * this.loadoutBonuses.interactionDurationMultiplier;
+    const channeling = descending || (this.interactHeld && (interactive === "portal" || interactive === "campfire" || interactive === "false_wall"));
+    const channelDuration = (descending ? 2.4 : interactive === "campfire" ? 2.2 : interactive === "false_wall" ? 1.45 : 1.8) * this.loadoutBonuses.interactionDurationMultiplier;
     this.interactionHold = continuousHold(this.interactionHold, delta, channeling);
     this.extractProgress.style.width = `${Math.min(100, (this.interactionHold / channelDuration) * 100)}%`;
     this.extractProgress.parentElement?.classList.toggle("visible", channeling);
@@ -1921,6 +1949,11 @@ export class DarkPixGame {
     } else if (interactive === "shrine") {
       this.useShrine();
       this.interactHeld = false;
+    } else if (interactive === "false_wall") {
+      if (this.interactionHold >= channelDuration) {
+        this.openFalseWall();
+        this.interactHeld = false;
+      }
     } else if (interactive === "portal") {
       if (this.interactionHold >= channelDuration) {
         if (descending) this.descendDeeper();
@@ -2021,6 +2054,23 @@ export class DarkPixGame {
       if (enemy.alive && enemy.group.position.distanceTo(this.shrine.position) < 16) enemy.alerted = true;
     }
     this.feed("The reliquary opens. Something in the crypt answers.", "loot");
+    this.audio.portal();
+  }
+
+  private openFalseWall(): void {
+    if (this.falseWallOpened) return;
+    this.falseWallOpened = true;
+    if (this.falseWallCollider) {
+      const colliderIndex = this.walls.indexOf(this.falseWallCollider);
+      if (colliderIndex >= 0) this.walls.splice(colliderIndex, 1);
+      this.falseWallCollider = undefined;
+    }
+    this.falseWall.visible = false;
+    this.interactionHold = 0;
+    for (const enemy of this.enemies) {
+      if (enemy.alive && enemy.group.position.distanceTo(this.falseWall.position) < 12) enemy.alerted = true;
+    }
+    this.feed("FALSE STONE YIELDS · a blood-lit alcove opens", "loot");
     this.audio.portal();
   }
 
