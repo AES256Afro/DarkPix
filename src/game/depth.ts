@@ -1,6 +1,18 @@
 import type { DungeonDepth } from "./types";
 import type { ChestSpec, EnemySpec } from "./dungeon";
 
+export interface AshVentSpec {
+  x: number;
+  z: number;
+  delay: number;
+}
+
+export const ASH_VENT_RADIUS = 1.35;
+export const ASH_VENT_DAMAGE = 14;
+export const ASH_VENT_WINDUP_SECONDS = 0.9;
+export const ASH_VENT_ACTIVE_SECONDS = 0.45;
+export const ASH_VENT_COOLDOWN_SECONDS = 4.8;
+
 export interface DepthRules {
   depth: DungeonDepth;
   name: string;
@@ -50,6 +62,18 @@ export const ASHEN_ENEMIES = [
   { kind: "rival", x: 14, z: -9 },
   { kind: "boss", x: 16, z: -14 },
 ] satisfies EnemySpec[];
+
+export const ASH_VENTS = [
+  { x: 0, z: 10, delay: 1.1 },
+  { x: -15, z: 1, delay: 2.3 },
+  { x: 15, z: -1, delay: 3.5 },
+  { x: 0, z: -11, delay: 4.7 },
+] satisfies AshVentSpec[];
+
+export function ashVentHits(origin: { x: number; z: number }, target: { x: number; z: number }, radius = ASH_VENT_RADIUS): boolean {
+  if (![origin.x, origin.z, target.x, target.z, radius].every(Number.isFinite) || radius < 0) return false;
+  return Math.hypot(target.x - origin.x, target.z - origin.z) <= radius;
+}
 
 export function depthRules(depth: DungeonDepth | undefined): DepthRules {
   return depth === 2 ? ASHEN_DEPTH : PALE_TOLL;

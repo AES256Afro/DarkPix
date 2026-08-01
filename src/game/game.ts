@@ -4,7 +4,7 @@ import { AudioDirector } from "./audio";
 import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
-import { ASHEN_CHESTS, ASHEN_ENEMIES, bossRingActive, bossRingCooldown, depthRules } from "./depth";
+import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
 import { HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGoldTotal } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, pickupDecision, type LoadoutStats } from "./loadout";
 import { cardinalDirection, circlesOverlap, movementOffset, recoveryNeed, relativeDirectionToSource } from "./navigation";
@@ -87,6 +87,17 @@ interface DartTrap {
   windup: number;
 }
 
+interface AshVent {
+  group: THREE.Group;
+  runeMaterial: THREE.MeshStandardMaterial;
+  plume: THREE.Mesh;
+  plumeMaterial: THREE.MeshBasicMaterial;
+  light: THREE.PointLight;
+  cooldown: number;
+  windup: number;
+  active: number;
+}
+
 export interface DarkPixGameOptions {
   classId: ClassId;
   classLevel: number;
@@ -157,6 +168,7 @@ export class DarkPixGame {
   private readonly chests: Chest[] = [];
   private readonly traps: FloorTrap[] = [];
   private readonly dartTraps: DartTrap[] = [];
+  private readonly ashVents: AshVent[] = [];
   private readonly raidLoot: Item[] = [];
   private readonly carriedConsumables: Item[];
   private readonly carriedThrowables: Item[];
@@ -630,6 +642,29 @@ export class DarkPixGame {
     });
     this.scene.add(group);
     this.dartTraps.push({ group, portMaterial, direction: { ...direction }, range, damage, cooldown: delay, windup: 0 });
+  }
+
+  private createAshVent(x: number, z: number, delay: number): void {
+    const group = new THREE.Group();
+    group.position.set(x, 0.035, z);
+    const runeMaterial = material(0x3a211b, 0x5d150d);
+    runeMaterial.emissiveIntensity = 0.18;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(ASH_VENT_RADIUS, 0.065, 4, 16), runeMaterial);
+    ring.rotation.x = Math.PI / 2;
+    for (let index = 0; index < 4; index += 1) {
+      const crack = new THREE.Mesh(new THREE.BoxGeometry(ASH_VENT_RADIUS * 2, 0.035, 0.055), runeMaterial);
+      crack.rotation.y = (index / 4) * Math.PI;
+      group.add(crack);
+    }
+    const plumeMaterial = new THREE.MeshBasicMaterial({ color: 0xff5b24, transparent: true, opacity: 0, side: THREE.DoubleSide });
+    const plume = new THREE.Mesh(new THREE.ConeGeometry(ASH_VENT_RADIUS * 0.72, 2.3, 8, 1, true), plumeMaterial);
+    plume.position.y = 1.15;
+    plume.visible = false;
+    const light = new THREE.PointLight(0xff3d1d, 0, 7.5, 2);
+    light.position.y = 0.7;
+    group.add(ring, plume, light);
+    this.scene.add(group);
+    this.ashVents.push({ group, runeMaterial, plume, plumeMaterial, light, cooldown: Math.max(0, delay), windup: 0, active: 0 });
   }
 
   private createPortal(x: number, z: number): void {
@@ -1182,6 +1217,7 @@ export class DarkPixGame {
     this.updateMovement(delta);
     this.updateTraps(delta);
     this.updateDartTraps(delta);
+    this.updateAshVents(delta);
     this.updateEnemies(delta);
     this.updateZone(delta);
     this.updateInteraction(delta);
@@ -1342,6 +1378,63 @@ export class DarkPixGame {
         this.audio.tone(880, 0.08, "square", 0.07);
       }
     }
+  }
+
+  private updateAshVents(delta: number): void {
+    for (const vent of this.ashVents) {
+      if (vent.active > 0) {
+        vent.active = Math.max(0, vent.active - delta);
+        const progress = vent.active / ASH_VENT_ACTIVE_SECONDS;
+        vent.plume.visible = true;
+        vent.plume.scale.set(1 + (1 - progress) * 0.35, 0.75 + progress * 0.45, 1 + (1 - progress) * 0.35);
+        vent.plumeMaterial.opacity = Math.min(0.72, progress * 0.9);
+        vent.light.intensity = progress * 3.6;
+        if (vent.active === 0) {
+          vent.plume.visible = false;
+          vent.plumeMaterial.opacity = 0;
+          vent.light.intensity = 0;
+          vent.runeMaterial.emissiveIntensity = 0.18;
+        }
+        continue;
+      }
+      if (vent.windup > 0) {
+        vent.windup = Math.max(0, vent.windup - delta);
+        const progress = 1 - vent.windup / ASH_VENT_WINDUP_SECONDS;
+        const pulse = this.options.preferences.reducedFlashes ? 0 : Math.sin(this.elapsed * 24) * 0.18;
+        vent.runeMaterial.emissiveIntensity = 0.5 + progress * 1.8 + pulse;
+        vent.light.intensity = 0.25 + progress * 1.5;
+        if (vent.windup === 0) this.eruptAshVent(vent);
+        continue;
+      }
+      vent.cooldown = Math.max(0, vent.cooldown - delta);
+      vent.runeMaterial.emissiveIntensity = 0.18;
+      if (vent.cooldown > 0) continue;
+      vent.windup = ASH_VENT_WINDUP_SECONDS;
+      const distance = Math.hypot(this.camera.position.x - vent.group.position.x, this.camera.position.z - vent.group.position.z);
+      if (distance <= 7) {
+        this.feed("ASH CRACKS GLOW · clear the marked ring", "danger");
+        this.audio.tone(96, 0.18, "sawtooth", 0.08);
+      }
+    }
+  }
+
+  private eruptAshVent(vent: AshVent): void {
+    vent.active = ASH_VENT_ACTIVE_SECONDS;
+    vent.cooldown = ASH_VENT_COOLDOWN_SECONDS;
+    vent.plume.visible = true;
+    vent.plumeMaterial.opacity = 0.72;
+    vent.light.intensity = 3.6;
+    const origin = { x: vent.group.position.x, z: vent.group.position.z };
+    const playerHit = ashVentHits(origin, this.camera.position);
+    if (playerHit) this.hurt(ASH_VENT_DAMAGE, "an ash vent", false, origin);
+    let enemyHits = 0;
+    for (const enemy of this.enemies) {
+      if (!enemy.alive || !ashVentHits(origin, enemy.group.position, enemy.kind === "boss" ? ASH_VENT_RADIUS + 0.35 : ASH_VENT_RADIUS)) continue;
+      enemyHits += 1;
+      this.damageEnemy(enemy, trapDamageAgainstThreat(ASH_VENT_DAMAGE, enemy.kind), false, false);
+    }
+    if (!playerHit && enemyHits > 0) this.feed(`ASH ERUPTION · ${enemyHits} threat${enemyHits === 1 ? "" : "s"} scorched`, "combat");
+    this.audio.tone(54, 0.28, "sawtooth", 0.12);
   }
 
   private fireDartTrap(trap: DartTrap): void {
@@ -2537,6 +2630,7 @@ export class DarkPixGame {
     this.renderer.setClearColor(0x100504);
     this.delverTorch.color.setHex(0xff8a55);
 
+    for (const vent of ASH_VENTS) this.createAshVent(vent.x, vent.z, vent.delay);
     for (const enemy of ASHEN_ENEMIES) {
       const position = encounterPosition(enemy, this.encountersMirrored);
       this.spawnEnemy(enemy.kind, position.x, position.z);

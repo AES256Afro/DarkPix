@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ASHEN_CHESTS, ASHEN_ENEMIES, bossRingActive, bossRingCooldown, depthRules, depthXpBonus } from "../src/game/depth";
+import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules, depthXpBonus } from "../src/game/depth";
 import { dungeonCollides } from "../src/game/dungeon";
 
 describe("red-depth continuation", () => {
@@ -36,5 +36,22 @@ describe("red-depth continuation", () => {
     expect(ASHEN_ENEMIES.some((enemy) => enemy.kind === "rival")).toBe(true);
     expect(ASHEN_ENEMIES.some((enemy) => enemy.kind === "boss")).toBe(true);
     expect([...ASHEN_CHESTS, ...ASHEN_ENEMIES].every((entry) => !dungeonCollides(entry))).toBe(true);
+  });
+
+  it("places staggered ash vents on open second-floor stone", () => {
+    expect(ASH_VENTS).toHaveLength(4);
+    expect(ASH_VENTS.every((vent) => vent.delay > 0 && !dungeonCollides(vent, ASH_VENT_RADIUS))).toBe(true);
+    expect(new Set(ASH_VENTS.map((vent) => vent.delay)).size).toBe(ASH_VENTS.length);
+    expect(ASH_VENT_WINDUP_SECONDS).toBeGreaterThan(ASH_VENT_ACTIVE_SECONDS);
+    expect(ASH_VENT_COOLDOWN_SECONDS).toBeGreaterThan(ASH_VENT_WINDUP_SECONDS);
+    expect(ASH_VENT_DAMAGE).toBeGreaterThan(0);
+  });
+
+  it("bounds ash eruptions to their marked ring", () => {
+    const origin = { x: 3, z: -2 };
+    expect(ashVentHits(origin, { x: 3 + ASH_VENT_RADIUS, z: -2 })).toBe(true);
+    expect(ashVentHits(origin, { x: 3 + ASH_VENT_RADIUS + 0.01, z: -2 })).toBe(false);
+    expect(ashVentHits(origin, { x: Number.NaN, z: -2 })).toBe(false);
+    expect(ashVentHits(origin, origin, -1)).toBe(false);
   });
 });
