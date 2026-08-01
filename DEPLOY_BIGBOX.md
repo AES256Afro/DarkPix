@@ -37,6 +37,8 @@ chmod +x scripts/deploy-bigbox.sh
 ./scripts/deploy-bigbox.sh
 ```
 
+The deploy command waits for both Docker's own `healthy` state and the loopback endpoint before continuing. An `unhealthy` state prints the latest service logs and fails before public-route verification.
+
 Verify the private origin:
 
 ```bash

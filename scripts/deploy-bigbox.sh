@@ -33,10 +33,26 @@ check_darkpix_health() {
   fi
 }
 
+darkpix_container_id="$(docker compose ps -q darkpix)"
+if [[ -z "$darkpix_container_id" ]]; then
+  echo "DarkPix container was not created." >&2
+  exit 1
+fi
+
+docker_health_status() {
+  docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$darkpix_container_id"
+}
+
 for attempt in {1..30}; do
-  if check_darkpix_health; then
-    echo "DarkPix health check passed on http://127.0.0.1:8092/healthz"
+  health_status="$(docker_health_status)"
+  if [[ "$health_status" == "healthy" ]] && check_darkpix_health; then
+    echo "DarkPix container and host health checks passed on http://127.0.0.1:8092/healthz"
     break
+  fi
+  if [[ "$health_status" == "unhealthy" ]]; then
+    echo "DarkPix container reported unhealthy. Inspect: docker compose logs darkpix" >&2
+    docker compose logs --tail=40 darkpix >&2
+    exit 1
   fi
   if [[ "$attempt" -eq 30 ]]; then
     echo "DarkPix did not become healthy. Inspect: docker compose logs darkpix" >&2
