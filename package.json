@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test:budget": "node scripts/check-build-budget.mjs",
+    "test:security": "npm audit --audit-level=high",
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview"
