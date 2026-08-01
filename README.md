@@ -42,6 +42,7 @@ Mouse sensitivity, 60 to 95 degree field of view, crypt brightness, audio, reduc
 
 - Choose Vanguard, Cutpurse, Hexbound, Reaver, or Ranger. Class XP and levels persist across every outcome.
 - Escape once to unlock the High Toll contract. Its 50g fee is consumed on entry, threats gain health, damage, and speed, loot rolls gain a substantial depth bonus, and all class XP is multiplied by 1.35. Death still removes carried gear, never the persistent character.
+- Complete one Ashen Return to unlock Iron Soul. Its 100g entry fee, stronger threats, +0.20 loot depth, and +75% XP trade against true hardcore stakes: any death or abandonment resets the selected discipline's class XP to zero in addition to losing gear and haul.
 - The first successful High Toll extraction records a persistent Deeper Wager victory and pays a one-time 200g contract bounty. Standard escapes and failed High Toll runs never advance it.
 - Pack up to two stash items. One weapon and one armor piece can contribute power; consumables occupy any open slot. Armor power adds vigor but imposes up to 18% encumbrance, offset by movement enchantments, and the lobby previews the final pace. Packed items are lost if the delver dies.
 - Defeat two Ossuary Wardens and take their sigils.
@@ -55,6 +56,7 @@ Mouse sensitivity, 60 to 95 degree field of view, crypt brightness, audio, reduc
 - Hold `E` while facing the blue passage in the southeast reliquary to bank the haul. Looking away or taking damage breaks the extraction channel.
 - Read the shrinking safe reach in the raid HUD. Its center migrates southeast so the final refuge includes the extraction chamber.
 - Death discards all raid loot and equipped risk items. The player can always return with base class equipment.
+- Starting a raid writes a local escrow journal. Closing or refreshing the page before a verdict settles that journal as an abandonment on the next load, so reloads cannot bypass gear loss or Iron Soul consequences.
 - Spend gold at the Ironmonger on consumables and gear. Successful extracts unlock Uncommon stock and, after three returns, a Rare weapon. Draughts and bandages restore vigor, smoked roots also restore stamina, bluewax candles can rekindle a hooded torch, and camp embers restore stamina plus Hexbound spell memory. Packed remedies are consumed when used, and a full stash sends extraction overflow to the porter for an automatic half-value sale.
 - Rare-or-better, crafted, and currently packed items require a second explicit confirmation before they can be sold from the stash.
 - Rolled and merchant gear modifiers directly affect edge damage, armor mitigation, maximum vigor, movement, interaction speed, or damage against undead threats. Persisted modifiers, item power, item value, progression counters, and coin totals are bounded before they affect runtime stats or the economy.

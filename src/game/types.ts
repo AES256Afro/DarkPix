@@ -6,7 +6,7 @@ export type ItemKind = "weapon" | "armor" | "treasure" | "consumable" | "sigil";
 
 export type StashSort = "recent" | "rarity" | "value" | "kind";
 
-export type RaidMode = "standard" | "high_toll";
+export type RaidMode = "standard" | "high_toll" | "iron_soul";
 
 export type DungeonDepth = 1 | 2;
 

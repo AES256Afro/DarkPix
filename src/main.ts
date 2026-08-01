@@ -4,7 +4,7 @@ import { createSaveBackup, parseSaveBackup } from "./game/backup";
 import { CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses } from "./game/data";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
-import { craftItem, loadProfile, purchaseItem, saveProfile, sellStashItem, settleRaid } from "./game/profile";
+import { beginRaidEscrow, clearRaidEscrow, craftItem, createRaidEscrow, loadProfile, loadRaidEscrow, purchaseItem, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
 import type { DarkPixGame } from "./game/game";
 import type { ClassId, GamePreferences, Item, Profile, RaidMode, RaidResult } from "./game/types";
@@ -24,6 +24,21 @@ let merchantNotice = "";
 let pendingSaleId: string | undefined;
 let persistenceWarning = "";
 let gameModulePromise: Promise<typeof import("./game/game")> | undefined;
+
+const interruptedRaid = loadRaidEscrow();
+if (interruptedRaid) {
+  const recovered = settleInterruptedRaid(profile, interruptedRaid);
+  profile = recovered.profile;
+  selectedClass = profile.preferredClass;
+  clearRaidEscrow();
+  if (saveProfile(profile)) {
+    merchantNotice = recovered.classXpLost > 0
+      ? `Interrupted Iron Soul raid forfeited ${recovered.classXpLost} class XP and all risked gear.`
+      : "Interrupted raid settled as an abandonment. Risked gear was left below.";
+  } else {
+    persistenceWarning = "The interrupted raid was settled in memory, but this browser refused to save the result.";
+  }
+}
 
 function loadGameModule(): Promise<typeof import("./game/game")> {
   gameModulePromise ??= import("./game/game");
@@ -60,10 +75,11 @@ function itemMarkup(item: Item, riskable = false): string {
 function renderLobby(): void {
   activeGame?.destroy();
   activeGame = undefined;
-  if (raidEntryStatus(selectedRaidMode, profile.extracts, profile.gold) !== "ready") selectedRaidMode = "standard";
+  if (raidEntryStatus(selectedRaidMode, profile.extracts, profile.gold, profile.ashenExtracts) !== "ready") selectedRaidMode = "standard";
   const chosen = CLASSES[selectedClass];
   const selectedRaidRules = raidRules(selectedRaidMode);
   const highTollStatus = raidEntryStatus("high_toll", profile.extracts, profile.gold);
+  const ironSoulStatus = raidEntryStatus("iron_soul", profile.extracts, profile.gold, profile.ashenExtracts);
   const classXp = profile.xp[selectedClass];
   const level = levelForXp(classXp);
   const bonuses = progressionBonuses(level);
@@ -100,12 +116,13 @@ function renderLobby(): void {
           <div class="raid-mode-picker" role="group" aria-label="Raid contract">
             <button class="${selectedRaidMode === "standard" ? "selected" : ""}" data-raid-mode="standard" type="button"><small>NO ENTRY FEE</small><strong>PALE TOLL</strong></button>
             <button class="high-toll ${selectedRaidMode === "high_toll" ? "selected" : ""}" data-raid-mode="high_toll" type="button" ${highTollStatus === "ready" ? "" : "disabled"}><small>${highTollStatus === "extract_required" ? "ESCAPE ONCE TO UNLOCK" : highTollStatus === "insufficient_gold" ? "50G REQUIRED" : "50G ENTRY FEE"}</small><strong>HIGH TOLL</strong></button>
+            <button class="iron-soul ${selectedRaidMode === "iron_soul" ? "selected" : ""}" data-raid-mode="iron_soul" type="button" ${ironSoulStatus === "ready" ? "" : "disabled"}><small>${ironSoulStatus === "ashen_extract_required" ? "ASHEN RETURN REQUIRED" : ironSoulStatus === "insufficient_gold" ? "100G REQUIRED" : "100G · XP AT RISK"}</small><strong>IRON SOUL</strong></button>
           </div>
           <button class="descend-button" type="button">
-            <span>DESCEND INTO THE ${selectedRaidMode === "high_toll" ? "HIGH TOLL" : "PALE TOLL"}</span>
-            <small>Solo contract · ${selectedRaidMode === "high_toll" ? "empowered threats · improved rarity · +35% XP" : "8 roaming threats · 2 sigils · 1 keeper"}</small>
+            <span>DESCEND INTO THE ${selectedRaidRules.name.toUpperCase()}</span>
+            <small>Solo contract · ${selectedRaidMode === "iron_soul" ? "brutal threats · +75% XP · class XP lost on failure" : selectedRaidMode === "high_toll" ? "empowered threats · improved rarity · +35% XP" : "8 roaming threats · 2 sigils · 1 keeper"}</small>
           </button>
-          <p class="raid-warning">${selectedRaidRules.entryFee ? `${selectedRaidRules.entryFee}g is paid on entry. ` : ""}Equipped items are lost on death. Class experience always persists.</p>
+          <p class="raid-warning">${selectedRaidRules.entryFee ? `${selectedRaidRules.entryFee}g is paid on entry. ` : ""}Equipped items are lost on death.${selectedRaidRules.wipesClassXpOnFailure ? " Iron Soul failure also erases this discipline's class XP." : " Class experience persists."}</p>
         </div>
         <div class="hero-stats">
           <span><small>SUCCESSFUL EXTRACTS</small><strong>${profile.extracts}</strong></span>
@@ -241,7 +258,7 @@ function renderLobby(): void {
   app.querySelectorAll<HTMLButtonElement>("[data-raid-mode]").forEach((button) => {
     button.addEventListener("click", () => {
       const mode = button.dataset.raidMode as RaidMode;
-      if (raidEntryStatus(mode, profile.extracts, profile.gold) !== "ready") return;
+      if (raidEntryStatus(mode, profile.extracts, profile.gold, profile.ashenExtracts) !== "ready") return;
       selectedRaidMode = mode;
       renderLobby();
     });
@@ -407,26 +424,43 @@ async function startRaid(): Promise<void> {
     return;
   }
   const rules = raidRules(selectedRaidMode);
-  const entryStatus = raidEntryStatus(selectedRaidMode, profile.extracts, profile.gold);
+  const entryStatus = raidEntryStatus(selectedRaidMode, profile.extracts, profile.gold, profile.ashenExtracts);
   if (entryStatus !== "ready") {
     merchantNotice = entryStatus === "extract_required"
       ? "Escape the Pale Toll once before attempting the High Toll."
-      : `The High Toll requires its ${rules.entryFee}g entry fee.`;
+      : entryStatus === "ashen_extract_required"
+        ? "Return alive from the Ashen Depth before wagering an Iron Soul."
+        : `${rules.name} requires its ${rules.entryFee}g entry fee.`;
     selectedRaidMode = "standard";
     renderLobby();
     document.querySelector("#stash")?.scrollIntoView({ behavior: "smooth" });
     return;
   }
-  let chargedEntryFee = false;
-  if (rules.entryFee > 0) {
-    profile.gold -= rules.entryFee;
-    chargedEntryFee = true;
-    persistProfile();
-  }
   const equipped = profile.stash.filter((item) => equippedIds.has(item.id));
-  app.innerHTML = `<main class="game-mount" aria-label="DarkPix dungeon raid"><div class="crypt-loading" role="status"><span>DP</span><strong>OPENING THE PALE TOLL</strong><small>Kindling the dungeon renderer</small></div></main>`;
+  const goldBeforeEntry = profile.gold;
+  profile.gold -= rules.entryFee;
+  if (!saveProfile(profile)) {
+    profile.gold = goldBeforeEntry;
+    persistenceWarning = "The browser could not secure a raid escrow. No fee was charged and the raid did not start.";
+    renderLobby();
+    return;
+  }
+  const escrow = createRaidEscrow(selectedClass, selectedRaidMode, equipped.map((item) => item.id));
+  if (!beginRaidEscrow(escrow)) {
+    profile.gold = goldBeforeEntry;
+    saveProfile(profile);
+    persistenceWarning = "The browser could not secure a raid escrow. No fee was charged and the raid did not start.";
+    renderLobby();
+    return;
+  }
+  app.innerHTML = `<main class="game-mount" aria-label="DarkPix dungeon raid"><div class="crypt-loading" role="status"><span>DP</span><strong>OPENING THE ${rules.name.toUpperCase()}</strong><small>Kindling the dungeon renderer</small></div></main>`;
   const mount = app.querySelector<HTMLElement>(".game-mount");
-  if (!mount) return;
+  if (!mount) {
+    clearRaidEscrow();
+    profile.gold = goldBeforeEntry;
+    persistProfile();
+    return;
+  }
   try {
     const { DarkPixGame: GameRuntime } = await loadGameModule();
     activeGame = new GameRuntime(mount, {
@@ -439,16 +473,16 @@ async function startRaid(): Promise<void> {
     });
   } catch (error) {
     console.error("DarkPix could not start the 3D raid", error);
-    if (chargedEntryFee) {
-      profile.gold += rules.entryFee;
-      persistProfile();
-    }
+    clearRaidEscrow();
+    profile.gold = goldBeforeEntry;
+    persistProfile();
     mount.innerHTML = `<section class="runtime-error"><span>†</span><h1>THE PASSAGE FAILED</h1><p>The 3D renderer could not start. Update the browser, enable WebGL, or try the raid again.</p><button type="button">RETURN TO THE LAST LANTERN</button></section>`;
     mount.querySelector<HTMLButtonElement>("button")?.addEventListener("click", renderLobby);
   }
 }
 
 function finishRaid(result: RaidResult): void {
+  clearRaidEscrow();
   activeGame?.destroy();
   activeGame = undefined;
   const extracted = result.reason === "extracted";
@@ -469,10 +503,12 @@ function finishRaid(result: RaidResult): void {
     ? "YOU RETURNED"
     : result.reason === "darkness"
       ? "THE DARK TOOK YOU"
+    : result.raidMode === "iron_soul"
+      ? "THE IRON SOUL WAS EXTINGUISHED"
       : result.reason === "abandoned" ? "THE CONTRACT WAS FORFEIT" : "YOUR TORCH WENT OUT";
   const detail = extracted
     ? `${result.depthReached === 2 ? "The Ashen Depth's passage" : "The blue passage"} seals behind you. ${settlement.overflow.length ? `${settlement.overflow.length} overflow item${settlement.overflow.length === 1 ? " was" : "s were"} sold by the porter for ${settlement.overflowGold}g.` : "Everything in your haul fits safely in the stash."}${result.depthReached === 2 ? " The red-depth veterancy bonus is recorded." : ""}${settlement.firstContractPaid ? " The Taverner's 100g bounty is paid." : ""}${settlement.bossContractPaid ? " The 150g Tollkeeper bounty is paid." : ""}${settlement.highTollContractPaid ? " The 200g Deeper Wager bounty is paid." : result.raidMode === "high_toll" ? " The High Toll veterancy bonus is recorded." : ""}${settlement.ashenContractPaid ? " The 250g Ash Below Ash bounty is paid." : ""}`
-    : `Your class remembers. Your carried gear and every unsecured find remain ${result.depthReached === 2 ? "in the Ashen Depth" : "below"}.${result.depthReached === 2 ? " Some red-depth veterancy survives." : ""}${result.raidMode === "high_toll" ? ` The ${rules.entryFee}g entry fee is gone.` : ""}`;
+    : `${settlement.classXpLost > 0 ? `${settlement.classXpLost} ${CLASSES[result.classId].name} XP is erased by the Iron Soul oath.` : result.raidMode === "iron_soul" ? "The Iron Soul oath finds no veterancy left to erase." : "Your class remembers."} Your carried gear and every unsecured find remain ${result.depthReached === 2 ? "in the Ashen Depth" : "below"}.${result.depthReached === 2 && result.raidMode !== "iron_soul" ? " Some red-depth veterancy survives." : ""}${rules.entryFee ? ` The ${rules.entryFee}g entry fee is gone.` : ""}`;
   app.innerHTML = `
     <main class="result-screen ${extracted ? "success" : "failure"}">
       <div class="result-backdrop"></div>
@@ -485,7 +521,7 @@ function finishRaid(result: RaidResult): void {
           <span><small>TIME BELOW</small><strong>${formatTime(result.elapsed)}</strong></span>
           <span><small>THREATS FELLED</small><strong>${result.kills}</strong></span>
           <span><small>GOLD ${extracted ? "SETTLED" : "LOST"}</small><strong>${extracted ? settlement.goldGained : result.goldFound}g</strong></span>
-          <span><small>CLASS XP</small><strong>+${settlement.xpGained}</strong></span>
+          <span><small>CLASS XP</small><strong>${settlement.classXpLost > 0 ? `-${settlement.classXpLost}` : `+${settlement.xpGained}`}</strong></span>
         </div>
         <div class="result-haul">
           <div class="panel-heading"><span><small>${extracted ? "SETTLED" : "ABANDONED"}</small><strong>${extracted ? "Recovered haul" : "Lost below"}</strong></span><b>${recordedItems.length} ITEMS</b></div>

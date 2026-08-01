@@ -266,7 +266,7 @@ export class DarkPixGame {
         <div class="raid-hud">
           <div class="hud-top">
             <section class="contract-panel">
-              <span class="eyebrow">${this.options.raidMode === "high_toll" ? "HIGH TOLL CONTRACT" : "CRYPT OF THE PALE TOLL"}</span>
+              <span class="eyebrow">${this.raidRules.name.toUpperCase()} CONTRACT</span>
               <strong class="raid-clock">3:30</strong>
               <span class="zone-copy">darkness dormant</span>
             </section>

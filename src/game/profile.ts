@@ -4,6 +4,7 @@ import { raidRules } from "./raid";
 import { depthXpBonus } from "./depth";
 
 const PROFILE_KEY = "darkpix-profile-v1";
+const RAID_ESCROW_KEY = "darkpix-active-raid-v1";
 export const MAX_GOLD = 9_999_999;
 export const MAX_ITEM_POWER = 100;
 export const MAX_ITEM_VALUE = 99_999;
@@ -46,6 +47,10 @@ export function createProfile(): Profile {
 
 function validClass(value: unknown): value is ClassId {
   return value === "vanguard" || value === "cutpurse" || value === "hexbound" || value === "reaver" || value === "ranger";
+}
+
+function validRaidMode(value: unknown): value is NonNullable<RaidResult["raidMode"]> {
+  return value === "standard" || value === "high_toll" || value === "iron_soul";
 }
 
 function nonnegativeInteger(value: unknown, maximum = Number.MAX_SAFE_INTEGER): number {
@@ -129,6 +134,79 @@ export function saveProfile(profile: Profile): boolean {
   }
 }
 
+export interface RaidEscrow {
+  version: 1;
+  classId: ClassId;
+  raidMode: NonNullable<RaidResult["raidMode"]>;
+  equippedIds: string[];
+  startedAt: number;
+}
+
+export function createRaidEscrow(
+  classId: ClassId,
+  raidMode: NonNullable<RaidResult["raidMode"]>,
+  equippedIds: readonly string[],
+  startedAt = Date.now(),
+): RaidEscrow {
+  return {
+    version: 1,
+    classId,
+    raidMode,
+    equippedIds: [...new Set(equippedIds.filter((id) => typeof id === "string" && id.length > 0 && id.length <= 160))].slice(0, 2),
+    startedAt: Number.isFinite(startedAt) ? Math.max(0, Math.floor(startedAt)) : 0,
+  };
+}
+
+export function normalizeRaidEscrow(value: unknown): RaidEscrow | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const candidate = value as Partial<RaidEscrow>;
+  if (candidate.version !== 1 || !validClass(candidate.classId) || !validRaidMode(candidate.raidMode) || !Array.isArray(candidate.equippedIds)) return undefined;
+  return createRaidEscrow(candidate.classId, candidate.raidMode, candidate.equippedIds, candidate.startedAt);
+}
+
+export function beginRaidEscrow(escrow: RaidEscrow): boolean {
+  try {
+    localStorage.setItem(RAID_ESCROW_KEY, JSON.stringify(escrow));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function loadRaidEscrow(): RaidEscrow | undefined {
+  try {
+    const serialized = localStorage.getItem(RAID_ESCROW_KEY);
+    if (!serialized) return undefined;
+    const escrow = normalizeRaidEscrow(JSON.parse(serialized));
+    if (!escrow) localStorage.removeItem(RAID_ESCROW_KEY);
+    return escrow;
+  } catch {
+    return undefined;
+  }
+}
+
+export function clearRaidEscrow(): void {
+  try {
+    localStorage.removeItem(RAID_ESCROW_KEY);
+  } catch {
+    // The normal profile warning already explains unavailable browser storage.
+  }
+}
+
+export function settleInterruptedRaid(profile: Profile, escrow: RaidEscrow): RaidSettlement {
+  return settleRaid(profile, {
+    reason: "abandoned",
+    raidMode: escrow.raidMode,
+    depthReached: 1,
+    classId: escrow.classId,
+    loot: [],
+    equippedIds: escrow.equippedIds,
+    kills: 0,
+    elapsed: 0,
+    goldFound: 0,
+  });
+}
+
 export interface RaidSettlement {
   profile: Profile;
   banked: Item[];
@@ -141,17 +219,21 @@ export interface RaidSettlement {
   overflowGold: number;
   goldGained: number;
   xpGained: number;
+  classXpLost: number;
 }
 
 export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement {
   const next = normalizeProfile(profile);
+  const rules = raidRules(result.raidMode);
   const consumed = new Set(result.consumedIds ?? []);
   if (consumed.size) next.stash = next.stash.filter((item) => !consumed.has(item.id));
   const baseXpGain = (result.reason === "abandoned" ? 0 : 30)
     + Math.min(1_000, nonnegativeInteger(result.kills)) * 35
     + (result.reason === "extracted" ? 140 : 0)
     + depthXpBonus(result.depthReached, result.reason === "extracted");
-  const xpGain = Math.round(baseXpGain * raidRules(result.raidMode).xpMultiplier);
+  const xpGain = rules.wipesClassXpOnFailure && result.reason !== "extracted"
+    ? 0
+    : Math.round(baseXpGain * rules.xpMultiplier);
   next.xp[result.classId] = Math.min(MAX_CLASS_XP, next.xp[result.classId] + xpGain);
   next.preferredClass = result.classId;
   const settlement: RaidSettlement = {
@@ -166,6 +248,7 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     overflowGold: 0,
     goldGained: 0,
     xpGained: xpGain,
+    classXpLost: 0,
   };
 
   if (result.reason === "extracted") {
@@ -205,6 +288,10 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     next.gold += settlement.goldGained;
   } else {
     next.deaths = Math.min(MAX_OUTCOME_COUNT, next.deaths + 1);
+    if (rules.wipesClassXpOnFailure) {
+      settlement.classXpLost = next.xp[result.classId];
+      next.xp[result.classId] = 0;
+    }
     const risked = new Set(result.equippedIds);
     settlement.lost = next.stash.filter((item) => risked.has(item.id));
     next.stash = next.stash.filter((item) => !risked.has(item.id));

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CLASS_ABILITIES, CRAFTING_RECIPES, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll } from "../src/game/data";
-import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, applyRaidResult, craftItem, createProfile, normalizeProfile, purchaseItem, sellStashItem, settleRaid } from "../src/game/profile";
+import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, applyRaidResult, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
 import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat } from "../src/game/combat";
 
@@ -80,6 +80,40 @@ describe("persistent raid consequences", () => {
     expect(result.profile.gold).toBe(75);
     expect(result.profile.stash.some((item) => item.id === "starter-blade")).toBe(false);
     expect(result.banked).toEqual([]);
+  });
+
+  it("settles an interrupted Iron Soul raid with its class XP and gear at risk", () => {
+    const profile = createProfile();
+    profile.xp.ranger = 700;
+    const escrow = createRaidEscrow("ranger", "iron_soul", ["starter-blade", "starter-blade", "starter-jack"]);
+    const settlement = settleInterruptedRaid(profile, escrow);
+    expect(escrow.equippedIds).toEqual(["starter-blade", "starter-jack"]);
+    expect(settlement.profile.xp.ranger).toBe(0);
+    expect(settlement.classXpLost).toBe(700);
+    expect(settlement.xpGained).toBe(0);
+    expect(settlement.profile.deaths).toBe(1);
+    expect(settlement.lost.map((item) => item.id).sort()).toEqual(["starter-blade", "starter-jack"]);
+
+    const standardProfile = createProfile();
+    standardProfile.xp.ranger = 700;
+    const standard = settleInterruptedRaid(standardProfile, createRaidEscrow("ranger", "standard", []));
+    expect(standard.profile.xp.ranger).toBe(700);
+    expect(standard.classXpLost).toBe(0);
+
+    const survived = settleRaid(standardProfile, {
+      reason: "extracted", raidMode: "iron_soul", classId: "ranger", loot: [], equippedIds: [], kills: 0, elapsed: 90, goldFound: 0,
+    });
+    expect(survived.classXpLost).toBe(0);
+    expect(survived.xpGained).toBe(298);
+    expect(survived.profile.xp.ranger).toBe(998);
+  });
+
+  it("rejects malformed raid escrow journals before recovery", () => {
+    expect(normalizeRaidEscrow({ version: 2, classId: "ranger", raidMode: "standard", equippedIds: [] })).toBeUndefined();
+    expect(normalizeRaidEscrow({ version: 1, classId: "dragon", raidMode: "iron_soul", equippedIds: [] })).toBeUndefined();
+    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "unknown", equippedIds: [] })).toBeUndefined();
+    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: "blade" })).toBeUndefined();
+    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], startedAt: Number.NaN })?.startedAt).toBe(0);
   });
 
   it("banks unsecured loot and gold only after extraction", () => {
