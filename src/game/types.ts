@@ -1,4 +1,4 @@
-export type ClassId = "vanguard" | "cutpurse" | "hexbound" | "reaver" | "ranger";
+export type ClassId = "vanguard" | "cutpurse" | "hexbound" | "reaver" | "ranger" | "cleric";
 
 export type Rarity = "Worn" | "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary";
 
@@ -37,7 +37,7 @@ export interface ClassDefinition {
 }
 
 export interface Profile {
-  version: 6;
+  version: 7;
   gold: number;
   xp: Record<ClassId, number>;
   stash: Item[];

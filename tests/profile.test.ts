@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll } from "../src/game/data";
 import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, applyRaidResult, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
-import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat } from "../src/game/combat";
+import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat } from "../src/game/combat";
 
 describe("loot generation", () => {
   it("maps rarity thresholds deterministically", () => {
@@ -148,9 +148,10 @@ describe("persistent raid consequences", () => {
     expect(result.extracts).toBe(0);
     expect(result.highTollExtracts).toBe(0);
     expect(result.ashenExtracts).toBe(0);
-    expect(result.version).toBe(6);
+    expect(result.version).toBe(7);
     expect(result.xp.reaver).toBe(0);
     expect(result.xp.ranger).toBe(0);
+    expect(result.xp.cleric).toBe(0);
     expect(result.preferredClass).toBe("vanguard");
   });
 
@@ -466,6 +467,7 @@ describe("directional combat damage", () => {
     expect(guardDrainPerSecond("hexbound")).toBe(14);
     expect(guardDrainPerSecond("reaver")).toBe(11);
     expect(guardDrainPerSecond("ranger")).toBe(11);
+    expect(guardDrainPerSecond("cleric")).toBe(11);
   });
 
   it("bounds Blood Rage to the Reaver's active damage window", () => {
@@ -504,6 +506,13 @@ describe("directional combat damage", () => {
     expect(trapDamageAgainstThreat(20, "boss")).toBe(11);
     expect(trapDamageAgainstThreat(Number.NaN, "skeleton")).toBe(0);
   });
+
+  it("lets Sanctuary sear crypt threats without harming the living rival", () => {
+    expect(sanctuaryDamage("skeleton")).toBe(28);
+    expect(sanctuaryDamage("mimic")).toBe(28);
+    expect(sanctuaryDamage("boss")).toBe(14);
+    expect(sanctuaryDamage("rival")).toBe(0);
+  });
 });
 
 describe("class perk milestones", () => {
@@ -520,10 +529,11 @@ describe("class perk milestones", () => {
     expect(classPerkBonuses("hexbound", 6)).toMatchObject({ health: 8, damage: 4, spellCharges: 1 });
     expect(classPerkBonuses("reaver", 6)).toMatchObject({ health: 8, damage: 4, guardUpkeepMultiplier: 0.9 });
     expect(classPerkBonuses("ranger", 6)).toMatchObject({ health: 8, damage: 4, sprintCostMultiplier: 0.9 });
+    expect(classPerkBonuses("cleric", 6)).toMatchObject({ health: 8, damage: 3, guardUpkeepMultiplier: 0.9 });
   });
 
   it("gives every class a bounded active-skill cooldown", () => {
-    expect(Object.keys(CLASS_ABILITIES).sort()).toEqual(["cutpurse", "hexbound", "ranger", "reaver", "vanguard"]);
+    expect(Object.keys(CLASS_ABILITIES).sort()).toEqual(["cleric", "cutpurse", "hexbound", "ranger", "reaver", "vanguard"]);
     for (const ability of Object.values(CLASS_ABILITIES)) {
       expect(ability.name.length).toBeGreaterThan(0);
       expect(ability.cooldown).toBeGreaterThanOrEqual(30);

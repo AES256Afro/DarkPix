@@ -139,7 +139,7 @@ function renderLobby(): void {
         <div class="class-grid">
           ${(Object.values(CLASSES) as typeof chosen[]).map((entry) => `
             <button class="class-card ${entry.id === selectedClass ? "selected" : ""}" data-class-id="${entry.id}" type="button" style="--class-accent:${entry.accent}">
-              <span class="class-rune">${entry.id === "vanguard" ? "V" : entry.id === "cutpurse" ? "C" : entry.id === "hexbound" ? "H" : entry.id === "reaver" ? "R" : "A"}</span>
+              <span class="class-rune">${entry.id === "vanguard" ? "V" : entry.id === "cutpurse" ? "C" : entry.id === "hexbound" ? "H" : entry.id === "reaver" ? "R" : entry.id === "ranger" ? "A" : "L"}</span>
               <span class="class-copy">
                 <small>${entry.title}</small>
                 <strong>${entry.name}</strong>

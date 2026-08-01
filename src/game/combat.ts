@@ -91,3 +91,8 @@ export function trapDamageAgainstThreat(baseDamage: number, kind: ThreatKind): n
   const multiplier = kind === "boss" ? 0.55 : kind === "rival" ? 1 : 1.3;
   return Math.round(safeDamage * multiplier);
 }
+
+export function sanctuaryDamage(kind: ThreatKind): number {
+  if (kind === "rival") return 0;
+  return kind === "boss" ? 14 : 28;
+}

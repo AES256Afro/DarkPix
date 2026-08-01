@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
-import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat, type ThreatKind } from "./combat";
+import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat, type ThreatKind } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, depthRules } from "./depth";
@@ -288,7 +288,7 @@ export class DarkPixGame {
           <div class="extract-meter"><i></i></div>
           <div class="hud-bottom">
             <section class="vitals">
-              <div class="portrait-rune">${this.options.classId === "vanguard" ? "V" : this.options.classId === "cutpurse" ? "C" : this.options.classId === "hexbound" ? "H" : this.options.classId === "reaver" ? "R" : "A"}</div>
+              <div class="portrait-rune">${this.options.classId === "vanguard" ? "V" : this.options.classId === "cutpurse" ? "C" : this.options.classId === "hexbound" ? "H" : this.options.classId === "reaver" ? "R" : this.options.classId === "ranger" ? "A" : "L"}</div>
               <div class="bars">
                 <div class="bar health"><i></i><span>VIGOR</span></div>
                 <div class="bar stamina"><i></i><span>STAMINA</span></div>
@@ -594,6 +594,14 @@ export class DarkPixGame {
       ]);
       const string = new THREE.Line(stringGeometry, new THREE.LineBasicMaterial({ color: 0xc3b69a }));
       this.weapon.add(grip, upperLimb, lowerLimb, string);
+    } else if (this.options.classId === "cleric") {
+      const haft = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.08, 0.1), material(0x5f422a));
+      haft.position.y = 0.28;
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.36, 0.34), material(0x908878, 0x261d14));
+      head.position.y = 0.88;
+      const seal = new THREE.Mesh(new THREE.RingGeometry(0.08, 0.12, 8), material(0xd6c58e, 0x8c6c28));
+      seal.position.set(0, 0.88, 0.18);
+      this.weapon.add(haft, head, seal);
     } else {
       const blade = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.05, 0.08), material(this.options.classId === "cutpurse" ? 0x918a7d : 0xb2afa6));
       blade.position.y = 0.38;
@@ -1589,9 +1597,28 @@ export class DarkPixGame {
       this.vignette = Math.max(this.vignette, 0.65);
       this.rageTimer = 6;
       this.feed("BLOOD RAGE · strike damage surges for 6s", "danger");
-    } else {
+    } else if (this.options.classId === "ranger") {
       this.quickdrawTimer = 7;
       this.feed("QUICKDRAW · arrow cadence surges for 7s", "system");
+    } else {
+      const nearby = this.enemies.filter((enemy) =>
+        enemy.alive &&
+        sanctuaryDamage(enemy.kind) > 0 &&
+        enemy.group.position.distanceTo(this.camera.position) <= 5 &&
+        dungeonLineOfSight(
+          { x: this.camera.position.x, z: this.camera.position.z },
+          { x: enemy.group.position.x, z: enemy.group.position.z },
+          0.12,
+        ),
+      );
+      if (nearby.length === 0 && this.health >= this.maxHealth && this.stamina >= this.definition.maxStamina) {
+        this.feed("Sanctuary finds neither wound nor nearby crypt thing.", "system");
+        return;
+      }
+      this.health = Math.min(this.maxHealth, this.health + 22);
+      this.stamina = Math.min(this.definition.maxStamina, this.stamina + 20);
+      for (const enemy of [...nearby]) this.damageEnemy(enemy, sanctuaryDamage(enemy.kind), false, false);
+      this.feed(`SANCTUARY · restored${nearby.length ? ` · ${nearby.length} threat${nearby.length === 1 ? "" : "s"} seared` : ""}`, "system");
     }
     this.abilityCooldown = ability.cooldown;
     this.audio.portal();

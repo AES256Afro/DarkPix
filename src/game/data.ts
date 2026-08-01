@@ -135,6 +135,21 @@ export const CLASSES: Record<ClassId, ClassDefinition> = {
     ability: "Quickdraw: loose arrows faster for seven seconds.",
     weapon: "Ashwood recurved bow",
   },
+  cleric: {
+    id: "cleric",
+    name: "Cleric",
+    title: "The Last Litany",
+    summary: "A steady mace-bearer whose sanctuary restores the faithful and burns clustered crypt things.",
+    maxHealth: 112,
+    maxStamina: 105,
+    speed: 4.25,
+    damage: 27,
+    reach: 2.35,
+    attackDelay: 0.8,
+    accent: "#c1b48a",
+    ability: "Sanctuary: recover and sear nearby undead.",
+    weapon: "Iron reliquary mace",
+  },
 };
 
 export const CLASS_PERKS: Record<ClassId, ClassPerk[]> = {
@@ -162,6 +177,11 @@ export const CLASS_PERKS: Record<ClassId, ClassPerk[]> = {
     { level: 2, name: "Trail Legs", description: "Sprinting costs 10% less stamina." },
     { level: 4, name: "Broadhead", description: "+4 arrow damage." },
     { level: 6, name: "Weathered", description: "+8 maximum vigor." },
+  ],
+  cleric: [
+    { level: 2, name: "Steady Litany", description: "Guard upkeep costs 10% less stamina." },
+    { level: 4, name: "Sanctified Steel", description: "+3 strike damage." },
+    { level: 6, name: "Martyr's Breath", description: "+8 maximum vigor." },
   ],
 };
 
@@ -191,14 +211,19 @@ export const CLASS_ABILITIES: Record<ClassId, ClassAbilityDefinition> = {
     cooldown: 41,
     description: "Loose arrows 42% faster for seven seconds.",
   },
+  cleric: {
+    name: "Sanctuary",
+    cooldown: 48,
+    description: "Restore 22 vigor and 20 stamina while searing nearby crypt threats.",
+  },
 };
 
 export function classPerkBonuses(classId: ClassId, level: number): ClassPerkBonuses {
   const safeLevel = Math.max(1, Math.floor(level));
   return {
     health: safeLevel >= 6 && classId !== "vanguard" ? 8 : safeLevel >= 4 && classId === "vanguard" ? 8 : 0,
-    damage: safeLevel >= 4 && classId === "cutpurse" ? 3 : safeLevel >= 4 && (classId === "hexbound" || classId === "reaver" || classId === "ranger") ? 4 : safeLevel >= 6 && classId === "vanguard" ? 3 : 0,
-    guardUpkeepMultiplier: safeLevel >= 2 && classId === "vanguard" ? 0.8 : safeLevel >= 2 && classId === "reaver" ? 0.9 : 1,
+    damage: safeLevel >= 4 && (classId === "cutpurse" || classId === "cleric") ? 3 : safeLevel >= 4 && (classId === "hexbound" || classId === "reaver" || classId === "ranger") ? 4 : safeLevel >= 6 && classId === "vanguard" ? 3 : 0,
+    guardUpkeepMultiplier: safeLevel >= 2 && classId === "vanguard" ? 0.8 : safeLevel >= 2 && (classId === "reaver" || classId === "cleric") ? 0.9 : 1,
     sprintCostMultiplier: safeLevel >= 2 && classId === "cutpurse" ? 0.8 : safeLevel >= 2 && classId === "ranger" ? 0.9 : 1,
     spellCharges: safeLevel >= 2 && classId === "hexbound" ? 1 : 0,
   };

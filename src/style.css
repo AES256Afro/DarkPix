@@ -119,7 +119,6 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .section-heading p { max-width: 360px; margin: 0; color: #716c64; font: 12px/1.6 Georgia, serif; text-align: right; }
 .class-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
 .class-card { position: relative; display: grid; grid-column: span 2; grid-template-columns: 78px 1fr; min-height: 220px; padding: 25px; overflow: hidden; border: 1px solid #28251f; background: linear-gradient(145deg, #12110f, #0c0b0a); color: #aaa298; text-align: left; cursor: pointer; transition: transform .16s ease, border-color .16s ease; }
-.class-card:nth-child(4) { grid-column: 2 / span 2; }
 .class-card::after { content: ""; position: absolute; inset: auto 0 0; height: 2px; background: var(--class-accent); opacity: 0; box-shadow: 0 0 24px var(--class-accent); }
 .class-card:hover { transform: translateY(-3px); border-color: #4a4237; }
 .class-card.selected { border-color: color-mix(in srgb, var(--class-accent), #222 45%); background: radial-gradient(circle at 15% 25%, color-mix(in srgb, var(--class-accent), transparent 90%), transparent 40%), #12110f; }
@@ -328,11 +327,11 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 
 @media (max-width: 1200px) and (min-width: 901px) {
   .class-grid { grid-template-columns: repeat(2, 1fr); }
-  .class-card, .class-card:nth-child(4) { grid-column: auto; }
+  .class-card { grid-column: auto; }
 }
 
 @media (max-width: 900px) {
-  .lobby-header { grid-template-columns: 1fr auto; }.lobby-nav { display: none; }.class-grid { grid-template-columns: 1fr; }.class-card, .class-card:nth-child(4) { grid-column: auto; min-height: 185px; }.lower-grid { grid-template-columns: 1fr; }.merchant-offers { grid-template-columns: 1fr; }.hero { min-height: 700px; }.hero-stats { display: none; }
+  .lobby-header { grid-template-columns: 1fr auto; }.lobby-nav { display: none; }.class-grid { grid-template-columns: 1fr; }.class-card { grid-column: auto; min-height: 185px; }.lower-grid { grid-template-columns: 1fr; }.merchant-offers { grid-template-columns: 1fr; }.hero { min-height: 700px; }.hero-stats { display: none; }
   .hud-top { padding: 14px; }.contract-panel, .objective-panel { width: 165px; }.compass { display: none; }.hud-top { grid-template-columns: 1fr 1fr; }.hud-bottom { grid-template-columns: 1fr 1fr; padding: 15px; }.quick-slots { display: none; }.haul-panel { grid-column: 2; }.bars { width: 160px; }
 }
 
