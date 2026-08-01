@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { escapeHtml } from "../html";
 import { AudioDirector } from "./audio";
-import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
+import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, enemyAttackPattern, guardBreakDuration, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
@@ -247,6 +247,7 @@ export class DarkPixGame {
   private contextLost = false;
   private blocking = false;
   private blockAge = 0;
+  private guardBreakTimer = 0;
   private attackCooldown = 0;
   private dodgeCooldown = 0;
   private riposteTimer = 0;
@@ -1000,6 +1001,14 @@ export class DarkPixGame {
     if (this.paused || this.ended) return;
     if (event.button === 0) this.attack();
     if (event.button === 2) {
+      if (this.guardBreakTimer > 0) {
+        this.feed(`GUARD BROKEN · ${this.guardBreakTimer.toFixed(1)}s`, "danger");
+        return;
+      }
+      if (this.stamina < 1) {
+        this.feed("GUARD NEEDS STAMINA", "danger");
+        return;
+      }
       this.blocking = true;
       this.blockAge = 0;
     }
@@ -1201,6 +1210,7 @@ export class DarkPixGame {
     this.elapsed += delta;
     this.attackCooldown = Math.max(0, this.attackCooldown - delta);
     this.dodgeCooldown = Math.max(0, this.dodgeCooldown - delta);
+    this.guardBreakTimer = Math.max(0, this.guardBreakTimer - delta);
     this.riposteTimer = Math.max(0, this.riposteTimer - delta);
     this.abilityCooldown = Math.max(0, this.abilityCooldown - delta);
     this.concealmentTimer = Math.max(0, this.concealmentTimer - delta);
@@ -1239,7 +1249,7 @@ export class DarkPixGame {
     if (moving) input.normalize();
     const sprinting = moving && this.keys.has("ShiftLeft") && this.stamina > 1 && !this.blocking;
     const sprintMultiplier = sprinting ? (this.options.classId === "cutpurse" ? 1.65 : 1.48) : 1;
-    const blockMultiplier = this.blocking ? 0.55 : 1;
+    const blockMultiplier = this.blocking ? 0.55 : this.guardBreakTimer > 0 ? 0.42 : 1;
     const speed = this.definition.speed * this.loadoutBonuses.movementMultiplier * classMovementMultiplier(this.options.classId, this.wildshapeTimer) * sprintMultiplier * blockMultiplier;
     const sin = Math.sin(this.yaw);
     const cos = Math.cos(this.yaw);
@@ -1249,15 +1259,9 @@ export class DarkPixGame {
     if (sprinting) {
       this.stamina = Math.max(0, this.stamina - delta * (this.options.classId === "cutpurse" ? 17 : 24) * this.perkBonuses.sprintCostMultiplier);
     } else if (this.blocking) {
-      this.stamina = Math.max(0, this.stamina - delta * guardDrainPerSecond(this.options.classId) * this.perkBonuses.guardUpkeepMultiplier);
-      if (this.stamina <= 0) {
-        this.blocking = false;
-        this.blockAge = 0;
-        this.feed("GUARD BROKEN · recover your footing", "danger");
-        this.audio.tone(72, 0.24, "sawtooth", 0.1);
-      }
+      this.drainGuard(delta * guardDrainPerSecond(this.options.classId) * this.perkBonuses.guardUpkeepMultiplier);
     } else {
-      const recovering = this.attackCooldown > 0 || this.swingClock > 0 || this.dodgeCooldown > 0;
+      const recovering = this.attackCooldown > 0 || this.swingClock > 0 || this.dodgeCooldown > 0 || this.guardBreakTimer > 0;
       this.stamina = Math.min(this.definition.maxStamina, this.stamina + delta * staminaRecoveryPerSecond(moving, recovering));
     }
 
@@ -1272,6 +1276,10 @@ export class DarkPixGame {
 
   private dodge(): void {
     if (this.paused || this.ended || this.blocking || this.attackCooldown > 0 || this.swingClock > 0 || this.interactionHold > 0) return;
+    if (this.guardBreakTimer > 0) {
+      this.feed(`SIDESTEP DENIED · guard broken ${this.guardBreakTimer.toFixed(1)}s`, "danger");
+      return;
+    }
     const stats = dodgeStats(this.options.classId);
     if (this.dodgeCooldown > 0) {
       this.feed(`SIDESTEP RECOVERING · ${this.dodgeCooldown.toFixed(1)}s`, "system");
@@ -1464,7 +1472,7 @@ export class DarkPixGame {
       );
       const guarded = this.blocking && facingPort;
       this.hurt(trap.damage * (guarded ? 0.28 : 1), "a wall dart", true, origin);
-      if (guarded) this.stamina = Math.max(0, this.stamina - trap.damage * 0.5);
+      if (guarded) this.drainGuard(trap.damage * 0.5);
       return;
     }
     if (!victim || !Number.isFinite(victimDistance)) return;
@@ -1496,6 +1504,10 @@ export class DarkPixGame {
 
   private attack(): void {
     if (this.attackCooldown > 0 || this.blocking) return;
+    if (this.guardBreakTimer > 0) {
+      this.feed(`ATTACK DENIED · guard broken ${this.guardBreakTimer.toFixed(1)}s`, "danger");
+      return;
+    }
     const staminaCost = attackStaminaCost(this.options.classId, this.attackDirection);
     if (this.stamina < staminaCost) {
       this.feed(`${this.attackDirection} NEEDS ${staminaCost} STAMINA`, "danger");
@@ -1801,7 +1813,7 @@ export class DarkPixGame {
         const parried = enemy.kind !== "boss" && guardingAttack && this.blockAge < 0.24;
         if (parried) {
           enemy.stagger = 1.0;
-          this.stamina = Math.max(0, this.stamina - 5);
+          this.drainGuard(5);
           if (riposteDamageMultiplier(this.options.classId, RIPOSTE_DURATION_SECONDS) > 1) this.riposteTimer = RIPOSTE_DURATION_SECONDS;
           this.feed(`PARRIED · ${enemy.name} is exposed${this.riposteTimer > 0 ? " · riposte ready" : ""}`, "system");
           this.audio.tone(780, 0.12, "square", 0.13);
@@ -1811,7 +1823,7 @@ export class DarkPixGame {
             ? Math.round(enemy.damage * 0.68)
             : enemy.kind === "rival" && enemy.attackStyle === "melee" ? Math.round(enemy.damage * 0.75) : enemy.damage;
           this.hurt(attackDamage * (1 - reduction), enemy.name, true, { x: enemy.group.position.x, z: enemy.group.position.z });
-          if (guardingAttack) this.stamina = Math.max(0, this.stamina - attackDamage * 0.75);
+          if (guardingAttack) this.drainGuard(attackDamage * 0.75);
         }
         continue;
       }
@@ -1913,8 +1925,8 @@ export class DarkPixGame {
     const damage = bossTollDamage(enemy.damage, guarded);
     this.hurt(damage, `${enemy.name}'s chain ring`, true, { x: enemy.group.position.x, z: enemy.group.position.z });
     if (guarded) {
-      this.stamina = Math.max(0, this.stamina - 14);
-      this.feed("CHAIN RING GUARDED · the impact drains your footing", "system");
+      this.drainGuard(14);
+      if (this.guardBreakTimer <= 0) this.feed("CHAIN RING GUARDED · the impact drains your footing", "system");
     }
   }
 
@@ -1994,6 +2006,17 @@ export class DarkPixGame {
     this.audio.danger();
     this.feed(`${source} wounds you for ${Math.round(appliedDamage)}.${channelBroken ? " CHANNEL BROKEN." : ""}`, "danger");
     if (this.health <= 0) this.finish(source === "the dark" ? "darkness" : "slain");
+  }
+
+  private drainGuard(amount: number): void {
+    const safeAmount = Number.isFinite(amount) ? Math.max(0, amount) : 0;
+    this.stamina = Math.max(0, this.stamina - safeAmount);
+    if (this.stamina > 0 || !this.blocking) return;
+    this.blocking = false;
+    this.blockAge = 0;
+    this.guardBreakTimer = guardBreakDuration(this.options.classId);
+    this.feed(`GUARD BROKEN · ${this.guardBreakTimer.toFixed(1)}s stagger`, "danger");
+    this.audio.tone(72, 0.24, "sawtooth", 0.1);
   }
 
   private showDirectionalCue(sourcePosition: Vec2, label: string, duration: number, phase: "warning" | "impact"): void {
@@ -2359,7 +2382,7 @@ export class DarkPixGame {
       targeted: activeTargeted,
       moving,
       guarding: this.blocking,
-      recovering: this.attackCooldown > 0 || this.swingClock > 0,
+      recovering: this.attackCooldown > 0 || this.swingClock > 0 || this.guardBreakTimer > 0,
       damaged: this.damageCooldown > 0,
     }) : undefined;
     if (this.interactionHold > 0 && activeInterruption) this.breakInteractionChannel(activeInterruption);
@@ -2374,7 +2397,7 @@ export class DarkPixGame {
       targeted: true,
       moving,
       guarding: this.blocking,
-      recovering: this.attackCooldown > 0 || this.swingClock > 0,
+      recovering: this.attackCooldown > 0 || this.swingClock > 0 || this.guardBreakTimer > 0,
       damaged: this.damageCooldown > 0,
     }) : undefined;
     const channeling = Boolean(candidateInput && !candidateInterruption);
@@ -2699,6 +2722,7 @@ export class DarkPixGame {
   private updateHud(): void {
     this.healthFill.style.width = `${Math.max(0, (this.health / this.maxHealth) * 100)}%`;
     this.staminaFill.style.width = `${(this.stamina / this.definition.maxStamina) * 100}%`;
+    this.staminaFill.parentElement?.classList.toggle("broken", this.guardBreakTimer > 0);
     this.spellFill.style.width = `${this.options.classId === "hexbound" ? (this.spellCharges / this.maxSpellCharges) * 100 : 100}%`;
     this.spellFill.parentElement?.classList.toggle("inactive", this.options.classId !== "hexbound");
     if (this.options.classId === "hexbound") {
@@ -2736,8 +2760,11 @@ export class DarkPixGame {
       ? `${selectedThrowable.name} · ${throwableDamage(selectedThrowable)} dmg · ${throwables.length} left · B cycle`
       : "No throwing weapon · B cycle";
     this.updateWayfinder();
-    this.directionHud.textContent = this.riposteTimer > 0 ? `RIPOSTE · ${this.riposteTimer.toFixed(1)}s` : this.attackDirection;
-    this.directionHud.classList.toggle("active", this.riposteTimer > 0 || this.mouseAccumulator.x !== 0 || this.mouseAccumulator.y !== 0);
+    this.directionHud.textContent = this.guardBreakTimer > 0
+      ? `GUARD BROKEN · ${this.guardBreakTimer.toFixed(1)}s`
+      : this.riposteTimer > 0 ? `RIPOSTE · ${this.riposteTimer.toFixed(1)}s` : this.attackDirection;
+    this.directionHud.classList.toggle("active", this.guardBreakTimer > 0 || this.riposteTimer > 0 || this.mouseAccumulator.x !== 0 || this.mouseAccumulator.y !== 0);
+    this.directionHud.classList.toggle("danger", this.guardBreakTimer > 0);
     this.damageDirectionHud.classList.toggle("visible", this.damageDirectionTimer > 0);
     this.threatHud.classList.toggle("visible", this.threatTimer > 0);
     if (!this.portalAnnounced && this.phaseElapsed() > floorRules.duration * 0.43 && this.sigils < 2) {

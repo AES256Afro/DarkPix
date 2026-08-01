@@ -80,6 +80,13 @@ export function guardDrainPerSecond(classId: ClassId): number {
   return 11;
 }
 
+export function guardBreakDuration(classId: ClassId): number {
+  if (classId === "vanguard") return 0.7;
+  if (classId === "hexbound") return 1.05;
+  if (classId === "cleric" || classId === "reaver") return 0.82;
+  return 0.9;
+}
+
 export function classAbilityDamageMultiplier(classId: ClassId, activeSeconds: number): number {
   if (!Number.isFinite(activeSeconds) || activeSeconds <= 0) return 1;
   return classId === "reaver" ? 1.25 : classId === "shapeshifter" ? 1.3 : 1;

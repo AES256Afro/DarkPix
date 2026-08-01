@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
 import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
-import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat } from "../src/game/combat";
+import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, enemyAttackPattern, guardBreakDuration, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat } from "../src/game/combat";
 
 describe("loot generation", () => {
   it("maps rarity thresholds deterministically", () => {
@@ -690,6 +690,14 @@ describe("directional combat damage", () => {
     expect(guardDrainPerSecond("cleric")).toBe(11);
     expect(guardDrainPerSecond("shapeshifter")).toBe(11);
     expect(guardDrainPerSecond("minstrel")).toBe(11);
+  });
+
+  it("gives depleted guards a class-tuned punish window", () => {
+    expect(guardBreakDuration("vanguard")).toBe(0.7);
+    expect(guardBreakDuration("cleric")).toBe(0.82);
+    expect(guardBreakDuration("reaver")).toBe(0.82);
+    expect(guardBreakDuration("cutpurse")).toBe(0.9);
+    expect(guardBreakDuration("hexbound")).toBe(1.05);
   });
 
   it("keeps sidesteps short, costly, and class-weighted", () => {
