@@ -939,6 +939,13 @@ describe("class perk milestones", () => {
 });
 
 describe("merchant reputation", () => {
+  it("keeps finite-light provisions in the unproven stock", () => {
+    const bluewax = MERCHANT_OFFERS.find((offer) => offer.sku === "bluewax")!;
+    expect(bluewax).toMatchObject({ price: 20, requiredExtracts: 0, item: { name: "Bluewax candle", kind: "consumable" } });
+    expect(merchantOfferUnlocked(bluewax, 0)).toBe(true);
+    expect(consumableEffect(bluewax.item)?.torchFuel).toBe(45);
+  });
+
   it("unlocks stronger stock only after the required extracts", () => {
     const uncommon = MERCHANT_OFFERS.find((offer) => offer.sku === "oathblade")!;
     const rare = MERCHANT_OFFERS.find((offer) => offer.sku === "reliquary-edge")!;

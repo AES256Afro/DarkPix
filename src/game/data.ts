@@ -323,6 +323,12 @@ export const MERCHANT_OFFERS: MerchantOffer[] = [
     item: { name: "Coagulation draught", kind: "consumable", rarity: "Common", power: 0, value: 12, modifier: "Restores 36 vigor" },
   },
   {
+    sku: "bluewax",
+    price: 20,
+    requiredExtracts: 0,
+    item: { name: "Bluewax candle", kind: "consumable", rarity: "Common", power: 0, value: 9, modifier: `Restores 12 vigor and ${BLUEWAX_FUEL_SECONDS}s torch fuel` },
+  },
+  {
     sku: "throwing-knife",
     price: 24,
     requiredExtracts: 0,
