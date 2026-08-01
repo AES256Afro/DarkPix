@@ -117,6 +117,10 @@ export function dungeonCollides(position: Vec2, radius = 0.38): boolean {
   );
 }
 
+export function encounterPosition(position: Vec2, mirrored: boolean): Vec2 {
+  return { x: mirrored ? -position.x : position.x, z: position.z };
+}
+
 function snap(value: number, step: number): number {
   return Math.round(value / step) * step;
 }

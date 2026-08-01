@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { AudioDirector } from "./audio";
 import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat, type ThreatKind } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
-import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath } from "./dungeon";
+import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, depthRules } from "./depth";
 import { HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGold } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, type LoadoutStats } from "./loadout";
@@ -170,6 +170,7 @@ export class DarkPixGame {
   private readonly perkBonuses: ClassPerkBonuses;
   private readonly loadoutBonuses: LoadoutStats;
   private readonly raidRules: RaidRules;
+  private readonly encountersMirrored = Math.random() >= 0.5;
   private readonly maxSpellCharges: number;
   private healthFill!: HTMLElement;
   private staminaFill!: HTMLElement;
@@ -422,10 +423,16 @@ export class DarkPixGame {
     this.createCampfire(DUNGEON.campfire.x, DUNGEON.campfire.z);
     this.createShrine(DUNGEON.shrine.x, DUNGEON.shrine.z);
     this.createPortal(DUNGEON.portal.x, DUNGEON.portal.z);
-    DUNGEON.chests.forEach((chest) => this.createChest(chest.x, chest.z, chest.depthBonus, chest.mimic ?? false));
+    DUNGEON.chests.forEach((chest) => {
+      const position = encounterPosition(chest, this.encountersMirrored);
+      this.createChest(position.x, position.z, chest.depthBonus, chest.mimic ?? false);
+    });
     DUNGEON.traps.forEach((trap) => this.createTrap(trap.x, trap.z, trap.damage));
     DUNGEON.dartTraps.forEach((trap) => this.createDartTrap(trap.x, trap.z, trap.direction, trap.range, trap.damage, trap.delay));
-    DUNGEON.enemies.forEach((enemy) => this.spawnEnemy(enemy.kind, enemy.x, enemy.z));
+    DUNGEON.enemies.forEach((enemy) => {
+      const position = encounterPosition(enemy, this.encountersMirrored);
+      this.spawnEnemy(enemy.kind, position.x, position.z);
+    });
 
     this.scene.add(new THREE.HemisphereLight(0x59676b, 0x241611, 0.56));
     this.scene.add(new THREE.AmbientLight(0x312b27, 0.42));
@@ -2160,8 +2167,14 @@ export class DarkPixGame {
     this.renderer.setClearColor(0x100504);
     this.delverTorch.color.setHex(0xff8a55);
 
-    for (const enemy of ASHEN_ENEMIES) this.spawnEnemy(enemy.kind, enemy.x, enemy.z);
-    for (const chest of ASHEN_CHESTS) this.createChest(chest.x, chest.z, chest.depthBonus, chest.mimic ?? false);
+    for (const enemy of ASHEN_ENEMIES) {
+      const position = encounterPosition(enemy, this.encountersMirrored);
+      this.spawnEnemy(enemy.kind, position.x, position.z);
+    }
+    for (const chest of ASHEN_CHESTS) {
+      const position = encounterPosition(chest, this.encountersMirrored);
+      this.createChest(position.x, position.z, chest.depthBonus, chest.mimic ?? false);
+    }
 
     const contractLabel = this.mount.querySelector<HTMLElement>(".contract-panel .eyebrow");
     if (contractLabel) contractLabel.textContent = "ASHEN DEPTH · RED DESCENT";

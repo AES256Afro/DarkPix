@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { DUNGEON, dartTrapTargetDistance, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists } from "../src/game/dungeon";
+import { DUNGEON, dartTrapTargetDistance, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists, encounterPosition } from "../src/game/dungeon";
+import { ASHEN_CHESTS, ASHEN_ENEMIES } from "../src/game/depth";
 import { continuousHold, targetDistanceInView } from "../src/game/targeting";
 import { cardinalDirection, circlesOverlap } from "../src/game/navigation";
 import { distanceFromZoneCenter, zoneState } from "../src/game/zone";
@@ -12,6 +13,24 @@ describe("Crypt of the Pale Toll topology", () => {
     for (const location of criticalLocations) {
       expect(dungeonPathExists(DUNGEON.playerStart, location), `${location.x},${location.z} should be reachable`).toBe(true);
     }
+  });
+
+  it("keeps both encounter orientations open and reachable", () => {
+    for (const mirrored of [false, true]) {
+      const encounters = [...DUNGEON.enemies, ...DUNGEON.chests, ...ASHEN_ENEMIES, ...ASHEN_CHESTS];
+      for (const encounter of encounters) {
+        const position = encounterPosition(encounter, mirrored);
+        expect(dungeonCollides(position, 0.3), `${position.x},${position.z} should remain open`).toBe(false);
+        expect(dungeonPathExists(DUNGEON.playerStart, position, 0.3), `${position.x},${position.z} should remain reachable`).toBe(true);
+      }
+    }
+  });
+
+  it("mirrors only the encounter x axis without mutating the source", () => {
+    const source = { x: 7, z: -4 };
+    expect(encounterPosition(source, false)).toEqual(source);
+    expect(encounterPosition(source, true)).toEqual({ x: -7, z: -4 });
+    expect(source).toEqual({ x: 7, z: -4 });
   });
 
   it("keeps the hidden reliquary alcove sealed by one discoverable gap", () => {
