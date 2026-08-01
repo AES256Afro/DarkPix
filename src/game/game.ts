@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { escapeHtml } from "../html";
 import { AudioDirector } from "./audio";
-import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, guardBreakDuration, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
+import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
@@ -281,6 +281,7 @@ export class DarkPixGame {
   private interactionHold = 0;
   private interactionInput?: "interact" | "descend";
   private attackDirection: "OVERHEAD" | "THRUST" | "SWEEP" = "THRUST";
+  private swingDirection: "OVERHEAD" | "THRUST" | "SWEEP" = "THRUST";
   private mouseAccumulator = { x: 0, y: 0 };
   private yaw = 0;
   private pitch = 0;
@@ -1038,11 +1039,16 @@ export class DarkPixGame {
     if (event.button === 0) this.attack();
     if (event.button === 2) {
       if (this.remedyBlocks("GUARD")) return;
-      if (this.guardBreakTimer > 0) {
+      const denial = guardDenialReason(this.stamina, this.guardBreakTimer, this.attackCooldown);
+      if (denial === "guard_broken") {
         this.feed(`GUARD BROKEN · ${this.guardBreakTimer.toFixed(1)}s`, "danger");
         return;
       }
-      if (this.stamina < 1) {
+      if (denial === "action_recovery") {
+        this.feed(`GUARD DENIED · action recovery ${this.attackCooldown.toFixed(1)}s`, "danger");
+        return;
+      }
+      if (denial === "stamina") {
         this.feed("GUARD NEEDS STAMINA", "danger");
         return;
       }
@@ -1604,6 +1610,7 @@ export class DarkPixGame {
     const cadenceTimer = this.options.classId === "ranger" ? this.quickdrawTimer : this.options.classId === "shapeshifter" ? this.wildshapeTimer : 0;
     const attackDelay = classAttackDelay(this.options.classId, this.definition.attackDelay, cadenceTimer);
     this.attackCooldown = attackDelay;
+    this.swingDirection = this.attackDirection;
     this.concealmentTimer = 0;
     this.swingDuration = Math.min(0.42, attackDelay * 0.72);
     this.swingClock = this.swingDuration;
@@ -2997,9 +3004,9 @@ export class DarkPixGame {
     const swingProgress = this.swingClock > 0 ? 1 - this.swingClock / this.swingDuration : 0;
     if (this.swingClock > 0) {
       const arc = Math.sin(swingProgress * Math.PI);
-      if (this.attackDirection === "OVERHEAD") this.weapon.rotation.x = -0.25 - arc * 1.25;
-      if (this.attackDirection === "SWEEP") this.weapon.rotation.y = 0.05 - arc * 1.55;
-      if (this.attackDirection === "THRUST") this.weapon.position.z = -1.05 - arc * 0.72;
+      if (this.swingDirection === "OVERHEAD") this.weapon.rotation.x = -0.25 - arc * 1.25;
+      if (this.swingDirection === "SWEEP") this.weapon.rotation.y = 0.05 - arc * 1.55;
+      if (this.swingDirection === "THRUST") this.weapon.position.z = -1.05 - arc * 0.72;
     } else {
       this.weapon.rotation.x = THREE.MathUtils.lerp(this.weapon.rotation.x, -0.25, delta * 13);
       this.weapon.rotation.y = THREE.MathUtils.lerp(this.weapon.rotation.y, 0.05, delta * 13);
@@ -3058,12 +3065,14 @@ export class DarkPixGame {
     this.updateStealthCue(Math.max(this.definition.reach, selectedThrowable ? 10 : 0));
     this.updateWayfinder();
     const strikeStamina = attackStaminaCost(this.options.classId, this.attackDirection);
-    const combatOverride = this.guardBreakTimer > 0 || Boolean(this.remedyItemId) || this.riposteTimer > 0;
+    const combatOverride = this.guardBreakTimer > 0 || Boolean(this.remedyItemId) || this.attackCooldown > 0 || this.riposteTimer > 0;
     const strikeExhausted = !combatOverride && this.stamina < strikeStamina;
     this.directionHud.textContent = this.guardBreakTimer > 0
       ? `GUARD BROKEN · ${this.guardBreakTimer.toFixed(1)}s`
       : this.remedyItemId
         ? `TREATING · ${this.remedyTimer.toFixed(1)}s`
+      : this.attackCooldown > 0
+        ? `ACTION RECOVERY · ${this.attackCooldown.toFixed(1)}s · GUARD LOCKED`
       : this.riposteTimer > 0
         ? `RIPOSTE · ${this.riposteTimer.toFixed(1)}s`
         : `${this.attackDirection} · ${strikeExhausted ? "NEED" : "COST"} ${strikeStamina} STA`;

@@ -31,6 +31,15 @@ export interface DodgeStats {
 
 export const RIPOSTE_DURATION_SECONDS = 1.5;
 
+export type GuardDenialReason = "guard_broken" | "action_recovery" | "stamina" | undefined;
+
+export function guardDenialReason(stamina: number, guardBreakRemaining: number, actionRecoveryRemaining: number): GuardDenialReason {
+  if (Number.isFinite(guardBreakRemaining) && guardBreakRemaining > 0) return "guard_broken";
+  if (Number.isFinite(actionRecoveryRemaining) && actionRecoveryRemaining > 0) return "action_recovery";
+  if (!Number.isFinite(stamina) || stamina < 1) return "stamina";
+  return undefined;
+}
+
 export function attackDamage(input: DamageInput): number {
   let damage = Math.max(0, input.baseDamage + input.weaponPower + input.progressionBonus);
   if (input.direction === "OVERHEAD") damage *= 1.18;
