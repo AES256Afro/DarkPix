@@ -20,6 +20,7 @@ export interface CraftingRecipe {
   ingredientName: string;
   ingredientKind: Item["kind"];
   goldCost: number;
+  requiredExtracts: number;
   output: Omit<Item, "id">;
 }
 
@@ -377,6 +378,7 @@ export const CRAFTING_RECIPES: CraftingRecipe[] = [
     ingredientName: "Tollkeeper's severed chain",
     ingredientKind: "treasure",
     goldCost: 80,
+    requiredExtracts: 3,
     output: {
       name: "Chainbreaker's ward",
       kind: "armor",
@@ -392,6 +394,7 @@ export const CRAFTING_RECIPES: CraftingRecipe[] = [
     ingredientName: "Saint's broken seal",
     ingredientKind: "treasure",
     goldCost: 65,
+    requiredExtracts: 1,
     output: {
       name: "Saintless edge",
       kind: "weapon",
@@ -407,6 +410,7 @@ export const CRAFTING_RECIPES: CraftingRecipe[] = [
     ingredientName: "Sepulcher ruby",
     ingredientKind: "treasure",
     goldCost: 120,
+    requiredExtracts: 6,
     output: {
       name: "Ruby cantor",
       kind: "weapon",
@@ -421,6 +425,11 @@ export const CRAFTING_RECIPES: CraftingRecipe[] = [
 export function merchantOfferUnlocked(offer: MerchantOffer, extracts: number): boolean {
   const safeExtracts = Number.isFinite(extracts) ? Math.max(0, Math.floor(extracts)) : 0;
   return safeExtracts >= offer.requiredExtracts;
+}
+
+export function craftingRecipeUnlocked(recipe: CraftingRecipe, extracts: number): boolean {
+  const safeExtracts = Number.isFinite(extracts) ? Math.max(0, Math.floor(extracts)) : 0;
+  return safeExtracts >= recipe.requiredExtracts;
 }
 
 export function merchantStanding(extracts: number): MerchantStanding {

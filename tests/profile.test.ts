@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
+import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
 import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
 import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, dodgeStats, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat } from "../src/game/combat";
@@ -864,6 +864,7 @@ describe("Emberforge crafting", () => {
     profile.gold = 100;
     profile.stash.push(createBossLoot(() => 0));
     const recipe = CRAFTING_RECIPES[0]!;
+    profile.extracts = recipe.requiredExtracts;
     const crafted = craftItem(profile, recipe, "crafted-ward");
     expect(crafted.outcome).toBe("crafted");
     expect(crafted.profile.gold).toBe(20);
@@ -874,6 +875,7 @@ describe("Emberforge crafting", () => {
   it("preserves the profile when material or funds are missing", () => {
     const profile = createProfile();
     const recipe = CRAFTING_RECIPES[0]!;
+    profile.extracts = recipe.requiredExtracts;
     expect(craftItem(profile, recipe, "missing").outcome).toBe("missing_material");
     profile.stash.push(createBossLoot(() => 0));
     profile.gold = 0;
@@ -886,6 +888,7 @@ describe("Emberforge crafting", () => {
     expect(new Set(CRAFTING_RECIPES.map((recipe) => recipe.id)).size).toBe(CRAFTING_RECIPES.length);
     for (const [index, recipe] of CRAFTING_RECIPES.entries()) {
       const profile = createProfile();
+      profile.extracts = recipe.requiredExtracts;
       profile.gold = 1_000;
       profile.stash.push({
         id: `material-${index}`,
@@ -900,6 +903,36 @@ describe("Emberforge crafting", () => {
       expect(result.outcome).toBe("crafted");
       expect(result.profile.stash).toHaveLength(before);
       expect(result.profile.stash.some((item) => item.id === `output-${index}` && item.name === recipe.output.name)).toBe(true);
+    }
+  });
+
+  it("requires earned reputation even when the material and gold are present", () => {
+    const recipe = CRAFTING_RECIPES.find((candidate) => candidate.id === "ruby-cantor")!;
+    const profile = createProfile();
+    profile.gold = 1_000;
+    profile.stash.push({
+      id: "ruby-material",
+      name: recipe.ingredientName,
+      kind: recipe.ingredientKind,
+      rarity: "Epic",
+      power: 0,
+      value: 80,
+    });
+
+    const result = craftItem(profile, recipe, "locked-output");
+
+    expect(result.outcome).toBe("reputation_locked");
+    expect(result.profile.gold).toBe(1_000);
+    expect(result.profile.stash.some((item) => item.id === "ruby-material")).toBe(true);
+    expect(result.profile.stash.some((item) => item.id === "locked-output")).toBe(false);
+  });
+
+  it("unlocks forge knowledge at Known, Trusted, and Sworn standing", () => {
+    expect(CRAFTING_RECIPES.map((recipe) => recipe.requiredExtracts).sort((a, b) => a - b)).toEqual([1, 3, 6]);
+    for (const recipe of CRAFTING_RECIPES) {
+      expect(craftingRecipeUnlocked(recipe, recipe.requiredExtracts - 1)).toBe(false);
+      expect(craftingRecipeUnlocked(recipe, recipe.requiredExtracts)).toBe(true);
+      expect(craftingRecipeUnlocked(recipe, Number.POSITIVE_INFINITY)).toBe(false);
     }
   });
 });

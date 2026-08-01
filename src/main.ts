@@ -2,7 +2,7 @@ import "./style.css";
 import { escapeHtml } from "./html";
 import { createSaveBackup, parseSaveBackup } from "./game/backup";
 import { merchantCommission } from "./game/commission";
-import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses } from "./game/data";
+import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses } from "./game/data";
 import { itemValueTotal, raidValueSummary } from "./game/economy";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
@@ -243,11 +243,14 @@ function renderLobby(): void {
               </div>
               <div class="forge-recipes">
                 ${CRAFTING_RECIPES.map((recipe) => {
+                  const unlocked = craftingRecipeUnlocked(recipe, profile.extracts);
                   const hasMaterial = profile.stash.some((item) => item.name === recipe.ingredientName && item.kind === recipe.ingredientKind);
                   const affordable = profile.gold >= recipe.goldCost;
-                  return `<article class="forge-recipe ${hasMaterial && affordable ? "ready" : ""}">
-                    <span><small>EMBERFORGE RECIPE</small><strong>${recipe.name}</strong><p>${recipe.ingredientName} + ${recipe.goldCost}g</p></span>
-                    <button type="button" data-recipe-id="${recipe.id}" ${hasMaterial && affordable ? "" : "disabled"}>${!hasMaterial ? "NEED RELIC" : !affordable ? `NEED ${recipe.goldCost}g` : "FORGE"}</button>
+                  const ready = unlocked && hasMaterial && affordable;
+                  const standing = merchantStanding(recipe.requiredExtracts).name.toUpperCase();
+                  return `<article class="forge-recipe ${ready ? "ready" : ""} ${unlocked ? "" : "locked"}">
+                    <span><small>${standing} EMBERFORGE RECIPE</small><strong>${recipe.name}</strong><p>${recipe.ingredientName} + ${recipe.goldCost}g</p></span>
+                    <button type="button" data-recipe-id="${recipe.id}" aria-label="${unlocked ? `Forge ${recipe.name}` : `${recipe.name} requires ${recipe.requiredExtracts} successful extracts`}" ${ready ? "" : "disabled"}>${!unlocked ? `NEED ${recipe.requiredExtracts} EXT` : !hasMaterial ? "NEED RELIC" : !affordable ? `NEED ${recipe.goldCost}g` : "FORGE"}</button>
                   </article>`;
                 }).join("")}
               </div>
@@ -462,7 +465,9 @@ function renderLobby(): void {
       profile = craft.profile;
       merchantNotice = craft.outcome === "crafted"
         ? `${recipe.name} forged and placed in the stash.`
-        : craft.outcome === "missing_material"
+        : craft.outcome === "reputation_locked"
+          ? `${recipe.name} requires ${recipe.requiredExtracts} successful extracts.`
+          : craft.outcome === "missing_material"
           ? `Recover ${recipe.ingredientName} before attempting this recipe.`
           : craft.outcome === "insufficient_gold"
             ? `The forge requires ${recipe.goldCost}g.`

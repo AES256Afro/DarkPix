@@ -1,5 +1,5 @@
 import type { ClassId, Item, Profile, RaidJournalEntry, RaidResult, ThreatKind } from "./types";
-import type { CraftingRecipe } from "./data";
+import { craftingRecipeUnlocked, type CraftingRecipe } from "./data";
 import { raidRules } from "./raid";
 import { depthXpBonus } from "./depth";
 import { merchantCommission, validUtcDayKey } from "./commission";
@@ -511,7 +511,7 @@ export function purchaseItem(profile: Profile, item: Item, price: number): { pro
   return { profile: next, outcome: "purchased" };
 }
 
-export type CraftOutcome = "crafted" | "missing_material" | "insufficient_gold" | "duplicate_id";
+export type CraftOutcome = "crafted" | "reputation_locked" | "missing_material" | "insufficient_gold" | "duplicate_id";
 
 export function craftItem(
   profile: Profile,
@@ -519,6 +519,7 @@ export function craftItem(
   outputId: string,
 ): { profile: Profile; outcome: CraftOutcome } {
   const next = normalizeProfile(profile);
+  if (!craftingRecipeUnlocked(recipe, next.extracts)) return { profile: next, outcome: "reputation_locked" };
   const ingredientIndex = next.stash.findIndex(
     (item) => item.name === recipe.ingredientName && item.kind === recipe.ingredientKind,
   );
