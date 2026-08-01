@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CLASS_ABILITIES, CRAFTING_RECIPES, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll } from "../src/game/data";
 import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, applyRaidResult, craftItem, createProfile, normalizeProfile, purchaseItem, sellStashItem, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
-import { attackDamage, bossTactic, classAbilityDamageMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat } from "../src/game/combat";
+import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat } from "../src/game/combat";
 
 describe("loot generation", () => {
   it("maps rarity thresholds deterministically", () => {
@@ -108,8 +108,9 @@ describe("persistent raid consequences", () => {
     expect(result.stash).toEqual([]);
     expect(result.extracts).toBe(0);
     expect(result.highTollExtracts).toBe(0);
-    expect(result.version).toBe(4);
+    expect(result.version).toBe(5);
     expect(result.xp.reaver).toBe(0);
+    expect(result.xp.ranger).toBe(0);
     expect(result.preferredClass).toBe("vanguard");
   });
 
@@ -396,6 +397,7 @@ describe("directional combat damage", () => {
     expect(guardDrainPerSecond("cutpurse")).toBe(11);
     expect(guardDrainPerSecond("hexbound")).toBe(14);
     expect(guardDrainPerSecond("reaver")).toBe(11);
+    expect(guardDrainPerSecond("ranger")).toBe(11);
   });
 
   it("bounds Blood Rage to the Reaver's active damage window", () => {
@@ -403,6 +405,14 @@ describe("directional combat damage", () => {
     expect(classAbilityDamageMultiplier("reaver", 0)).toBe(1);
     expect(classAbilityDamageMultiplier("reaver", Number.NaN)).toBe(1);
     expect(classAbilityDamageMultiplier("vanguard", 6)).toBe(1);
+  });
+
+  it("bounds Quickdraw cadence to the Ranger's active window", () => {
+    expect(classAttackDelay("ranger", 0.78, 7)).toBeCloseTo(0.4524);
+    expect(classAttackDelay("ranger", 0.3, 1)).toBe(0.24);
+    expect(classAttackDelay("ranger", 0.78, 0)).toBe(0.78);
+    expect(classAttackDelay("reaver", 0.94, 7)).toBe(0.94);
+    expect(classAttackDelay("ranger", Number.NaN, 7)).toBeCloseTo(0.464);
   });
 
   it("blocks only threats inside the forward guard cone", () => {
@@ -441,10 +451,11 @@ describe("class perk milestones", () => {
     expect(classPerkBonuses("cutpurse", 4)).toMatchObject({ damage: 3, sprintCostMultiplier: 0.8 });
     expect(classPerkBonuses("hexbound", 6)).toMatchObject({ health: 8, damage: 4, spellCharges: 1 });
     expect(classPerkBonuses("reaver", 6)).toMatchObject({ health: 8, damage: 4, guardUpkeepMultiplier: 0.9 });
+    expect(classPerkBonuses("ranger", 6)).toMatchObject({ health: 8, damage: 4, sprintCostMultiplier: 0.9 });
   });
 
   it("gives every class a bounded active-skill cooldown", () => {
-    expect(Object.keys(CLASS_ABILITIES).sort()).toEqual(["cutpurse", "hexbound", "reaver", "vanguard"]);
+    expect(Object.keys(CLASS_ABILITIES).sort()).toEqual(["cutpurse", "hexbound", "ranger", "reaver", "vanguard"]);
     for (const ability of Object.values(CLASS_ABILITIES)) {
       expect(ability.name.length).toBeGreaterThan(0);
       expect(ability.cooldown).toBeGreaterThanOrEqual(30);

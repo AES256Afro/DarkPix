@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
-import { attackDamage, bossTactic, classAbilityDamageMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat, type ThreatKind } from "./combat";
+import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, trapDamageAgainstThreat, type ThreatKind } from "./combat";
 import { CLASSES, CLASS_ABILITIES, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, type ClassPerkBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { depthRules } from "./depth";
@@ -200,6 +200,7 @@ export class DarkPixGame {
   private blockAge = 0;
   private attackCooldown = 0;
   private swingClock = 0;
+  private swingDuration = 0.42;
   private footstepClock = 0;
   private damageCooldown = 0;
   private interactHeld = false;
@@ -216,6 +217,7 @@ export class DarkPixGame {
   private abilityCooldown = 0;
   private concealmentTimer = 0;
   private rageTimer = 0;
+  private quickdrawTimer = 0;
   private abandonArmed = false;
   private renderScale = 0;
   private frameTimeTotal = 0;
@@ -283,7 +285,7 @@ export class DarkPixGame {
           <div class="extract-meter"><i></i></div>
           <div class="hud-bottom">
             <section class="vitals">
-              <div class="portrait-rune">${this.options.classId === "vanguard" ? "V" : this.options.classId === "cutpurse" ? "C" : this.options.classId === "hexbound" ? "H" : "R"}</div>
+              <div class="portrait-rune">${this.options.classId === "vanguard" ? "V" : this.options.classId === "cutpurse" ? "C" : this.options.classId === "hexbound" ? "H" : this.options.classId === "reaver" ? "R" : "A"}</div>
               <div class="bars">
                 <div class="bar health"><i></i><span>VIGOR</span></div>
                 <div class="bar stamina"><i></i><span>STAMINA</span></div>
@@ -573,6 +575,21 @@ export class DarkPixGame {
       axeEdge.position.set(-0.48, 0.96, 0);
       axeEdge.rotation.z = Math.PI / 2;
       this.weapon.add(haft, axeHead, axeEdge);
+    } else if (this.options.classId === "ranger") {
+      const grip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.72, 0.08), material(0x5d3a22));
+      const upperLimb = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.72, 0.07), material(0x77603a));
+      upperLimb.position.set(0.12, 0.62, 0);
+      upperLimb.rotation.z = -0.32;
+      const lowerLimb = upperLimb.clone();
+      lowerLimb.position.set(0.12, -0.62, 0);
+      lowerLimb.rotation.z = 0.32;
+      const stringGeometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0.23, 0.96, 0),
+        new THREE.Vector3(-0.08, 0, 0),
+        new THREE.Vector3(0.23, -0.96, 0),
+      ]);
+      const string = new THREE.Line(stringGeometry, new THREE.LineBasicMaterial({ color: 0xc3b69a }));
+      this.weapon.add(grip, upperLimb, lowerLimb, string);
     } else {
       const blade = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.05, 0.08), material(this.options.classId === "cutpurse" ? 0x918a7d : 0xb2afa6));
       blade.position.y = 0.38;
@@ -754,7 +771,9 @@ export class DarkPixGame {
     this.pitch = THREE.MathUtils.clamp(this.pitch, -1.35, 1.35);
     this.mouseAccumulator.x += event.movementX;
     this.mouseAccumulator.y += event.movementY;
-    if (Math.abs(this.mouseAccumulator.y) > Math.abs(this.mouseAccumulator.x) * 1.15 && Math.abs(this.mouseAccumulator.y) > 18) {
+    if (this.options.classId === "ranger") {
+      this.attackDirection = "THRUST";
+    } else if (Math.abs(this.mouseAccumulator.y) > Math.abs(this.mouseAccumulator.x) * 1.15 && Math.abs(this.mouseAccumulator.y) > 18) {
       this.attackDirection = "OVERHEAD";
     } else if (Math.abs(this.mouseAccumulator.x) > 23) {
       this.attackDirection = "SWEEP";
@@ -941,6 +960,7 @@ export class DarkPixGame {
     this.abilityCooldown = Math.max(0, this.abilityCooldown - delta);
     this.concealmentTimer = Math.max(0, this.concealmentTimer - delta);
     this.rageTimer = Math.max(0, this.rageTimer - delta);
+    this.quickdrawTimer = Math.max(0, this.quickdrawTimer - delta);
     this.swingClock = Math.max(0, this.swingClock - delta);
     this.damageCooldown = Math.max(0, this.damageCooldown - delta);
     this.messageTimer = Math.max(0, this.messageTimer - delta);
@@ -1053,10 +1073,12 @@ export class DarkPixGame {
       this.feed("Your spell memory is ash. Find the campfire.", "danger");
       return;
     }
-    this.attackCooldown = this.definition.attackDelay;
+    const attackDelay = classAttackDelay(this.options.classId, this.definition.attackDelay, this.quickdrawTimer);
+    this.attackCooldown = attackDelay;
     this.concealmentTimer = 0;
-    this.swingClock = Math.min(0.42, this.definition.attackDelay * 0.72);
-    this.stamina = Math.max(0, this.stamina - (this.options.classId === "hexbound" ? 5 : 10));
+    this.swingDuration = Math.min(0.42, attackDelay * 0.72);
+    this.swingClock = this.swingDuration;
+    this.stamina = Math.max(0, this.stamina - (this.options.classId === "hexbound" ? 5 : this.options.classId === "ranger" ? 7 : 10));
     if (this.options.classId === "hexbound") this.spellCharges -= 1;
     this.audio.attack();
 
@@ -1068,7 +1090,7 @@ export class DarkPixGame {
       if (!enemy.alive) continue;
       const toEnemy = enemy.group.position.clone().add(new THREE.Vector3(0, 1.1, 0)).sub(cameraPosition);
       const distance = toEnemy.length();
-      const cone = this.options.classId === "hexbound" ? 0.965 : this.attackDirection === "SWEEP" ? 0.72 : 0.86;
+      const cone = this.options.classId === "hexbound" ? 0.965 : this.options.classId === "ranger" ? 0.975 : this.attackDirection === "SWEEP" ? 0.72 : 0.86;
       const visible = dungeonLineOfSight(
         { x: cameraPosition.x, z: cameraPosition.z },
         { x: enemy.group.position.x, z: enemy.group.position.z },
@@ -1080,6 +1102,7 @@ export class DarkPixGame {
     }
     if (!best) {
       if (this.options.classId === "hexbound") this.spawnSpellTrail(cameraPosition, forward, this.definition.reach);
+      if (this.options.classId === "ranger") this.spawnArrowTrail(cameraPosition, forward, this.definition.reach);
       this.mouseAccumulator.x = 0;
       this.mouseAccumulator.y = 0;
       return;
@@ -1087,8 +1110,8 @@ export class DarkPixGame {
 
     const headHeight = best.kind === "crawler" || best.kind === "mimic" ? 0.72 : best.kind === "boss" ? 2.35 : 1.82;
     const toHead = best.group.position.clone().add(new THREE.Vector3(0, headHeight, 0)).sub(cameraPosition).normalize();
-    const headshot = toHead.dot(forward) > (this.options.classId === "hexbound" ? 0.992 : 0.975);
-    const limbHit = !headshot && this.attackDirection === "SWEEP" && this.options.classId !== "hexbound";
+    const headshot = toHead.dot(forward) > (this.options.classId === "hexbound" ? 0.992 : this.options.classId === "ranger" ? 0.988 : 0.975);
+    const limbHit = !headshot && this.attackDirection === "SWEEP" && this.options.classId !== "hexbound" && this.options.classId !== "ranger";
     const weaponPower = equippedPower(this.options.equipped, "weapon");
     const baseDamage = attackDamage({
       baseDamage: this.definition.damage,
@@ -1106,6 +1129,7 @@ export class DarkPixGame {
     );
     this.damageEnemy(best, damage, headshot, limbHit);
     if (this.options.classId === "hexbound") this.spawnSpellTrail(cameraPosition, forward, bestDistance);
+    if (this.options.classId === "ranger") this.spawnArrowTrail(cameraPosition, forward, bestDistance);
     this.mouseAccumulator.x = 0;
     this.mouseAccumulator.y = 0;
   }
@@ -1121,6 +1145,19 @@ export class DarkPixGame {
       bolt.geometry.dispose();
       boltMaterial.dispose();
     }, 80);
+  }
+
+  private spawnArrowTrail(start: THREE.Vector3, forward: THREE.Vector3, distance: number): void {
+    const arrowMaterial = material(0x8c7146, 0x24160c);
+    const arrow = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.045, Math.max(0.3, distance)), arrowMaterial);
+    arrow.position.copy(start).add(forward.clone().multiplyScalar(distance / 2));
+    arrow.quaternion.copy(this.camera.quaternion);
+    this.scene.add(arrow);
+    window.setTimeout(() => {
+      this.scene.remove(arrow);
+      arrow.geometry.dispose();
+      arrowMaterial.dispose();
+    }, 72);
   }
 
   private spawnRivalKnife(enemy: Enemy): void {
@@ -1525,7 +1562,7 @@ export class DarkPixGame {
       this.vignette = Math.max(this.vignette, 0.48);
       this.spellCharges = Math.min(this.maxSpellCharges, this.spellCharges + 2);
       this.feed("BLOOD MEMORY · two ash charges return", "danger");
-    } else {
+    } else if (this.options.classId === "reaver") {
       if (this.health <= 12) {
         this.feed("Blood rage demands more vigor than remains.", "danger");
         return;
@@ -1535,6 +1572,9 @@ export class DarkPixGame {
       this.vignette = Math.max(this.vignette, 0.65);
       this.rageTimer = 6;
       this.feed("BLOOD RAGE · strike damage surges for 6s", "danger");
+    } else {
+      this.quickdrawTimer = 7;
+      this.feed("QUICKDRAW · arrow cadence surges for 7s", "system");
     }
     this.abilityCooldown = ability.cooldown;
     this.audio.portal();
@@ -1858,7 +1898,7 @@ export class DarkPixGame {
       portalMaterial.opacity = 0.58 + Math.sin(this.elapsed * 3.5) * 0.14;
       this.portal.scale.setScalar(1 + Math.sin(this.elapsed * 2.1) * 0.025);
     }
-    const swingProgress = this.swingClock > 0 ? 1 - this.swingClock / Math.min(0.42, this.definition.attackDelay * 0.72) : 0;
+    const swingProgress = this.swingClock > 0 ? 1 - this.swingClock / this.swingDuration : 0;
     if (this.swingClock > 0) {
       const arc = Math.sin(swingProgress * Math.PI);
       if (this.attackDirection === "OVERHEAD") this.weapon.rotation.x = -0.25 - arc * 1.25;
@@ -1890,6 +1930,8 @@ export class DarkPixGame {
     const ability = CLASS_ABILITIES[this.options.classId];
     this.abilityHud.textContent = this.rageTimer > 0
       ? `${ability.name} · ${Math.ceil(this.rageTimer)}s RAGING`
+      : this.quickdrawTimer > 0
+        ? `${ability.name} · ${Math.ceil(this.quickdrawTimer)}s RAPID`
       : this.abilityCooldown > 0 ? `${ability.name} · ${Math.ceil(this.abilityCooldown)}s` : ability.name;
     this.updateWayfinder();
     this.directionHud.textContent = this.attackDirection;

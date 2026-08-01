@@ -66,6 +66,13 @@ export function classAbilityDamageMultiplier(classId: ClassId, activeSeconds: nu
   return classId === "reaver" && Number.isFinite(activeSeconds) && activeSeconds > 0 ? 1.25 : 1;
 }
 
+export function classAttackDelay(classId: ClassId, baseDelay: number, activeSeconds: number): number {
+  const safeDelay = Number.isFinite(baseDelay) ? Math.max(0.2, baseDelay) : 0.8;
+  return classId === "ranger" && Number.isFinite(activeSeconds) && activeSeconds > 0
+    ? Math.max(0.24, safeDelay * 0.58)
+    : safeDelay;
+}
+
 export function healthPercent(current: number, maximum: number): number {
   if (!Number.isFinite(current) || !Number.isFinite(maximum) || maximum <= 0) return 0;
   return Math.min(100, Math.max(0, (current / maximum) * 100));

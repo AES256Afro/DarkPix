@@ -31,9 +31,9 @@ const STARTER_STASH: Item[] = [
 
 export function createProfile(): Profile {
   return {
-    version: 4,
+    version: 5,
     gold: 75,
-    xp: { vanguard: 0, cutpurse: 0, hexbound: 0, reaver: 0 },
+    xp: { vanguard: 0, cutpurse: 0, hexbound: 0, reaver: 0, ranger: 0 },
     stash: STARTER_STASH.map((item) => ({ ...item })),
     extracts: 0,
     deaths: 0,
@@ -44,7 +44,7 @@ export function createProfile(): Profile {
 }
 
 function validClass(value: unknown): value is ClassId {
-  return value === "vanguard" || value === "cutpurse" || value === "hexbound" || value === "reaver";
+  return value === "vanguard" || value === "cutpurse" || value === "hexbound" || value === "reaver" || value === "ranger";
 }
 
 function nonnegativeInteger(value: unknown, maximum = Number.MAX_SAFE_INTEGER): number {
@@ -92,13 +92,14 @@ export function normalizeProfile(value: unknown): Profile {
     }
   }
   return {
-    version: 4,
+    version: 5,
     gold: nonnegativeInteger(candidate.gold, MAX_GOLD),
     xp: {
       vanguard: nonnegativeInteger(xp.vanguard, MAX_CLASS_XP),
       cutpurse: nonnegativeInteger(xp.cutpurse, MAX_CLASS_XP),
       hexbound: nonnegativeInteger(xp.hexbound, MAX_CLASS_XP),
       reaver: nonnegativeInteger(xp.reaver, MAX_CLASS_XP),
+      ranger: nonnegativeInteger(xp.ranger, MAX_CLASS_XP),
     },
     stash: Array.isArray(candidate.stash) ? stash : fallback.stash,
     extracts: nonnegativeInteger(candidate.extracts, MAX_OUTCOME_COUNT),

@@ -105,6 +105,21 @@ export const CLASSES: Record<ClassId, ClassDefinition> = {
     ability: "Blood Rage: trade vigor for six seconds of amplified strikes.",
     weapon: "Notched headsman's axe",
   },
+  ranger: {
+    id: "ranger",
+    name: "Ranger",
+    title: "The Thorn Watch",
+    summary: "A deliberate marksman who trades protection for range, stamina, and brief bursts of rapid fire.",
+    maxHealth: 92,
+    maxStamina: 130,
+    speed: 4.75,
+    damage: 26,
+    reach: 14,
+    attackDelay: 0.78,
+    accent: "#9b8f5a",
+    ability: "Quickdraw: loose arrows faster for seven seconds.",
+    weapon: "Ashwood recurved bow",
+  },
 };
 
 export const CLASS_PERKS: Record<ClassId, ClassPerk[]> = {
@@ -127,6 +142,11 @@ export const CLASS_PERKS: Record<ClassId, ClassPerk[]> = {
     { level: 2, name: "Red Guard", description: "Guard upkeep costs 10% less stamina." },
     { level: 4, name: "Headsman's Rhythm", description: "+4 strike damage." },
     { level: 6, name: "Carrion Heart", description: "+8 maximum vigor." },
+  ],
+  ranger: [
+    { level: 2, name: "Trail Legs", description: "Sprinting costs 10% less stamina." },
+    { level: 4, name: "Broadhead", description: "+4 arrow damage." },
+    { level: 6, name: "Weathered", description: "+8 maximum vigor." },
   ],
 };
 
@@ -151,15 +171,20 @@ export const CLASS_ABILITIES: Record<ClassId, ClassAbilityDefinition> = {
     cooldown: 44,
     description: "Trade 12 vigor for six seconds of 25% amplified strike damage.",
   },
+  ranger: {
+    name: "Quickdraw",
+    cooldown: 41,
+    description: "Loose arrows 42% faster for seven seconds.",
+  },
 };
 
 export function classPerkBonuses(classId: ClassId, level: number): ClassPerkBonuses {
   const safeLevel = Math.max(1, Math.floor(level));
   return {
     health: safeLevel >= 6 && classId !== "vanguard" ? 8 : safeLevel >= 4 && classId === "vanguard" ? 8 : 0,
-    damage: safeLevel >= 4 && classId === "cutpurse" ? 3 : safeLevel >= 4 && (classId === "hexbound" || classId === "reaver") ? 4 : safeLevel >= 6 && classId === "vanguard" ? 3 : 0,
+    damage: safeLevel >= 4 && classId === "cutpurse" ? 3 : safeLevel >= 4 && (classId === "hexbound" || classId === "reaver" || classId === "ranger") ? 4 : safeLevel >= 6 && classId === "vanguard" ? 3 : 0,
     guardUpkeepMultiplier: safeLevel >= 2 && classId === "vanguard" ? 0.8 : safeLevel >= 2 && classId === "reaver" ? 0.9 : 1,
-    sprintCostMultiplier: safeLevel >= 2 && classId === "cutpurse" ? 0.8 : 1,
+    sprintCostMultiplier: safeLevel >= 2 && classId === "cutpurse" ? 0.8 : safeLevel >= 2 && classId === "ranger" ? 0.9 : 1,
     spellCharges: safeLevel >= 2 && classId === "hexbound" ? 1 : 0,
   };
 }
