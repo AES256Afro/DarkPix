@@ -5,6 +5,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        DARKPIX_RELEASE: ${DARKPIX_RELEASE:-dev}
     image: darkpix-web:local
     restart: unless-stopped
     ports:

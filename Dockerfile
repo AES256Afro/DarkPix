@@ -1,5 +1,8 @@
 FROM node:22-alpine AS build
 
+ARG DARKPIX_RELEASE=dev
+ENV VITE_DARKPIX_VERSION=$DARKPIX_RELEASE
+
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -11,8 +14,11 @@ RUN npm run build
 
 FROM nginx:stable-alpine
 
+ARG DARKPIX_RELEASE=dev
+
 COPY deploy/nginx.conf /etc/nginx/nginx.conf
 COPY --from=build --chown=nginx:nginx /app/dist /usr/share/nginx/html
+RUN printf '%s\n' "$DARKPIX_RELEASE" > /usr/share/nginx/html/version.txt && chown nginx:nginx /usr/share/nginx/html/version.txt
 
 USER nginx
 EXPOSE 8080

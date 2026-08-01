@@ -16,7 +16,10 @@ if ! docker network inspect gridless_gridless >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "Building and starting the loopback-only DarkPix web service..."
+darkpix_release="${DARKPIX_RELEASE:-$(git rev-parse --short HEAD 2>/dev/null || printf 'unknown')}"
+export DARKPIX_RELEASE="$darkpix_release"
+
+echo "Building and starting DarkPix release $darkpix_release on the loopback-only web service..."
 docker compose up -d --build darkpix
 
 check_darkpix_health() {
@@ -42,4 +45,5 @@ for attempt in {1..30}; do
 done
 
 docker compose ps
+echo "Deployed release: $(docker compose exec -T darkpix wget -q -O - http://127.0.0.1:8080/version.txt)"
 echo "Cloudflare service target: http://darkpix:8080"

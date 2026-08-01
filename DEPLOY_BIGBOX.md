@@ -41,6 +41,7 @@ Verify the private origin:
 
 ```bash
 curl -fsS http://127.0.0.1:8092/healthz
+curl -fsS http://127.0.0.1:8092/version.txt
 curl -I http://127.0.0.1:8092/
 docker compose ps
 ```
@@ -64,6 +65,7 @@ git status -sb
 git pull --ff-only origin main
 ./scripts/deploy-bigbox.sh
 curl -fsS http://127.0.0.1:8092/healthz
+curl -fsS http://127.0.0.1:8092/version.txt
 curl -I https://ne-gro.com/
 ```
 
