@@ -5,7 +5,7 @@ import { RIPOSTE_DURATION_SECONDS, attackDamage, bossTactic, bossTollDamage, bos
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, bossRingActive, bossRingCooldown, depthRules } from "./depth";
-import { HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGold } from "./haul";
+import { HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGoldTotal } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, pickupDecision, type LoadoutStats } from "./loadout";
 import { cardinalDirection, circlesOverlap, movementOffset, recoveryNeed, relativeDirectionToSource } from "./navigation";
 import { raidRules, type RaidRules } from "./raid";
@@ -221,7 +221,6 @@ export class DarkPixGame {
   private selectedThrowableId?: string;
   private kills = 0;
   private readonly killsByKind: Record<ThreatKind, number> = { skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 };
-  private goldFound = 0;
   private bossKilled = false;
   private readonly consumedIds: string[] = [];
   private sigils = 0;
@@ -1040,12 +1039,13 @@ export class DarkPixGame {
     const ordinaryHaul = this.raidLoot.filter((item) => item.kind !== "sigil");
     const sigils = this.raidLoot.filter((item) => item.kind === "sigil").length;
     const haulValue = ordinaryHaul.reduce((sum, item) => sum + item.value, 0);
+    const coinValue = treasureGoldTotal(this.raidLoot);
     const dropCandidate = dropLeastValuable(this.raidLoot).dropped;
     const itemRow = (item: Item, status: string): string => `<span class="pause-ledger-item" style="--rarity:${RARITY_COLOR[item.rarity]}"><i></i><b>${escapeHtml(item.name)}</b><small>${status} · ${item.value}g</small></span>`;
     this.pauseLedger.innerHTML = `
       <div class="pause-ledger-summary">
         <span><small>PACKED RISK</small><strong>${remainingPacked.length} ITEM${remainingPacked.length === 1 ? "" : "S"}</strong></span>
-        <span><small>UNSECURED HAUL</small><strong>${ordinaryHaul.length} / ${HAUL_CAPACITY} · ${haulValue}G</strong></span>
+        <span><small>UNSECURED HAUL</small><strong>${ordinaryHaul.length} / ${HAUL_CAPACITY} · ${haulValue}G VALUE · ${coinValue}G COIN</strong></span>
         <span><small>RESERVES</small><strong>${this.availableConsumables().length} REMEDY · ${this.availableThrowables().length} THROW</strong></span>
         <span><small>SIGIL POUCH</small><strong>${sigils} / 2</strong></span>
       </div>
@@ -2284,8 +2284,6 @@ export class DarkPixGame {
     if (pickup.item.kind === "sigil") {
       this.sigils += 1;
       if (this.sigils >= 2) this.unlockPortal();
-    } else if (pickup.item.kind === "treasure") {
-      this.goldFound += treasureGold(pickup.item);
     }
     this.audio.loot();
     this.feed(`${pickup.item.rarity} ${pickup.item.name} secured for now.`, "loot");
@@ -2298,7 +2296,6 @@ export class DarkPixGame {
       return;
     }
     this.raidLoot.splice(0, this.raidLoot.length, ...kept);
-    this.goldFound = Math.max(0, this.goldFound - treasureGold(dropped));
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).setY(0).normalize();
     const position = this.camera.position.clone().add(forward.multiplyScalar(1.15));
     position.y = 0.55;
@@ -2357,7 +2354,6 @@ export class DarkPixGame {
       }
       surrendered = exchange.dropped;
       this.raidLoot.splice(0, this.raidLoot.length, ...exchange.kept);
-      this.goldFound = Math.max(0, this.goldFound - treasureGold(surrendered));
     } else if (this.health <= rules.healthCost || this.damageCooldown > 0) {
       this.feed("The reliquary rejects weak or freshly spilled blood.", "danger");
       return;
@@ -2541,7 +2537,7 @@ export class DarkPixGame {
     this.raidClock.textContent = formatTime(remaining);
     this.raidClock.classList.toggle("urgent", remaining < 45);
     const carried = haulCount(this.raidLoot);
-    this.lootHud.textContent = `${carried} / ${HAUL_CAPACITY} slots · ${this.goldFound}g`;
+    this.lootHud.textContent = `${carried} / ${HAUL_CAPACITY} slots · ${treasureGoldTotal(this.raidLoot)}g`;
     this.objectiveHud.textContent = this.portalUnlocked
       ? this.depth === 2 ? "ASHEN PASSAGE OPEN" : "BLUE PASSAGE OPEN"
       : `${this.depth === 2 ? "ASHEN" : "WARDEN"} SIGILS ${this.sigils} / 2`;
@@ -2640,7 +2636,7 @@ export class DarkPixGame {
       kills: this.kills,
       killsByKind: { ...this.killsByKind },
       elapsed: this.elapsed,
-      goldFound: this.goldFound,
+      goldFound: treasureGoldTotal(this.raidLoot),
       bossKilled: this.bossKilled,
       finishedAt: Date.now(),
     };

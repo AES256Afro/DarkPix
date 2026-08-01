@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HAUL_CAPACITY, RIVAL_HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGold } from "../src/game/haul";
+import { HAUL_CAPACITY, RIVAL_HAUL_CAPACITY, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, treasureGold, treasureGoldTotal } from "../src/game/haul";
 import type { Item } from "../src/game/types";
 
 const item = (id: string, value: number, kind: Item["kind"] = "treasure", power = 1): Item => ({
@@ -32,5 +32,7 @@ describe("unsecured haul", () => {
   it("reverses treasure coin credit when that treasure leaves the haul", () => {
     expect(treasureGold(item("idol", 100))).toBe(35);
     expect(treasureGold(item("blade", 100, "weapon"))).toBe(0);
+    expect(treasureGoldTotal([item("idol", 100), item("seal", 20), item("blade", 100, "weapon")])).toBe(42);
+    expect(treasureGoldTotal([item("blade", 100, "weapon")])).toBe(0);
   });
 });

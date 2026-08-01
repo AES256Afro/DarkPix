@@ -21,6 +21,10 @@ export function treasureGold(item: Item): number {
   return item.kind === "treasure" ? Math.max(3, Math.floor(item.value * 0.35)) : 0;
 }
 
+export function treasureGoldTotal(items: readonly Item[]): number {
+  return items.reduce((total, item) => total + treasureGold(item), 0);
+}
+
 export function dropLeastValuable(items: readonly Item[]): { kept: Item[]; dropped?: Item } {
   let lowestIndex = -1;
   for (let index = 0; index < items.length; index += 1) {
