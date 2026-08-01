@@ -281,7 +281,7 @@ export class DarkPixGame {
 
   private createShell(): void {
     this.mount.innerHTML = `
-      <div class="raid-shell ${this.options.preferences.reducedMotion ? "reduced-motion" : ""}" data-class="${this.options.classId}" data-raid-mode="${this.options.raidMode}">
+      <div class="raid-shell ${this.options.preferences.reducedMotion ? "reduced-motion" : ""} ${this.options.preferences.reducedFlashes ? "reduced-flashes" : ""} ${this.options.preferences.highContrastHud ? "high-contrast-hud" : ""}" data-class="${this.options.classId}" data-raid-mode="${this.options.raidMode}">
         <div class="render-host"></div>
         <div class="pixel-grid" aria-hidden="true"></div>
         <div class="darkness-vignette" aria-hidden="true"></div>

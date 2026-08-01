@@ -243,7 +243,11 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .raid-shell[data-raid-mode="high_toll"] { box-shadow: inset 0 0 90px rgba(122, 27, 24, .18); }
 .raid-shell[data-raid-mode="iron_soul"] { box-shadow: inset 0 0 120px rgba(155, 18, 14, .28); }
 .raid-shell.reduced-motion .pixel-grid { opacity: .08; }
-.raid-shell.reduced-motion .damage-flash.pulse, .raid-shell.reduced-motion .raid-clock.urgent { animation: none; }
+.raid-shell.reduced-motion .damage-flash.pulse, .raid-shell.reduced-motion .raid-clock.urgent, .raid-shell.reduced-flashes .damage-flash.pulse, .raid-shell.reduced-flashes .raid-clock.urgent { animation: none; }
+.raid-shell.reduced-flashes .damage-flash.pulse { opacity: .18; }
+.raid-shell.high-contrast-hud .contract-panel, .raid-shell.high-contrast-hud .objective-panel, .raid-shell.high-contrast-hud .interaction-prompt, .raid-shell.high-contrast-hud .quick-slots > div, .raid-shell.high-contrast-hud .bar { border-color: rgba(232,221,202,.72); background-color: rgba(2,2,2,.94); }
+.raid-shell.high-contrast-hud .contract-panel > span:last-child, .raid-shell.high-contrast-hud .objective-panel > span:last-child, .raid-shell.high-contrast-hud .quick-slots small, .raid-shell.high-contrast-hud .attack-direction { color: #d8d0c4; opacity: 1; }
+.raid-shell.high-contrast-hud .crosshair { filter: brightness(1.7) drop-shadow(0 0 3px #000); }
 .render-host, .game-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; image-rendering: pixelated; }
 .pixel-grid { position: absolute; inset: 0; opacity: .14; background-image: repeating-linear-gradient(0deg, transparent 0 3px, rgba(0,0,0,.28) 3px 4px); pointer-events: none; }
 .darkness-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 18%, rgba(4,6,7,calc(var(--darkness) * .42)) 55%, rgba(2,3,4,calc(var(--darkness) * .95)) 100%); box-shadow: inset 0 0 calc(140px * var(--darkness)) calc(30px * var(--darkness)) #000; pointer-events: none; }

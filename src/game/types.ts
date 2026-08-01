@@ -61,6 +61,8 @@ export interface GamePreferences {
   volume: number;
   muted: boolean;
   reducedMotion: boolean;
+  reducedFlashes: boolean;
+  highContrastHud: boolean;
   invertY: boolean;
   stashSort: StashSort;
 }

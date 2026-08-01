@@ -9,6 +9,8 @@ export const DEFAULT_PREFERENCES: GamePreferences = {
   volume: 1,
   muted: false,
   reducedMotion: false,
+  reducedFlashes: false,
+  highContrastHud: false,
   invertY: false,
   stashSort: "recent",
 };
@@ -31,6 +33,8 @@ export function normalizePreferences(value: unknown): GamePreferences {
     volume: clampNumber(candidate.volume, 0, 1, DEFAULT_PREFERENCES.volume),
     muted: typeof candidate.muted === "boolean" ? candidate.muted : DEFAULT_PREFERENCES.muted,
     reducedMotion: typeof candidate.reducedMotion === "boolean" ? candidate.reducedMotion : DEFAULT_PREFERENCES.reducedMotion,
+    reducedFlashes: typeof candidate.reducedFlashes === "boolean" ? candidate.reducedFlashes : DEFAULT_PREFERENCES.reducedFlashes,
+    highContrastHud: typeof candidate.highContrastHud === "boolean" ? candidate.highContrastHud : DEFAULT_PREFERENCES.highContrastHud,
     invertY: typeof candidate.invertY === "boolean" ? candidate.invertY : DEFAULT_PREFERENCES.invertY,
     stashSort: STASH_SORTS.has(candidate.stashSort as StashSort) ? candidate.stashSort as StashSort : DEFAULT_PREFERENCES.stashSort,
   };

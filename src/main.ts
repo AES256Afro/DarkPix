@@ -299,6 +299,8 @@ function renderLobby(): void {
               <label class="setting-line"><span>Master volume <output data-output="volume">${Math.round(preferences.volume * 100)}%</output></span><input type="range" aria-label="Master volume" data-preference="volume" min="0" max="1" step="0.05" value="${preferences.volume}"></label>
               <label class="setting-toggle"><input type="checkbox" data-preference="muted" ${preferences.muted ? "checked" : ""}><span>Mute dungeon audio</span></label>
               <label class="setting-toggle"><input type="checkbox" data-preference="reducedMotion" ${preferences.reducedMotion ? "checked" : ""}><span>Reduce camera motion</span></label>
+              <label class="setting-toggle"><input type="checkbox" data-preference="reducedFlashes" ${preferences.reducedFlashes ? "checked" : ""}><span>Reduce flashing effects</span></label>
+              <label class="setting-toggle"><input type="checkbox" data-preference="highContrastHud" ${preferences.highContrastHud ? "checked" : ""}><span>High-contrast raid HUD</span></label>
               <label class="setting-toggle"><input type="checkbox" data-preference="invertY" ${preferences.invertY ? "checked" : ""}><span>Invert vertical mouse look</span></label>
               <div class="save-actions">
                 <button type="button" data-save-action="export">Export save</button>
@@ -416,7 +418,7 @@ function renderLobby(): void {
   app.querySelectorAll<HTMLInputElement>("[data-preference]").forEach((input) => {
     input.addEventListener("input", () => {
       const key = input.dataset.preference as keyof GamePreferences;
-      if (key === "muted" || key === "reducedMotion" || key === "invertY") preferences = { ...preferences, [key]: input.checked };
+      if (key === "muted" || key === "reducedMotion" || key === "reducedFlashes" || key === "highContrastHud" || key === "invertY") preferences = { ...preferences, [key]: input.checked };
       else preferences = { ...preferences, [key]: Number(input.value) };
       persistPreferences();
       const output = app.querySelector<HTMLOutputElement>(`[data-output="${key}"]`);
