@@ -23,3 +23,11 @@ export function zoneState(elapsed: number, duration = 210, passage: Vec2 = DUNGE
 export function distanceFromZoneCenter(position: Vec2, zone: ZoneState): number {
   return Math.hypot(position.x - zone.center.x, position.z - zone.center.z);
 }
+
+export function distanceOutsideZone(position: Vec2, zone: ZoneState): number {
+  return Math.max(0, distanceFromZoneCenter(position, zone) - Math.max(0, zone.radius));
+}
+
+export function directionToZoneCenter(position: Vec2, zone: ZoneState): Vec2 {
+  return { x: zone.center.x - position.x, z: zone.center.z - position.z };
+}

@@ -3,7 +3,7 @@ import { DUNGEON, dartTrapTargetDistance, dungeonCollides, dungeonLineOfSight, d
 import { ASHEN_CHESTS, ASHEN_ENEMIES } from "../src/game/depth";
 import { continuousHold, targetDistanceInView } from "../src/game/targeting";
 import { cardinalDirection, circlesOverlap } from "../src/game/navigation";
-import { distanceFromZoneCenter, zoneState } from "../src/game/zone";
+import { directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "../src/game/zone";
 import type { Vec2 } from "../src/game/types";
 
 describe("Crypt of the Pale Toll topology", () => {
@@ -161,5 +161,13 @@ describe("migrating darkness", () => {
       expect(dungeonPathExists(DUNGEON.playerStart, passage)).toBe(true);
       expect(distanceFromZoneCenter(passage, passageFinal)).toBeLessThan(passageFinal.radius);
     }
+  });
+
+  it("measures only unsafe excess distance and points toward safe ground", () => {
+    const zone = { progress: 0.5, center: { x: 3, z: -4 }, radius: 6 };
+    expect(distanceOutsideZone({ x: 3, z: 1 }, zone)).toBe(0);
+    expect(distanceOutsideZone({ x: 3, z: 5 }, zone)).toBe(3);
+    expect(directionToZoneCenter({ x: 8, z: -1 }, zone)).toEqual({ x: -5, z: -3 });
+    expect(cardinalDirection(directionToZoneCenter({ x: 8, z: -1 }, zone))).toBe("NW");
   });
 });

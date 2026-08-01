@@ -14,7 +14,7 @@ import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./r
 import { disposeSceneResources } from "./resources";
 import { continuousHold, targetDistanceInView } from "./targeting";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
-import { distanceFromZoneCenter, zoneState } from "./zone";
+import { directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "./zone";
 
 interface WallCollider {
   x: number;
@@ -2033,13 +2033,17 @@ export class DarkPixGame {
     const floorElapsed = this.phaseElapsed();
     const zone = zoneState(floorElapsed, floorRules.duration, this.portalSite);
     const distance = distanceFromZoneCenter({ x: this.camera.position.x, z: this.camera.position.z }, zone);
+    const outsideDistance = distanceOutsideZone({ x: this.camera.position.x, z: this.camera.position.z }, zone);
     const zoneCopy = this.mount.querySelector<HTMLElement>(".zone-copy");
     if (zoneCopy) {
-      zoneCopy.textContent = floorElapsed < floorRules.spawnGrace
+      zoneCopy.textContent = outsideDistance > 0
+        ? `DARK · ${Math.ceil(outsideDistance)}m out · ${cardinalDirection(directionToZoneCenter(this.camera.position, zone))} to safety`
+        : floorElapsed < floorRules.spawnGrace
         ? `warding veil ${Math.ceil(floorRules.spawnGrace - floorElapsed)}s`
         : zone.progress === 0
           ? "darkness dormant"
           : `safe reach ${Math.round(zone.radius)}m`;
+      zoneCopy.classList.toggle("outside", outsideDistance > 0);
     }
     if (!this.spawnGraceAnnounced && floorElapsed >= floorRules.spawnGrace) {
       this.spawnGraceAnnounced = true;
