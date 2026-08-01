@@ -27,7 +27,7 @@ Status: Complete for local-first play
 - Risked equipment leaves the stash only after a failed verdict
 - Active-raid escrow settles refreshes and interrupted tabs as abandonment
 - Consumed packed items remain consumed after extraction or failure
-- Class XP, contracts, bestiary ledgers, raid history, settings, and backup import/export survive compatible profile migrations
+- Class XP, contracts, bestiary ledgers, survival streaks, raid history, settings, and backup import/export survive compatible profile migrations
 - Iron Soul failure clears the selected discipline's XP while preserving the rest of the profile
 
 Exit evidence: migration, settlement, escrow, economy, backup, and malformed-save tests.

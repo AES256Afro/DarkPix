@@ -36,7 +36,7 @@ const STARTER_STASH: Item[] = [
 
 export function createProfile(): Profile {
   return {
-    version: 11,
+    version: 12,
     gold: 75,
     xp: { vanguard: 0, cutpurse: 0, hexbound: 0, reaver: 0, ranger: 0, cleric: 0, shapeshifter: 0, minstrel: 0 },
     stash: STARTER_STASH.map((item) => ({ ...item })),
@@ -48,6 +48,7 @@ export function createProfile(): Profile {
     threatKills: { skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 },
     boneBountyPaid: false,
     rivalBountyPaid: false,
+    streakBountyPaid: false,
     preferredClass: "vanguard",
     raidHistory: [],
   };
@@ -139,7 +140,7 @@ export function normalizeProfile(value: unknown): Profile {
     ? candidate.raidHistory.map(normalizeRaidJournalEntry).filter((entry): entry is RaidJournalEntry => Boolean(entry)).slice(0, RAID_HISTORY_LIMIT)
     : [];
   return {
-    version: 11,
+    version: 12,
     gold: nonnegativeInteger(candidate.gold, MAX_GOLD),
     xp: {
       vanguard: nonnegativeInteger(xp.vanguard, MAX_CLASS_XP),
@@ -167,6 +168,7 @@ export function normalizeProfile(value: unknown): Profile {
     },
     boneBountyPaid: typeof candidate.boneBountyPaid === "boolean" ? candidate.boneBountyPaid : false,
     rivalBountyPaid: typeof candidate.rivalBountyPaid === "boolean" ? candidate.rivalBountyPaid : false,
+    streakBountyPaid: typeof candidate.streakBountyPaid === "boolean" ? candidate.streakBountyPaid : false,
     preferredClass: validClass(candidate.preferredClass) ? candidate.preferredClass : fallback.preferredClass,
     raidHistory,
   };
@@ -328,6 +330,7 @@ export interface RaidSettlement {
   ashenContractPaid: boolean;
   boneBountyPaid: boolean;
   rivalBountyPaid: boolean;
+  streakBountyPaid: boolean;
   overflowGold: number;
   goldGained: number;
   xpGained: number;
@@ -386,6 +389,7 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     ashenContractPaid: false,
     boneBountyPaid: false,
     rivalBountyPaid: false,
+    streakBountyPaid: false,
     overflowGold: 0,
     goldGained: 0,
     xpGained: xpGain,
@@ -399,14 +403,17 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     const ashenContractReward = result.depthReached === 2 && next.ashenExtracts === 0 ? 250 : 0;
     const boneBountyReward = !next.boneBountyPaid && boneKillCount(next) >= BONE_BOUNTY_TARGET ? 175 : 0;
     const rivalBountyReward = !next.rivalBountyPaid && next.threatKills.rival >= RIVAL_BOUNTY_TARGET ? 225 : 0;
+    const streakBountyReward = !next.streakBountyPaid && contractRecordSummary(next).currentExtractStreak >= 2 ? 300 : 0;
     settlement.firstContractPaid = firstContractReward > 0;
     settlement.bossContractPaid = bossContractReward > 0;
     settlement.highTollContractPaid = highTollContractReward > 0;
     settlement.ashenContractPaid = ashenContractReward > 0;
     settlement.boneBountyPaid = boneBountyReward > 0;
     settlement.rivalBountyPaid = rivalBountyReward > 0;
+    settlement.streakBountyPaid = streakBountyReward > 0;
     if (boneBountyReward) next.boneBountyPaid = true;
     if (rivalBountyReward) next.rivalBountyPaid = true;
+    if (streakBountyReward) next.streakBountyPaid = true;
     next.extracts = Math.min(MAX_OUTCOME_COUNT, next.extracts + 1);
     if (result.bossKilled) next.bossVictories = Math.min(MAX_OUTCOME_COUNT, next.bossVictories + 1);
     if (result.raidMode === "high_toll") next.highTollExtracts = Math.min(MAX_OUTCOME_COUNT, next.highTollExtracts + 1);
@@ -429,7 +436,7 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     const availableGoldCapacity = Math.max(0, MAX_GOLD - next.gold);
     settlement.goldGained = Math.min(
       availableGoldCapacity,
-      nonnegativeInteger(result.goldFound, MAX_GOLD) + firstContractReward + bossContractReward + highTollContractReward + ashenContractReward + boneBountyReward + rivalBountyReward + settlement.overflowGold,
+      nonnegativeInteger(result.goldFound, MAX_GOLD) + firstContractReward + bossContractReward + highTollContractReward + ashenContractReward + boneBountyReward + rivalBountyReward + streakBountyReward + settlement.overflowGold,
     );
     next.stash = [...next.stash, ...settlement.banked];
     next.gold += settlement.goldGained;
