@@ -409,17 +409,19 @@ describe("display helpers", () => {
 
 describe("local game preferences", () => {
   it("clamps numeric settings and rejects malformed toggles", () => {
-    expect(normalizePreferences({ mouseSensitivity: 20, brightness: 0, fieldOfView: 120, muted: "yes", reducedMotion: true })).toEqual({
+    expect(normalizePreferences({ mouseSensitivity: 20, brightness: 0, fieldOfView: 120, muted: "yes", reducedMotion: true, invertY: true })).toEqual({
       mouseSensitivity: 2,
       brightness: 0.75,
       fieldOfView: 95,
       muted: false,
       reducedMotion: true,
+      invertY: true,
       stashSort: "recent",
     });
     expect(normalizePreferences({ stashSort: "value" }).stashSort).toBe("value");
     expect(normalizePreferences({ fieldOfView: 40 }).fieldOfView).toBe(60);
     expect(normalizePreferences({ stashSort: "unknown" }).stashSort).toBe("recent");
+    expect(normalizePreferences({ invertY: "yes" }).invertY).toBe(false);
     expect(normalizePreferences(null)).toEqual(DEFAULT_PREFERENCES);
   });
 });

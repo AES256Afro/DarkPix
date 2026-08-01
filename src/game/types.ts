@@ -55,6 +55,7 @@ export interface GamePreferences {
   fieldOfView: number;
   muted: boolean;
   reducedMotion: boolean;
+  invertY: boolean;
   stashSort: StashSort;
 }
 

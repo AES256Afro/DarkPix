@@ -8,6 +8,7 @@ export const DEFAULT_PREFERENCES: GamePreferences = {
   fieldOfView: 72,
   muted: false,
   reducedMotion: false,
+  invertY: false,
   stashSort: "recent",
 };
 
@@ -28,6 +29,7 @@ export function normalizePreferences(value: unknown): GamePreferences {
     fieldOfView: clampNumber(candidate.fieldOfView, 60, 95, DEFAULT_PREFERENCES.fieldOfView),
     muted: typeof candidate.muted === "boolean" ? candidate.muted : DEFAULT_PREFERENCES.muted,
     reducedMotion: typeof candidate.reducedMotion === "boolean" ? candidate.reducedMotion : DEFAULT_PREFERENCES.reducedMotion,
+    invertY: typeof candidate.invertY === "boolean" ? candidate.invertY : DEFAULT_PREFERENCES.invertY,
     stashSort: STASH_SORTS.has(candidate.stashSort as StashSort) ? candidate.stashSort as StashSort : DEFAULT_PREFERENCES.stashSort,
   };
 }

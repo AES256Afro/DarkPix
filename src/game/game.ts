@@ -785,7 +785,8 @@ export class DarkPixGame {
   private onMouseMove = (event: MouseEvent): void => {
     if (document.pointerLockElement !== this.renderer.domElement || this.ended) return;
     this.yaw -= event.movementX * 0.0023 * this.options.preferences.mouseSensitivity;
-    this.pitch -= event.movementY * 0.0021 * this.options.preferences.mouseSensitivity;
+    const pitchDirection = this.options.preferences.invertY ? 1 : -1;
+    this.pitch += event.movementY * 0.0021 * this.options.preferences.mouseSensitivity * pitchDirection;
     this.pitch = THREE.MathUtils.clamp(this.pitch, -1.35, 1.35);
     this.mouseAccumulator.x += event.movementX;
     this.mouseAccumulator.y += event.movementY;

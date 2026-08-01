@@ -234,6 +234,7 @@ function renderLobby(): void {
               <label class="setting-line"><span>Crypt brightness <output data-output="brightness">${Math.round(preferences.brightness * 100)}%</output></span><input type="range" aria-label="Crypt brightness" data-preference="brightness" min="0.75" max="1.4" step="0.05" value="${preferences.brightness}"></label>
               <label class="setting-toggle"><input type="checkbox" data-preference="muted" ${preferences.muted ? "checked" : ""}><span>Mute dungeon audio</span></label>
               <label class="setting-toggle"><input type="checkbox" data-preference="reducedMotion" ${preferences.reducedMotion ? "checked" : ""}><span>Reduce camera motion</span></label>
+              <label class="setting-toggle"><input type="checkbox" data-preference="invertY" ${preferences.invertY ? "checked" : ""}><span>Invert vertical mouse look</span></label>
               <div class="save-actions">
                 <button type="button" data-save-action="export">Export save</button>
                 <button type="button" data-save-action="import">Import save</button>
@@ -350,7 +351,7 @@ function renderLobby(): void {
   app.querySelectorAll<HTMLInputElement>("[data-preference]").forEach((input) => {
     input.addEventListener("input", () => {
       const key = input.dataset.preference as keyof GamePreferences;
-      if (key === "muted" || key === "reducedMotion") preferences = { ...preferences, [key]: input.checked };
+      if (key === "muted" || key === "reducedMotion" || key === "invertY") preferences = { ...preferences, [key]: input.checked };
       else preferences = { ...preferences, [key]: Number(input.value) };
       persistPreferences();
       const output = app.querySelector<HTMLOutputElement>(`[data-output="${key}"]`);
