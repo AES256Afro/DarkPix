@@ -3,7 +3,10 @@ export class AudioDirector {
   private master?: GainNode;
   private drone?: OscillatorNode;
 
+  constructor(private readonly enabled = true) {}
+
   start(): void {
+    if (!this.enabled) return;
     if (this.context) {
       void this.context.resume();
       return;
@@ -23,6 +26,7 @@ export class AudioDirector {
   }
 
   tone(frequency: number, duration = 0.09, type: OscillatorType = "square", volume = 0.11): void {
+    if (!this.enabled) return;
     if (!this.context || !this.master) return;
     const now = this.context.currentTime;
     const oscillator = this.context.createOscillator();

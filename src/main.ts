@@ -1,14 +1,16 @@
 import "./style.css";
 import { CLASSES, RARITY_COLOR, formatTime, levelForXp } from "./game/data";
 import { DarkPixGame } from "./game/game";
+import { loadPreferences, savePreferences } from "./game/preferences";
 import { applyRaidResult, loadProfile, saveProfile } from "./game/profile";
-import type { ClassId, Item, Profile, RaidResult } from "./game/types";
+import type { ClassId, GamePreferences, Item, Profile, RaidResult } from "./game/types";
 
 const foundApp = document.querySelector<HTMLDivElement>("#app");
 if (!foundApp) throw new Error("DarkPix application root is missing");
 const app = foundApp;
 
 let profile: Profile = loadProfile();
+let preferences: GamePreferences = loadPreferences();
 let selectedClass: ClassId = profile.preferredClass;
 let equippedIds = new Set<string>();
 let activeGame: DarkPixGame | undefined;
@@ -111,6 +113,13 @@ function renderLobby(): void {
               <div><small>THE TAVERNER'S FIRST DEBT</small><strong>${profile.extracts > 0 ? "Debt honored" : "Escape the Pale Toll"}</strong><p>${profile.extracts > 0 ? "The tavern remembers your name. More contracts are coming." : "Return alive once with anything worth keeping."}</p></div>
               <b>${profile.extracts > 0 ? "COMPLETE" : "0 / 1"}</b>
             </section>
+            <section class="settings-panel" aria-labelledby="settings-heading">
+              <div class="panel-heading"><span><small>ACCESSIBILITY</small><strong id="settings-heading">Delver settings</strong></span><b>LOCAL</b></div>
+              <label class="setting-line"><span>Mouse sensitivity <output data-output="mouseSensitivity">${preferences.mouseSensitivity.toFixed(1)}x</output></span><input type="range" aria-label="Mouse sensitivity" data-preference="mouseSensitivity" min="0.5" max="2" step="0.1" value="${preferences.mouseSensitivity}"></label>
+              <label class="setting-line"><span>Crypt brightness <output data-output="brightness">${Math.round(preferences.brightness * 100)}%</output></span><input type="range" aria-label="Crypt brightness" data-preference="brightness" min="0.75" max="1.4" step="0.05" value="${preferences.brightness}"></label>
+              <label class="setting-toggle"><input type="checkbox" data-preference="muted" ${preferences.muted ? "checked" : ""}><span>Mute dungeon audio</span></label>
+              <label class="setting-toggle"><input type="checkbox" data-preference="reducedMotion" ${preferences.reducedMotion ? "checked" : ""}><span>Reduce camera motion</span></label>
+            </section>
           </aside>
         </div>
       </section>
@@ -150,6 +159,16 @@ function renderLobby(): void {
       renderLobby();
     });
   });
+  app.querySelectorAll<HTMLInputElement>("[data-preference]").forEach((input) => {
+    input.addEventListener("input", () => {
+      const key = input.dataset.preference as keyof GamePreferences;
+      if (key === "muted" || key === "reducedMotion") preferences = { ...preferences, [key]: input.checked };
+      else preferences = { ...preferences, [key]: Number(input.value) };
+      savePreferences(preferences);
+      const output = app.querySelector<HTMLOutputElement>(`[data-output="${key}"]`);
+      if (output) output.textContent = key === "brightness" ? `${Math.round(Number(input.value) * 100)}%` : `${Number(input.value).toFixed(1)}x`;
+    });
+  });
   app.querySelector<HTMLButtonElement>(".descend-button")?.addEventListener("click", startRaid);
   app.querySelector<HTMLAnchorElement>(".brand")?.addEventListener("click", (event) => event.preventDefault());
 }
@@ -162,6 +181,7 @@ function startRaid(): void {
   activeGame = new DarkPixGame(mount, {
     classId: selectedClass,
     equipped,
+    preferences,
     onFinish: finishRaid,
   });
 }

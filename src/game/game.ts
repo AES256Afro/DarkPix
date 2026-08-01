@@ -1,7 +1,9 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
 import { CLASSES, RARITY_COLOR, createLoot, createSigil, formatTime } from "./data";
-import type { ClassId, Item, RaidEndReason, RaidResult } from "./types";
+import { DUNGEON } from "./dungeon";
+import { targetDistanceInView } from "./targeting";
+import type { ClassId, GamePreferences, Item, RaidEndReason, RaidResult } from "./types";
 
 interface WallCollider {
   x: number;
@@ -43,11 +45,12 @@ interface Chest {
 export interface DarkPixGameOptions {
   classId: ClassId;
   equipped: Item[];
+  preferences: GamePreferences;
   onFinish: (result: RaidResult) => void;
 }
 
-const WORLD_SIZE = 44;
 const RAID_DURATION = 210;
+const SPAWN_GRACE = 8;
 const PLAYER_HEIGHT = 1.67;
 const PLAYER_RADIUS = 0.38;
 
@@ -100,7 +103,7 @@ export class DarkPixGame {
   private readonly camera = new THREE.PerspectiveCamera(72, 1, 0.05, 80);
   private readonly renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
   private readonly clock = new THREE.Clock();
-  private readonly audio = new AudioDirector();
+  private readonly audio: AudioDirector;
   private readonly keys = new Set<string>();
   private readonly walls: WallCollider[] = [];
   private readonly enemies: Enemy[] = [];
@@ -113,6 +116,7 @@ export class DarkPixGame {
   private readonly portalCore = new THREE.Mesh();
   private readonly campfire = new THREE.Group();
   private readonly resizeObserver: ResizeObserver;
+  private readonly maxHealth: number;
   private healthFill!: HTMLElement;
   private staminaFill!: HTMLElement;
   private spellFill!: HTMLElement;
@@ -136,6 +140,7 @@ export class DarkPixGame {
   private sigils = 0;
   private portalUnlocked = false;
   private portalAnnounced = false;
+  private spawnGraceAnnounced = false;
   private campfireUsed = false;
   private ended = false;
   private paused = true;
@@ -157,9 +162,11 @@ export class DarkPixGame {
   constructor(mount: HTMLElement, options: DarkPixGameOptions) {
     this.mount = mount;
     this.options = options;
+    this.audio = new AudioDirector(!options.preferences.muted);
     this.definition = CLASSES[options.classId];
     const armorBonus = options.equipped.filter((item) => item.kind === "armor").reduce((sum, item) => sum + item.power, 0);
-    this.health = this.definition.maxHealth + armorBonus;
+    this.maxHealth = this.definition.maxHealth + armorBonus;
+    this.health = this.maxHealth;
     this.stamina = this.definition.maxStamina;
     this.resizeObserver = new ResizeObserver(() => this.resize());
 
@@ -176,7 +183,7 @@ export class DarkPixGame {
 
   private createShell(): void {
     this.mount.innerHTML = `
-      <div class="raid-shell" data-class="${this.options.classId}">
+      <div class="raid-shell ${this.options.preferences.reducedMotion ? "reduced-motion" : ""}" data-class="${this.options.classId}">
         <div class="render-host"></div>
         <div class="pixel-grid" aria-hidden="true"></div>
         <div class="darkness-vignette" aria-hidden="true"></div>
@@ -251,10 +258,11 @@ export class DarkPixGame {
     this.renderer.shadowMap.type = THREE.BasicShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.domElement.className = "game-canvas";
+    this.renderer.domElement.style.filter = `brightness(${this.options.preferences.brightness})`;
     this.scene.background = new THREE.Color(0x050606);
     this.scene.fog = new THREE.FogExp2(0x050707, 0.04);
     this.camera.rotation.order = "YXZ";
-    this.camera.position.set(0, PLAYER_HEIGHT, 17.4);
+    this.camera.position.set(DUNGEON.playerStart.x, PLAYER_HEIGHT, DUNGEON.playerStart.z);
     this.scene.add(this.camera);
     const delverTorch = new THREE.SpotLight(0xffb267, 5.2, 18, Math.PI / 3.8, 0.7, 1.25);
     delverTorch.position.set(0.28, 0.05, 0.1);
@@ -268,7 +276,7 @@ export class DarkPixGame {
     const wallTexture = pixelTexture("#302e2b", "#413d37", "#1a1b1a", true);
     wallTexture.repeat.set(3, 2);
     const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE, 1, 1),
+      new THREE.PlaneGeometry(DUNGEON.size, DUNGEON.size, 1, 1),
       new THREE.MeshStandardMaterial({ map: floorTexture, roughness: 1, color: 0x77736b }),
     );
     floor.rotation.x = -Math.PI / 2;
@@ -277,7 +285,7 @@ export class DarkPixGame {
     this.scene.add(floor);
 
     const ceiling = new THREE.Mesh(
-      new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE),
+      new THREE.PlaneGeometry(DUNGEON.size, DUNGEON.size),
       new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 1, side: THREE.DoubleSide }),
     );
     ceiling.rotation.x = Math.PI / 2;
@@ -285,26 +293,9 @@ export class DarkPixGame {
     this.scene.add(ceiling);
 
     const wallMat = new THREE.MeshStandardMaterial({ map: wallTexture, roughness: 0.96, color: 0x8b8479 });
-    this.addWall(0, -22, 44, 1, wallMat);
-    this.addWall(0, 22, 44, 1, wallMat);
-    this.addWall(-22, 0, 1, 44, wallMat);
-    this.addWall(22, 0, 1, 44, wallMat);
-    this.addWall(-10, 14, 1, 15, wallMat);
-    this.addWall(-10, -13, 1, 13, wallMat);
-    this.addWall(10, 15, 1, 13, wallMat);
-    this.addWall(10, -12, 1, 16, wallMat);
-    this.addWall(-19, 7, 6, 1, wallMat);
-    this.addWall(-12, 7, 4, 1, wallMat);
-    this.addWall(12, 7, 4, 1, wallMat);
-    this.addWall(19, 7, 6, 1, wallMat);
-    this.addWall(-19, -7, 6, 1, wallMat);
-    this.addWall(-12, -7, 4, 1, wallMat);
-    this.addWall(12, -7, 4, 1, wallMat);
-    this.addWall(19, -7, 6, 1, wallMat);
-    this.addWall(-4, 3, 12, 1, wallMat);
-    this.addWall(5, -3, 11, 1, wallMat);
+    DUNGEON.walls.forEach((wall) => this.addWall(wall.x, wall.z, wall.width, wall.depth, wallMat));
 
-    for (const [x, z] of [[-19, 19], [19, 19], [-19, -19], [19, -19], [-8, 5], [8, -5]] as const) {
+    for (const { x, z } of DUNGEON.pillars) {
       const pillar = new THREE.Mesh(new THREE.BoxGeometry(1.1, 4, 1.1), wallMat);
       pillar.position.set(x, 2, z);
       pillar.castShadow = true;
@@ -313,27 +304,11 @@ export class DarkPixGame {
       this.walls.push({ x, z, halfW: 0.55, halfD: 0.55 });
     }
 
-    const torches: Array<[number, number, number]> = [
-      [-7, 18, 0], [7, 18, 0], [-18, 10, Math.PI / 2], [18, 10, -Math.PI / 2],
-      [-7, 1.5, 0], [7, -1.5, Math.PI], [-18, -12, Math.PI / 2], [18, -12, -Math.PI / 2],
-      [0, -20.5, Math.PI],
-    ];
-    torches.forEach(([x, z, rotation], index) => this.addTorch(x, z, rotation, index));
-
-    this.createCampfire(-16, 15);
-    this.createPortal(16, -16);
-    this.createChest(-16, 11, 0.01);
-    this.createChest(16, 12, 0.03);
-    this.createChest(-16, -15, 0.08);
-    this.createChest(4, -16, 0.12);
-
-    this.spawnEnemy("crawler", -5, 12);
-    this.spawnEnemy("skeleton", 5, 9);
-    this.spawnEnemy("warden", -16, -11);
-    this.spawnEnemy("warden", 15, 2);
-    this.spawnEnemy("skeleton", 4, -11);
-    this.spawnEnemy("crawler", -4, -17);
-    this.spawnEnemy("rival", 14, -12);
+    DUNGEON.torches.forEach(({ x, z, rotation }, index) => this.addTorch(x, z, rotation, index));
+    this.createCampfire(DUNGEON.campfire.x, DUNGEON.campfire.z);
+    this.createPortal(DUNGEON.portal.x, DUNGEON.portal.z);
+    DUNGEON.chests.forEach((chest) => this.createChest(chest.x, chest.z, chest.depthBonus));
+    DUNGEON.enemies.forEach((enemy) => this.spawnEnemy(enemy.kind, enemy.x, enemy.z));
 
     this.scene.add(new THREE.HemisphereLight(0x59676b, 0x241611, 0.56));
     this.scene.add(new THREE.AmbientLight(0x312b27, 0.42));
@@ -576,8 +551,8 @@ export class DarkPixGame {
 
   private onMouseMove = (event: MouseEvent): void => {
     if (document.pointerLockElement !== this.renderer.domElement || this.ended) return;
-    this.yaw -= event.movementX * 0.0023;
-    this.pitch -= event.movementY * 0.0021;
+    this.yaw -= event.movementX * 0.0023 * this.options.preferences.mouseSensitivity;
+    this.pitch -= event.movementY * 0.0021 * this.options.preferences.mouseSensitivity;
     this.pitch = THREE.MathUtils.clamp(this.pitch, -1.35, 1.35);
     this.mouseAccumulator.x += event.movementX;
     this.mouseAccumulator.y += event.movementY;
@@ -668,7 +643,7 @@ export class DarkPixGame {
     if (sprinting) this.stamina = Math.max(0, this.stamina - delta * (this.options.classId === "cutpurse" ? 17 : 24));
     else if (!this.blocking) this.stamina = Math.min(this.definition.maxStamina, this.stamina + delta * 19);
 
-    if (moving) {
+    if (moving && !this.options.preferences.reducedMotion) {
       this.footstepClock += delta * speed;
       this.camera.position.y = PLAYER_HEIGHT + Math.sin(this.footstepClock * 2.25) * 0.035;
     } else {
@@ -769,7 +744,7 @@ export class DarkPixGame {
       enemy.group.scale.lerp(new THREE.Vector3(1, 1, 1), delta * 7);
       const toPlayer = new THREE.Vector3(player.x - enemy.group.position.x, 0, player.z - enemy.group.position.z);
       const distance = toPlayer.length();
-      if (distance < 10.5) enemy.alerted = true;
+      if (this.elapsed >= SPAWN_GRACE && distance < 10.5) enemy.alerted = true;
       if (!enemy.alerted) {
         enemy.group.rotation.y += Math.sin(this.elapsed * 0.35 + enemy.phase) * delta * 0.15;
         continue;
@@ -820,14 +795,14 @@ export class DarkPixGame {
   }
 
   private usePotion(): void {
-    if (this.paused || this.ended || this.health >= this.definition.maxHealth) return;
+    if (this.paused || this.ended || this.health >= this.maxHealth) return;
     const potionIndex = this.raidLoot.findIndex((item) => item.kind === "consumable");
     if (potionIndex < 0) {
       this.feed("No draught in your unsecured haul.", "danger");
       return;
     }
     const [potion] = this.raidLoot.splice(potionIndex, 1);
-    this.health = Math.min(this.definition.maxHealth, this.health + 36);
+    this.health = Math.min(this.maxHealth, this.health + 36);
     this.feed(`${potion?.name ?? "Draught"} restores 36 vigor.`, "loot");
     this.audio.loot();
   }
@@ -837,7 +812,17 @@ export class DarkPixGame {
     const safeRadius = THREE.MathUtils.lerp(31, 6.2, progress);
     const distance = Math.hypot(this.camera.position.x, this.camera.position.z);
     const zoneCopy = this.mount.querySelector<HTMLElement>(".zone-copy");
-    if (zoneCopy) zoneCopy.textContent = progress === 0 ? "darkness dormant" : `safe reach ${Math.round(safeRadius)}m`;
+    if (zoneCopy) {
+      zoneCopy.textContent = this.elapsed < SPAWN_GRACE
+        ? `warding veil ${Math.ceil(SPAWN_GRACE - this.elapsed)}s`
+        : progress === 0
+          ? "darkness dormant"
+          : `safe reach ${Math.round(safeRadius)}m`;
+    }
+    if (!this.spawnGraceAnnounced && this.elapsed >= SPAWN_GRACE) {
+      this.spawnGraceAnnounced = true;
+      this.feed("The warding veil gutters. The crypt can hear you now.", "danger");
+    }
     if (distance > safeRadius) {
       this.vignette = Math.max(this.vignette, 0.68);
       if (this.damageCooldown <= 0) this.hurt(delta * 23, "the dark");
@@ -852,10 +837,19 @@ export class DarkPixGame {
     let targetPickup: Pickup | undefined;
     let targetChest: Chest | undefined;
     let nearest = 2.6;
+    const facing3 = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    const origin = { x: this.camera.position.x, z: this.camera.position.z };
+    const facing = { x: facing3.x, z: facing3.z };
+    const targetDistance = (position: THREE.Vector3, maxDistance = 2.6) => targetDistanceInView(
+      origin,
+      facing,
+      { x: position.x, z: position.z },
+      maxDistance,
+    );
 
     for (const pickup of this.pickups) {
       if (pickup.collected) continue;
-      const distance = pickup.group.position.distanceTo(this.camera.position);
+      const distance = targetDistance(pickup.group.position);
       if (distance < nearest) {
         nearest = distance;
         targetPickup = pickup;
@@ -864,18 +858,19 @@ export class DarkPixGame {
     }
     for (const chest of this.chests) {
       if (chest.opened) continue;
-      const distance = chest.group.position.distanceTo(this.camera.position);
+      const distance = targetDistance(chest.group.position);
       if (distance < nearest) {
         nearest = distance;
         targetChest = chest;
         interactive = "chest";
       }
     }
-    if (!this.campfireUsed && this.campfire.position.distanceTo(this.camera.position) < nearest) {
-      nearest = this.campfire.position.distanceTo(this.camera.position);
+    const campfireDistance = targetDistance(this.campfire.position);
+    if (!this.campfireUsed && campfireDistance < nearest) {
+      nearest = campfireDistance;
       interactive = "campfire";
     }
-    if (this.portalUnlocked && this.portal.position.distanceTo(this.camera.position) < 3.1) {
+    if (this.portalUnlocked && Number.isFinite(targetDistance(this.portal.position, 3.1))) {
       interactive = "portal";
     }
 
@@ -936,7 +931,7 @@ export class DarkPixGame {
 
   private useCampfire(): void {
     this.campfireUsed = true;
-    this.health = Math.min(this.definition.maxHealth, this.health + 52);
+    this.health = Math.min(this.maxHealth, this.health + 52);
     this.spellCharges = 6;
     this.stamina = this.definition.maxStamina;
     this.feed("You rest once. Footsteps echo while memory returns.", "system");
@@ -991,8 +986,7 @@ export class DarkPixGame {
   }
 
   private updateHud(): void {
-    const healthMax = this.definition.maxHealth + this.options.equipped.filter((item) => item.kind === "armor").reduce((sum, item) => sum + item.power, 0);
-    this.healthFill.style.width = `${Math.max(0, (this.health / healthMax) * 100)}%`;
+    this.healthFill.style.width = `${Math.max(0, (this.health / this.maxHealth) * 100)}%`;
     this.staminaFill.style.width = `${(this.stamina / this.definition.maxStamina) * 100}%`;
     this.spellFill.style.width = `${this.options.classId === "hexbound" ? (this.spellCharges / 6) * 100 : 100}%`;
     this.spellFill.parentElement?.classList.toggle("inactive", this.options.classId !== "hexbound");

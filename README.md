@@ -26,6 +26,8 @@ Open `http://127.0.0.1:4173` on a desktop browser. Click **Enter the Crypt** to 
 
 Moving the mouse vertically before a strike selects an overhead attack. Horizontal movement selects a sweep. A centered motion selects a thrust. Vanguard blocks can parry during the opening guard window. Cutpurse attacks deal extra damage against unaware targets. Hexbound casts six ranged ash bolts and restores spell memory once at the campfire.
 
+Mouse sensitivity, crypt brightness, audio, and reduced camera motion can be adjusted from the lobby. These preferences stay local to the browser. Each raid begins with an eight-second warding veil so the player can orient before passive enemies acquire them. Attacking during the veil still alerts the target.
+
 ## Extraction loop
 
 - Choose Vanguard, Cutpurse, or Hexbound. Class XP and levels persist across every outcome.
@@ -44,7 +46,7 @@ npm test
 npm run build
 ```
 
-The automated suite covers loot rarity, deterministic item creation, profile migration, XP persistence, stash loss on death, and successful extraction banking.
+The automated suite covers loot rarity, deterministic item creation, profile migration, XP persistence, stash loss on death, successful extraction banking, preference normalization, deliberate interaction targeting, collision integrity, and pathfinding from the player start to every contract-critical location.
 
 ## Production deployment
 

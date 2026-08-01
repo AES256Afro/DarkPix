@@ -40,6 +40,13 @@ export interface Profile {
   preferredClass: ClassId;
 }
 
+export interface GamePreferences {
+  mouseSensitivity: number;
+  brightness: number;
+  muted: boolean;
+  reducedMotion: boolean;
+}
+
 export type RaidEndReason = "extracted" | "slain" | "darkness";
 
 export interface RaidResult {

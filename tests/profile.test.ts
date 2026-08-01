@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createLoot, formatTime, levelForXp, rarityFromRoll } from "../src/game/data";
 import { applyRaidResult, createProfile, normalizeProfile } from "../src/game/profile";
+import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
 
 describe("loot generation", () => {
   it("maps rarity thresholds deterministically", () => {
@@ -78,5 +79,17 @@ describe("display helpers", () => {
     expect(formatTime(-3)).toBe("0:00");
     expect(levelForXp(699)).toBe(2);
     expect(levelForXp(700)).toBe(3);
+  });
+});
+
+describe("local game preferences", () => {
+  it("clamps numeric settings and rejects malformed toggles", () => {
+    expect(normalizePreferences({ mouseSensitivity: 20, brightness: 0, muted: "yes", reducedMotion: true })).toEqual({
+      mouseSensitivity: 2,
+      brightness: 0.75,
+      muted: false,
+      reducedMotion: true,
+    });
+    expect(normalizePreferences(null)).toEqual(DEFAULT_PREFERENCES);
   });
 });

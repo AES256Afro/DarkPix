@@ -158,10 +158,19 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .contract-card strong { margin-top: 3px; color: #c8bcb0; font: 12px Georgia, serif; }
 .contract-card p { margin: 3px 0 0; color: #675f57; font: 10px/1.35 Georgia, serif; }
 .contract-card > b { color: #8b7f70; font: 700 8px ui-monospace, monospace; }
+.settings-panel { padding: 22px 24px; border: 1px solid #29261f; background: #11100e; }
+.setting-line { display: grid; gap: 8px; margin-top: 17px; color: #8b8378; font: 9px ui-monospace, monospace; letter-spacing: .05em; }
+.setting-line > span { display: flex; justify-content: space-between; }
+.setting-line output { color: #c19769; }
+.setting-line input { width: 100%; accent-color: #9a5c39; }
+.setting-toggle { display: flex; align-items: center; gap: 9px; margin-top: 15px; color: #817a70; font: 9px ui-monospace, monospace; cursor: pointer; }
+.setting-toggle input { accent-color: #9a5c39; }
 .site-footer { display: flex; justify-content: space-between; padding: 18px clamp(22px, 5vw, 76px); border-top: 1px solid #211f1b; color: #514d47; font: 700 8px ui-monospace, monospace; letter-spacing: .13em; }
 
 .game-mount { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
 .raid-shell { --darkness: 0; position: relative; width: 100%; height: 100%; overflow: hidden; cursor: crosshair; user-select: none; }
+.raid-shell.reduced-motion .pixel-grid { opacity: .08; }
+.raid-shell.reduced-motion .damage-flash.pulse, .raid-shell.reduced-motion .raid-clock.urgent { animation: none; }
 .render-host, .game-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; image-rendering: pixelated; }
 .pixel-grid { position: absolute; inset: 0; opacity: .14; background-image: repeating-linear-gradient(0deg, transparent 0 3px, rgba(0,0,0,.28) 3px 4px); pointer-events: none; }
 .darkness-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 18%, rgba(4,6,7,calc(var(--darkness) * .42)) 55%, rgba(2,3,4,calc(var(--darkness) * .95)) 100%); box-shadow: inset 0 0 calc(140px * var(--darkness)) calc(30px * var(--darkness)) #000; pointer-events: none; }
