@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
 import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, RAID_HISTORY_LIMIT, applyRaidResult, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
-import { attackDamage, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat } from "../src/game/combat";
+import { attackDamage, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat } from "../src/game/combat";
 
 describe("loot generation", () => {
   it("maps rarity thresholds deterministically", () => {
@@ -159,11 +159,12 @@ describe("persistent raid consequences", () => {
     expect(result.extracts).toBe(0);
     expect(result.highTollExtracts).toBe(0);
     expect(result.ashenExtracts).toBe(0);
-    expect(result.version).toBe(10);
+    expect(result.version).toBe(11);
     expect(result.xp.reaver).toBe(0);
     expect(result.xp.ranger).toBe(0);
     expect(result.xp.cleric).toBe(0);
     expect(result.xp.shapeshifter).toBe(0);
+    expect(result.xp.minstrel).toBe(0);
     expect(result.threatKills).toEqual({ skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 });
     expect(result.boneBountyPaid).toBe(false);
     expect(result.rivalBountyPaid).toBe(false);
@@ -176,16 +177,17 @@ describe("persistent raid consequences", () => {
     legacy.version = 7;
     legacy.xp = { vanguard: 700, cutpurse: 350, hexbound: 0, reaver: 0, ranger: 0, cleric: 0 };
     const migrated = normalizeProfile(legacy);
-    expect(migrated.version).toBe(10);
+    expect(migrated.version).toBe(11);
     expect(migrated.xp.vanguard).toBe(700);
     expect(migrated.xp.cutpurse).toBe(350);
     expect(migrated.xp.shapeshifter).toBe(0);
+    expect(migrated.xp.minstrel).toBe(0);
   });
 
   it("migrates pre-bestiary profiles with empty bounded ledgers", () => {
     const legacy = { ...createProfile(), version: 8, threatKills: undefined, boneBountyPaid: undefined, rivalBountyPaid: undefined };
     const migrated = normalizeProfile(legacy);
-    expect(migrated.version).toBe(10);
+    expect(migrated.version).toBe(11);
     expect(migrated.threatKills).toEqual({ skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 });
     expect(migrated.boneBountyPaid).toBe(false);
     expect(migrated.rivalBountyPaid).toBe(false);
@@ -627,6 +629,7 @@ describe("directional combat damage", () => {
     expect(guardDrainPerSecond("ranger")).toBe(11);
     expect(guardDrainPerSecond("cleric")).toBe(11);
     expect(guardDrainPerSecond("shapeshifter")).toBe(11);
+    expect(guardDrainPerSecond("minstrel")).toBe(11);
   });
 
   it("bounds Blood Rage to the Reaver's active damage window", () => {
@@ -676,6 +679,12 @@ describe("directional combat damage", () => {
     expect(sanctuaryDamage("boss")).toBe(14);
     expect(sanctuaryDamage("rival")).toBe(0);
   });
+
+  it("lets the Minstrel stagger lesser threats while the keeper only falters", () => {
+    expect(minstrelStagger("skeleton")).toBe(2.1);
+    expect(minstrelStagger("rival")).toBe(1.35);
+    expect(minstrelStagger("boss")).toBe(0.45);
+  });
 });
 
 describe("class perk milestones", () => {
@@ -694,10 +703,11 @@ describe("class perk milestones", () => {
     expect(classPerkBonuses("ranger", 6)).toMatchObject({ health: 8, damage: 4, sprintCostMultiplier: 0.9 });
     expect(classPerkBonuses("cleric", 6)).toMatchObject({ health: 8, damage: 3, guardUpkeepMultiplier: 0.9 });
     expect(classPerkBonuses("shapeshifter", 6)).toMatchObject({ health: 8, damage: 4, sprintCostMultiplier: 0.9 });
+    expect(classPerkBonuses("minstrel", 6)).toMatchObject({ health: 8, damage: 3, sprintCostMultiplier: 0.9 });
   });
 
   it("gives every class a bounded active-skill cooldown", () => {
-    expect(Object.keys(CLASS_ABILITIES).sort()).toEqual(["cleric", "cutpurse", "hexbound", "ranger", "reaver", "shapeshifter", "vanguard"]);
+    expect(Object.keys(CLASS_ABILITIES).sort()).toEqual(["cleric", "cutpurse", "hexbound", "minstrel", "ranger", "reaver", "shapeshifter", "vanguard"]);
     for (const ability of Object.values(CLASS_ABILITIES)) {
       expect(ability.name.length).toBeGreaterThan(0);
       expect(ability.cooldown).toBeGreaterThanOrEqual(30);

@@ -181,6 +181,21 @@ export const CLASSES: Record<ClassId, ClassDefinition> = {
     ability: "Wildshape: gain speed, attack cadence, and strike damage for eight seconds.",
     weapon: "Briarbound hand claws",
   },
+  minstrel: {
+    id: "minstrel",
+    name: "Minstrel",
+    title: "The Last Refrain",
+    summary: "A nimble war-musician whose discord breaks committed attacks and restores the breath to reposition.",
+    maxHealth: 98,
+    maxStamina: 135,
+    speed: 4.7,
+    damage: 23,
+    reach: 2.2,
+    attackDelay: 0.68,
+    accent: "#b88aaa",
+    ability: "Rousing Discord: recover stamina and stagger visible nearby threats.",
+    weapon: "Iron-strung war lute",
+  },
 };
 
 export const CLASS_PERKS: Record<ClassId, ClassPerk[]> = {
@@ -218,6 +233,11 @@ export const CLASS_PERKS: Record<ClassId, ClassPerk[]> = {
     { level: 2, name: "Hart's Endurance", description: "Sprinting costs 10% less stamina." },
     { level: 4, name: "Rending Claw", description: "+4 strike damage." },
     { level: 6, name: "Old Bark", description: "+8 maximum vigor." },
+  ],
+  minstrel: [
+    { level: 2, name: "Quick Tempo", description: "Sprinting costs 10% less stamina." },
+    { level: 4, name: "War Chord", description: "+3 strike damage." },
+    { level: 6, name: "Second Wind", description: "+8 maximum vigor." },
   ],
 };
 
@@ -257,15 +277,20 @@ export const CLASS_ABILITIES: Record<ClassId, ClassAbilityDefinition> = {
     cooldown: 46,
     description: "Gain 30% strike damage, 20% attack cadence, and 15% movement speed for eight seconds.",
   },
+  minstrel: {
+    name: "Rousing discord",
+    cooldown: 43,
+    description: "Recover 30 stamina and stagger visible threats within six and a half meters.",
+  },
 };
 
 export function classPerkBonuses(classId: ClassId, level: number): ClassPerkBonuses {
   const safeLevel = Math.max(1, Math.floor(level));
   return {
     health: safeLevel >= 6 && classId !== "vanguard" ? 8 : safeLevel >= 4 && classId === "vanguard" ? 8 : 0,
-    damage: safeLevel >= 4 && (classId === "cutpurse" || classId === "cleric") ? 3 : safeLevel >= 4 && (classId === "hexbound" || classId === "reaver" || classId === "ranger" || classId === "shapeshifter") ? 4 : safeLevel >= 6 && classId === "vanguard" ? 3 : 0,
+    damage: safeLevel >= 4 && (classId === "cutpurse" || classId === "cleric" || classId === "minstrel") ? 3 : safeLevel >= 4 && (classId === "hexbound" || classId === "reaver" || classId === "ranger" || classId === "shapeshifter") ? 4 : safeLevel >= 6 && classId === "vanguard" ? 3 : 0,
     guardUpkeepMultiplier: safeLevel >= 2 && classId === "vanguard" ? 0.8 : safeLevel >= 2 && (classId === "reaver" || classId === "cleric") ? 0.9 : 1,
-    sprintCostMultiplier: safeLevel >= 2 && classId === "cutpurse" ? 0.8 : safeLevel >= 2 && (classId === "ranger" || classId === "shapeshifter") ? 0.9 : 1,
+    sprintCostMultiplier: safeLevel >= 2 && classId === "cutpurse" ? 0.8 : safeLevel >= 2 && (classId === "ranger" || classId === "shapeshifter" || classId === "minstrel") ? 0.9 : 1,
     spellCharges: safeLevel >= 2 && classId === "hexbound" ? 1 : 0,
   };
 }

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { escapeHtml } from "../html";
 import { AudioDirector } from "./audio";
-import { attackDamage, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
+import { attackDamage, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, depthRules } from "./depth";
@@ -321,7 +321,7 @@ export class DarkPixGame {
           <div class="extract-meter"><i></i></div>
           <div class="hud-bottom">
             <section class="vitals">
-              <div class="portrait-rune">${this.options.classId === "vanguard" ? "V" : this.options.classId === "cutpurse" ? "C" : this.options.classId === "hexbound" ? "H" : this.options.classId === "reaver" ? "R" : this.options.classId === "ranger" ? "A" : this.options.classId === "cleric" ? "L" : "S"}</div>
+              <div class="portrait-rune">${this.options.classId === "vanguard" ? "V" : this.options.classId === "cutpurse" ? "C" : this.options.classId === "hexbound" ? "H" : this.options.classId === "reaver" ? "R" : this.options.classId === "ranger" ? "A" : this.options.classId === "cleric" ? "L" : this.options.classId === "shapeshifter" ? "S" : "M"}</div>
               <div class="bars">
                 <div class="bar health"><i></i><span>VIGOR</span></div>
                 <div class="bar stamina"><i></i><span>STAMINA</span></div>
@@ -692,6 +692,14 @@ export class DarkPixGame {
       const seal = new THREE.Mesh(new THREE.RingGeometry(0.08, 0.12, 8), material(0xd6c58e, 0x8c6c28));
       seal.position.set(0, 0.88, 0.18);
       this.weapon.add(haft, head, seal);
+    } else if (this.options.classId === "minstrel") {
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.38, 0.16, 8), material(0x6d452a, 0x24130d));
+      body.rotation.x = Math.PI / 2;
+      const neck = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.92, 0.12), material(0x704b2f));
+      neck.position.y = 0.62;
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.08, 0.08), material(0xb68d5a));
+      bridge.position.set(0, 0.05, 0.12);
+      this.weapon.add(body, neck, bridge);
     } else if (this.options.classId === "shapeshifter") {
       const bracer = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.34, 0.48), material(0x3f4d2d, 0x16200d));
       bracer.position.y = 0.05;
@@ -2004,7 +2012,7 @@ export class DarkPixGame {
       this.wildshapeTimer = 8;
       this.stamina = Math.min(this.definition.maxStamina, this.stamina + 20);
       this.feed("WILDSHAPE · claw, cadence, and stride surge for 8s", "system");
-    } else {
+    } else if (this.options.classId === "cleric") {
       const nearby = this.enemies.filter((enemy) =>
         enemy.alive &&
         sanctuaryDamage(enemy.kind) > 0 &&
@@ -2023,6 +2031,28 @@ export class DarkPixGame {
       this.stamina = Math.min(this.definition.maxStamina, this.stamina + 20);
       for (const enemy of [...nearby]) this.damageEnemy(enemy, sanctuaryDamage(enemy.kind), false, false);
       this.feed(`SANCTUARY · restored${nearby.length ? ` · ${nearby.length} threat${nearby.length === 1 ? "" : "s"} seared` : ""}`, "system");
+    } else {
+      const nearby = this.enemies.filter((enemy) =>
+        enemy.alive &&
+        enemy.group.position.distanceTo(this.camera.position) <= 6.5 &&
+        dungeonLineOfSight(
+          { x: this.camera.position.x, z: this.camera.position.z },
+          { x: enemy.group.position.x, z: enemy.group.position.z },
+          0.12,
+        ),
+      );
+      if (nearby.length === 0 && this.stamina >= this.definition.maxStamina) {
+        this.feed("Rousing discord finds neither pursuit nor lost breath.", "system");
+        return;
+      }
+      this.stamina = Math.min(this.definition.maxStamina, this.stamina + 30);
+      for (const enemy of nearby) {
+        enemy.alerted = true;
+        enemy.windup = 0;
+        enemy.cooldown = Math.max(enemy.cooldown, 0.8);
+        enemy.stagger = Math.max(enemy.stagger, minstrelStagger(enemy.kind));
+      }
+      this.feed(`ROUSING DISCORD · breath restored${nearby.length ? ` · ${nearby.length} threat${nearby.length === 1 ? "" : "s"} staggered` : ""}`, "system");
     }
     this.abilityCooldown = ability.cooldown;
     this.audio.portal();

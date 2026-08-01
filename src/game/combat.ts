@@ -112,3 +112,7 @@ export function sanctuaryDamage(kind: ThreatKind): number {
   if (kind === "rival") return 0;
   return kind === "boss" ? 14 : 28;
 }
+
+export function minstrelStagger(kind: ThreatKind): number {
+  return kind === "boss" ? 0.45 : kind === "rival" ? 1.35 : 2.1;
+}

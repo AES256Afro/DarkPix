@@ -13,7 +13,7 @@ const foundApp = document.querySelector<HTMLDivElement>("#app");
 if (!foundApp) throw new Error("DarkPix application root is missing");
 const app = foundApp;
 const release = import.meta.env.VITE_DARKPIX_VERSION || "dev";
-const CLASS_RUNES: Record<ClassId, string> = { vanguard: "V", cutpurse: "C", hexbound: "H", reaver: "R", ranger: "A", cleric: "L", shapeshifter: "S" };
+const CLASS_RUNES: Record<ClassId, string> = { vanguard: "V", cutpurse: "C", hexbound: "H", reaver: "R", ranger: "A", cleric: "L", shapeshifter: "S", minstrel: "M" };
 
 let profile: Profile = loadProfile();
 let preferences: GamePreferences = loadPreferences();
