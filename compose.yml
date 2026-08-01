@@ -1,0 +1,35 @@
+name: darkpix
+
+services:
+  darkpix:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: darkpix-web:local
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8092:8080"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 384m
+    cpus: 1.5
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      bigbox_tunnel:
+        aliases:
+          - darkpix
+
+networks:
+  bigbox_tunnel:
+    external: true
+    name: gridless_gridless
