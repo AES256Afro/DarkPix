@@ -31,7 +31,7 @@ const STARTER_STASH: Item[] = [
 
 export function createProfile(): Profile {
   return {
-    version: 5,
+    version: 6,
     gold: 75,
     xp: { vanguard: 0, cutpurse: 0, hexbound: 0, reaver: 0, ranger: 0 },
     stash: STARTER_STASH.map((item) => ({ ...item })),
@@ -39,6 +39,7 @@ export function createProfile(): Profile {
     deaths: 0,
     bossVictories: 0,
     highTollExtracts: 0,
+    ashenExtracts: 0,
     preferredClass: "vanguard",
   };
 }
@@ -92,7 +93,7 @@ export function normalizeProfile(value: unknown): Profile {
     }
   }
   return {
-    version: 5,
+    version: 6,
     gold: nonnegativeInteger(candidate.gold, MAX_GOLD),
     xp: {
       vanguard: nonnegativeInteger(xp.vanguard, MAX_CLASS_XP),
@@ -106,6 +107,7 @@ export function normalizeProfile(value: unknown): Profile {
     deaths: nonnegativeInteger(candidate.deaths, MAX_OUTCOME_COUNT),
     bossVictories: nonnegativeInteger(candidate.bossVictories, MAX_OUTCOME_COUNT),
     highTollExtracts: nonnegativeInteger(candidate.highTollExtracts, MAX_OUTCOME_COUNT),
+    ashenExtracts: nonnegativeInteger(candidate.ashenExtracts, MAX_OUTCOME_COUNT),
     preferredClass: validClass(candidate.preferredClass) ? candidate.preferredClass : fallback.preferredClass,
   };
 }
@@ -135,6 +137,7 @@ export interface RaidSettlement {
   firstContractPaid: boolean;
   bossContractPaid: boolean;
   highTollContractPaid: boolean;
+  ashenContractPaid: boolean;
   overflowGold: number;
   goldGained: number;
   xpGained: number;
@@ -159,6 +162,7 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     firstContractPaid: false,
     bossContractPaid: false,
     highTollContractPaid: false,
+    ashenContractPaid: false,
     overflowGold: 0,
     goldGained: 0,
     xpGained: xpGain,
@@ -168,12 +172,15 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     const firstContractReward = next.extracts === 0 ? 100 : 0;
     const bossContractReward = result.bossKilled && next.bossVictories === 0 ? 150 : 0;
     const highTollContractReward = result.raidMode === "high_toll" && next.highTollExtracts === 0 ? 200 : 0;
+    const ashenContractReward = result.depthReached === 2 && next.ashenExtracts === 0 ? 250 : 0;
     settlement.firstContractPaid = firstContractReward > 0;
     settlement.bossContractPaid = bossContractReward > 0;
     settlement.highTollContractPaid = highTollContractReward > 0;
+    settlement.ashenContractPaid = ashenContractReward > 0;
     next.extracts = Math.min(MAX_OUTCOME_COUNT, next.extracts + 1);
     if (result.bossKilled) next.bossVictories = Math.min(MAX_OUTCOME_COUNT, next.bossVictories + 1);
     if (result.raidMode === "high_toll") next.highTollExtracts = Math.min(MAX_OUTCOME_COUNT, next.highTollExtracts + 1);
+    if (result.depthReached === 2) next.ashenExtracts = Math.min(MAX_OUTCOME_COUNT, next.ashenExtracts + 1);
     const knownIds = new Set(next.stash.map((item) => item.id));
     const transferable: Item[] = [];
     for (const item of result.loot) {
@@ -192,7 +199,7 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     const availableGoldCapacity = Math.max(0, MAX_GOLD - next.gold);
     settlement.goldGained = Math.min(
       availableGoldCapacity,
-      nonnegativeInteger(result.goldFound, MAX_GOLD) + firstContractReward + bossContractReward + highTollContractReward + settlement.overflowGold,
+      nonnegativeInteger(result.goldFound, MAX_GOLD) + firstContractReward + bossContractReward + highTollContractReward + ashenContractReward + settlement.overflowGold,
     );
     next.stash = [...next.stash, ...settlement.banked];
     next.gold += settlement.goldGained;

@@ -205,6 +205,11 @@ function renderLobby(): void {
               <div><small>THE DEEPER WAGER</small><strong>${profile.highTollExtracts > 0 ? "Wager returned" : "Escape the High Toll"}</strong><p>${profile.highTollExtracts > 0 ? `${profile.highTollExtracts} High Toll escape${profile.highTollExtracts === 1 ? "" : "s"}. The first 200g bounty was paid.` : "Pay the fee, survive the empowered crypt, and extract. Reward: 200g."}</p></div>
               <b>${profile.highTollExtracts > 0 ? "PAID" : "0 / 1"}</b>
             </section>
+            <section class="contract-card">
+              <span class="wax-seal">IV</span>
+              <div><small>ASH BELOW ASH</small><strong>${profile.ashenExtracts > 0 ? "Depth answered" : "Return from the Ashen Depth"}</strong><p>${profile.ashenExtracts > 0 ? `${profile.ashenExtracts} Ashen return${profile.ashenExtracts === 1 ? "" : "s"}. The first 250g bounty was paid.` : "Slay the first keeper, descend red, and escape the second floor. Reward: 250g."}</p></div>
+              <b>${profile.ashenExtracts > 0 ? "PAID" : "0 / 1"}</b>
+            </section>
             <section class="settings-panel" aria-labelledby="settings-heading">
               <div class="panel-heading"><span><small>ACCESSIBILITY</small><strong id="settings-heading">Delver settings</strong></span><b>LOCAL</b></div>
               <label class="setting-line"><span>Mouse sensitivity <output data-output="mouseSensitivity">${preferences.mouseSensitivity.toFixed(1)}x</output></span><input type="range" aria-label="Mouse sensitivity" data-preference="mouseSensitivity" min="0.5" max="2" step="0.1" value="${preferences.mouseSensitivity}"></label>
@@ -466,7 +471,7 @@ function finishRaid(result: RaidResult): void {
       ? "THE DARK TOOK YOU"
       : result.reason === "abandoned" ? "THE CONTRACT WAS FORFEIT" : "YOUR TORCH WENT OUT";
   const detail = extracted
-    ? `${result.depthReached === 2 ? "The Ashen Depth's passage" : "The blue passage"} seals behind you. ${settlement.overflow.length ? `${settlement.overflow.length} overflow item${settlement.overflow.length === 1 ? " was" : "s were"} sold by the porter for ${settlement.overflowGold}g.` : "Everything in your haul fits safely in the stash."}${result.depthReached === 2 ? " The red-depth veterancy bonus is recorded." : ""}${settlement.firstContractPaid ? " The Taverner's 100g bounty is paid." : ""}${settlement.bossContractPaid ? " The 150g Tollkeeper bounty is paid." : ""}${settlement.highTollContractPaid ? " The 200g Deeper Wager bounty is paid." : result.raidMode === "high_toll" ? " The High Toll veterancy bonus is recorded." : ""}`
+    ? `${result.depthReached === 2 ? "The Ashen Depth's passage" : "The blue passage"} seals behind you. ${settlement.overflow.length ? `${settlement.overflow.length} overflow item${settlement.overflow.length === 1 ? " was" : "s were"} sold by the porter for ${settlement.overflowGold}g.` : "Everything in your haul fits safely in the stash."}${result.depthReached === 2 ? " The red-depth veterancy bonus is recorded." : ""}${settlement.firstContractPaid ? " The Taverner's 100g bounty is paid." : ""}${settlement.bossContractPaid ? " The 150g Tollkeeper bounty is paid." : ""}${settlement.highTollContractPaid ? " The 200g Deeper Wager bounty is paid." : result.raidMode === "high_toll" ? " The High Toll veterancy bonus is recorded." : ""}${settlement.ashenContractPaid ? " The 250g Ash Below Ash bounty is paid." : ""}`
     : `Your class remembers. Your carried gear and every unsecured find remain ${result.depthReached === 2 ? "in the Ashen Depth" : "below"}.${result.depthReached === 2 ? " Some red-depth veterancy survives." : ""}${result.raidMode === "high_toll" ? ` The ${rules.entryFee}g entry fee is gone.` : ""}`;
   app.innerHTML = `
     <main class="result-screen ${extracted ? "success" : "failure"}">

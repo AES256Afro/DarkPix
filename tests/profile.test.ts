@@ -108,7 +108,8 @@ describe("persistent raid consequences", () => {
     expect(result.stash).toEqual([]);
     expect(result.extracts).toBe(0);
     expect(result.highTollExtracts).toBe(0);
-    expect(result.version).toBe(5);
+    expect(result.ashenExtracts).toBe(0);
+    expect(result.version).toBe(6);
     expect(result.xp.reaver).toBe(0);
     expect(result.xp.ranger).toBe(0);
     expect(result.preferredClass).toBe("vanguard");
@@ -225,6 +226,34 @@ describe("persistent raid consequences", () => {
     expect(second.goldGained).toBe(0);
     expect(settleRaid(createProfile(), { ...result, raidMode: "standard" }).profile.highTollExtracts).toBe(0);
     expect(settleRaid(createProfile(), { ...result, reason: "slain" }).profile.highTollExtracts).toBe(0);
+  });
+
+  it("records and pays the first successful Ashen Depth return only once", () => {
+    const profile = createProfile();
+    profile.extracts = 1;
+    profile.bossVictories = 1;
+    const result = {
+      reason: "extracted" as const,
+      raidMode: "standard" as const,
+      depthReached: 2 as const,
+      classId: "ranger" as const,
+      loot: [],
+      equippedIds: [],
+      kills: 0,
+      elapsed: 180,
+      goldFound: 0,
+      bossKilled: true,
+    };
+    const first = settleRaid(profile, result);
+    const second = settleRaid(first.profile, result);
+    expect(first.ashenContractPaid).toBe(true);
+    expect(first.profile.ashenExtracts).toBe(1);
+    expect(first.goldGained).toBe(250);
+    expect(second.ashenContractPaid).toBe(false);
+    expect(second.profile.ashenExtracts).toBe(2);
+    expect(second.goldGained).toBe(0);
+    expect(settleRaid(profile, { ...result, reason: "slain" }).profile.ashenExtracts).toBe(0);
+    expect(settleRaid(profile, { ...result, depthReached: 1 }).profile.ashenExtracts).toBe(0);
   });
 
   it("keeps a full stash intact and liquidates extraction overflow", () => {

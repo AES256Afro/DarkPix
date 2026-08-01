@@ -37,7 +37,7 @@ export interface ClassDefinition {
 }
 
 export interface Profile {
-  version: 5;
+  version: 6;
   gold: number;
   xp: Record<ClassId, number>;
   stash: Item[];
@@ -45,6 +45,7 @@ export interface Profile {
   deaths: number;
   bossVictories: number;
   highTollExtracts: number;
+  ashenExtracts: number;
   preferredClass: ClassId;
 }
 
