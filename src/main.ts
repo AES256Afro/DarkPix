@@ -2,7 +2,7 @@ import "./style.css";
 import { escapeHtml } from "./html";
 import { createSaveBackup, parseSaveBackup } from "./game/backup";
 import { merchantCommission } from "./game/commission";
-import { raidVariationSeal, validRaidVariationSeed } from "./game/contract";
+import { RAID_VARIATION_COUNT, raidVariationSeal, validRaidVariationSeed } from "./game/contract";
 import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses } from "./game/data";
 import { itemValueTotal, raidValueSummary } from "./game/economy";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
@@ -575,7 +575,8 @@ async function startRaid(): Promise<void> {
   }
   const equipped = profile.stash.filter((item) => equippedIds.has(item.id));
   const goldBeforeEntry = profile.gold;
-  let escrow = createRaidEscrow(selectedClass, selectedRaidMode, equipped.map((item) => item.id), Date.now(), 1, 0, goldBeforeEntry);
+  const variationSeed = Math.floor(Math.random() * RAID_VARIATION_COUNT);
+  let escrow = createRaidEscrow(selectedClass, selectedRaidMode, equipped.map((item) => item.id), Date.now(), 1, 0, goldBeforeEntry, {}, variationSeed);
   if (!beginRaidEscrow(escrow)) {
     persistenceWarning = "The browser could not secure a raid escrow. No fee was charged and the raid did not start.";
     renderLobby();
@@ -603,8 +604,9 @@ async function startRaid(): Promise<void> {
       raidMode: selectedRaidMode,
       equipped,
       preferences,
+      variationSeed,
       onCheckpoint: (depthReached, kills, killsByKind) => {
-        escrow = createRaidEscrow(escrow.classId, escrow.raidMode, escrow.equippedIds, escrow.startedAt, depthReached, kills, escrow.goldBeforeEntry, killsByKind);
+        escrow = createRaidEscrow(escrow.classId, escrow.raidMode, escrow.equippedIds, escrow.startedAt, depthReached, kills, escrow.goldBeforeEntry, killsByKind, escrow.variationSeed);
         if (!beginRaidEscrow(escrow)) console.warn("DarkPix could not update the active raid escrow checkpoint");
       },
       onFinish: finishRaid,

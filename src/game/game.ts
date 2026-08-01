@@ -12,7 +12,7 @@ import { raidRules, type RaidRules } from "./raid";
 import { consumablesInUseOrder, nextConsumableId, nextThrowableId, resolveConsumableId, resolveThrowableId, throwablesInUseOrder } from "./quickslots";
 import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./resolution";
 import { disposeSceneResources } from "./resources";
-import { RAID_VARIATION_COUNT, raidVariationSeal } from "./contract";
+import { RAID_VARIATION_COUNT, raidVariationSeal, validRaidVariationSeed } from "./contract";
 import { rarityShape } from "./rarity";
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
@@ -107,6 +107,7 @@ export interface DarkPixGameOptions {
   raidMode: RaidMode;
   equipped: Item[];
   preferences: GamePreferences;
+  variationSeed?: number;
   onFinish: (result: RaidResult) => void;
   onCheckpoint?: (depthReached: DungeonDepth, kills: number, killsByKind: Readonly<Record<ThreatKind, number>>) => void;
 }
@@ -194,11 +195,11 @@ export class DarkPixGame {
   private readonly perkBonuses: ClassPerkBonuses;
   private readonly loadoutBonuses: LoadoutStats;
   private readonly raidRules: RaidRules;
-  private readonly variationSeed = Math.floor(Math.random() * RAID_VARIATION_COUNT);
-  private readonly variation = selectRaidVariation(this.variationSeed);
-  private readonly encountersMirrored = this.variation.encountersMirrored;
-  private readonly portalSite = DUNGEON.portalSites[this.variation.portalSiteIndex] ?? DUNGEON.portal;
-  private readonly campfireSite = DUNGEON.campfireSites[this.variation.campfireSiteIndex] ?? DUNGEON.campfire;
+  private readonly variationSeed: number;
+  private readonly variation: ReturnType<typeof selectRaidVariation>;
+  private readonly encountersMirrored: boolean;
+  private readonly portalSite: Vec2;
+  private readonly campfireSite: Vec2;
   private readonly maxSpellCharges: number;
   private healthFill!: HTMLElement;
   private staminaFill!: HTMLElement;
@@ -293,6 +294,11 @@ export class DarkPixGame {
     this.options = options;
     this.audio = new AudioDirector(!options.preferences.muted, options.preferences.volume);
     this.raidRules = raidRules(options.raidMode);
+    this.variationSeed = validRaidVariationSeed(options.variationSeed) ? options.variationSeed : Math.floor(Math.random() * RAID_VARIATION_COUNT);
+    this.variation = selectRaidVariation(this.variationSeed);
+    this.encountersMirrored = this.variation.encountersMirrored;
+    this.portalSite = DUNGEON.portalSites[this.variation.portalSiteIndex] ?? DUNGEON.portal;
+    this.campfireSite = DUNGEON.campfireSites[this.variation.campfireSiteIndex] ?? DUNGEON.campfire;
     this.definition = CLASSES[options.classId];
     const progression = progressionBonuses(options.classLevel);
     this.perkBonuses = classPerkBonuses(options.classId, options.classLevel);

@@ -25,7 +25,7 @@ Exit evidence: automated domain tests, production TypeScript build, container he
 Status: Complete for local-first play
 
 - Risked equipment leaves the stash only after a failed verdict
-- Active-raid escrow checkpoints depth plus bounded total and per-threat kills, settles refreshes and interrupted tabs as abandonment, and clears only after the verdict is durably saved
+- Active-raid escrow checkpoints the layout seal, depth, and bounded total and per-threat kills, settles refreshes and interrupted tabs as abandonment, and clears only after the verdict is durably saved
 - Paid-contract escrow reconciles the authoritative before/after gold balance when entry is interrupted between storage writes
 - Consumed packed items remain consumed after extraction or failure
 - Treasure coin credit is derived from current haul contents instead of a separate mutable raid counter

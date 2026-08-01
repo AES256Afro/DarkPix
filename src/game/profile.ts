@@ -265,6 +265,7 @@ export interface RaidEscrow {
   depthReached: 1 | 2;
   kills: number;
   killsByKind: Record<ThreatKind, number>;
+  variationSeed?: number;
   entryFee: number;
   goldBeforeEntry?: number;
   goldAfterEntry?: number;
@@ -279,6 +280,7 @@ export function createRaidEscrow(
   kills = 0,
   goldBeforeEntry?: number,
   killsByKind: Partial<Record<ThreatKind, number>> = {},
+  variationSeed?: number,
 ): RaidEscrow {
   const entryFee = raidRules(raidMode).entryFee;
   const safeGoldBeforeEntry = Number.isFinite(goldBeforeEntry) ? nonnegativeInteger(goldBeforeEntry, MAX_GOLD) : undefined;
@@ -291,6 +293,7 @@ export function createRaidEscrow(
     depthReached: depthReached === 2 ? 2 : 1,
     kills: Math.min(1_000, nonnegativeInteger(kills)),
     killsByKind: boundedThreatKills(kills, killsByKind),
+    ...(validRaidVariationSeed(variationSeed) ? { variationSeed } : {}),
     entryFee,
     ...(safeGoldBeforeEntry === undefined ? {} : {
       goldBeforeEntry: safeGoldBeforeEntry,
@@ -312,6 +315,7 @@ export function normalizeRaidEscrow(value: unknown): RaidEscrow | undefined {
     candidate.kills,
     candidate.goldBeforeEntry,
     candidate.killsByKind,
+    candidate.variationSeed,
   );
 }
 
@@ -358,6 +362,7 @@ export function settleInterruptedRaid(profile: Profile, escrow: RaidEscrow): Rai
     equippedIds: escrow.equippedIds,
     kills: escrow.kills,
     killsByKind: escrow.killsByKind,
+    variationSeed: escrow.variationSeed,
     elapsed: 0,
     goldFound: 0,
   });
