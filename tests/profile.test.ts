@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createLoot, formatTime, levelForXp, progressionBonuses, rarityFromRoll } from "../src/game/data";
-import { applyRaidResult, createProfile, normalizeProfile, purchaseItem } from "../src/game/profile";
+import { applyRaidResult, createProfile, normalizeProfile, purchaseItem, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
 import { attackDamage, enemyAttackPattern } from "../src/game/combat";
 
@@ -66,10 +66,11 @@ describe("persistent raid consequences", () => {
   });
 
   it("sanitizes a corrupted persisted profile", () => {
-    const result = normalizeProfile({ gold: -8, xp: { vanguard: "bad" }, stash: [{ name: "broken" }], preferredClass: "dragon" });
+    const result = normalizeProfile({ gold: Number.POSITIVE_INFINITY, xp: { vanguard: Number.NaN }, stash: [{ name: "broken" }], extracts: Number.POSITIVE_INFINITY, preferredClass: "dragon" });
     expect(result.gold).toBe(0);
     expect(result.xp.vanguard).toBe(0);
     expect(result.stash).toEqual([]);
+    expect(result.extracts).toBe(0);
     expect(result.preferredClass).toBe("vanguard");
   });
 
@@ -115,6 +116,28 @@ describe("persistent raid consequences", () => {
     expect(result.stash).toHaveLength(24);
     expect(result.stash.every((item) => item.id.startsWith("kept-"))).toBe(true);
     expect(result.gold).toBe(190);
+  });
+
+  it("banks into a slot freed by a consumed packed item before calculating overflow", () => {
+    const profile = createProfile();
+    const template = profile.stash[0]!;
+    profile.stash = Array.from({ length: 23 }, (_, index) => ({ ...template, id: `kept-${index}` }));
+    profile.stash.push({ ...template, id: "consumed-draught", kind: "consumable" });
+    const recovered = { ...createLoot(() => 0.6), id: "recovered" };
+    const settlement = settleRaid(profile, {
+      reason: "extracted",
+      classId: "vanguard",
+      loot: [recovered],
+      equippedIds: ["consumed-draught"],
+      consumedIds: ["consumed-draught"],
+      kills: 0,
+      elapsed: 40,
+      goldFound: 0,
+    });
+    expect(settlement.banked.map((item) => item.id)).toEqual(["recovered"]);
+    expect(settlement.overflow).toEqual([]);
+    expect(settlement.profile.stash).toHaveLength(24);
+    expect(settlement.goldGained).toBe(100);
   });
 
   it("does not duplicate loot IDs or accept negative result rewards", () => {

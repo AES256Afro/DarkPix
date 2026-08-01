@@ -1,7 +1,7 @@
 import "./style.css";
 import { CLASSES, MERCHANT_OFFERS, RARITY_COLOR, formatTime, levelForXp, progressionBonuses } from "./game/data";
 import { loadPreferences, savePreferences } from "./game/preferences";
-import { applyRaidResult, loadProfile, purchaseItem, saveProfile } from "./game/profile";
+import { loadProfile, purchaseItem, saveProfile, settleRaid } from "./game/profile";
 import type { DarkPixGame } from "./game/game";
 import type { ClassId, GamePreferences, Item, Profile, RaidResult } from "./game/types";
 
@@ -256,19 +256,22 @@ async function startRaid(): Promise<void> {
 function finishRaid(result: RaidResult): void {
   activeGame?.destroy();
   activeGame = undefined;
-  const oldStash = [...profile.stash];
   const extracted = result.reason === "extracted";
-  const firstContractPaid = extracted && profile.extracts === 0;
-  const transferable = result.loot.filter((item) => item.kind !== "sigil");
-  const overflow = extracted ? transferable.slice(Math.max(0, 24 - oldStash.length)) : [];
-  const overflowGold = overflow.reduce((sum, item) => sum + Math.max(1, Math.floor(item.value * 0.5)), 0);
-  const settlementGold = result.goldFound + (firstContractPaid ? 100 : 0) + overflowGold;
-  profile = applyRaidResult(profile, result);
+  const settlement = settleRaid(profile, result);
+  profile = settlement.profile;
   persistProfile();
-  const lost = extracted ? [] : oldStash.filter((item) => result.equippedIds.includes(item.id));
+  const recordedItems = extracted
+    ? [
+        ...settlement.banked.map((item) => ({ item, outcome: "STASHED" })),
+        ...settlement.overflow.map((item) => ({ item, outcome: "PORTER-SOLD" })),
+      ]
+    : [
+        ...settlement.lost.map((item) => ({ item, outcome: "GEAR LOST" })),
+        ...result.loot.map((item) => ({ item, outcome: "HAUL LOST" })),
+      ];
   const headline = extracted ? "YOU RETURNED" : result.reason === "darkness" ? "THE DARK TOOK YOU" : "YOUR TORCH WENT OUT";
   const detail = extracted
-    ? `The blue passage seals behind you. ${overflow.length ? `${overflow.length} overflow item${overflow.length === 1 ? " was" : "s were"} sold by the porter for ${overflowGold}g.` : "Everything in your haul fits safely in the stash."}${firstContractPaid ? " The Taverner's 100g bounty is paid." : ""}`
+    ? `The blue passage seals behind you. ${settlement.overflow.length ? `${settlement.overflow.length} overflow item${settlement.overflow.length === 1 ? " was" : "s were"} sold by the porter for ${settlement.overflowGold}g.` : "Everything in your haul fits safely in the stash."}${settlement.firstContractPaid ? " The Taverner's 100g bounty is paid." : ""}`
     : "Your class remembers. Your carried gear and every unsecured find remain below.";
   app.innerHTML = `
     <main class="result-screen ${extracted ? "success" : "failure"}">
@@ -281,14 +284,14 @@ function finishRaid(result: RaidResult): void {
         <div class="result-metrics">
           <span><small>TIME BELOW</small><strong>${formatTime(result.elapsed)}</strong></span>
           <span><small>THREATS FELLED</small><strong>${result.kills}</strong></span>
-          <span><small>GOLD ${extracted ? "SETTLED" : "LOST"}</small><strong>${extracted ? settlementGold : result.goldFound}g</strong></span>
-          <span><small>CLASS XP</small><strong>+${30 + result.kills * 35 + (extracted ? 140 : 0)}</strong></span>
+          <span><small>GOLD ${extracted ? "SETTLED" : "LOST"}</small><strong>${extracted ? settlement.goldGained : result.goldFound}g</strong></span>
+          <span><small>CLASS XP</small><strong>+${settlement.xpGained}</strong></span>
         </div>
         <div class="result-haul">
-          <div class="panel-heading"><span><small>${extracted ? "STASHED" : "ABANDONED"}</small><strong>${extracted ? "Recovered haul" : "Lost below"}</strong></span><b>${result.loot.length + lost.length} ITEMS</b></div>
+          <div class="panel-heading"><span><small>${extracted ? "SETTLED" : "ABANDONED"}</small><strong>${extracted ? "Recovered haul" : "Lost below"}</strong></span><b>${recordedItems.length} ITEMS</b></div>
           <div class="result-items">
-            ${[...lost, ...result.loot].length ? [...lost, ...result.loot].map((item) => `
-              <div class="result-item" style="--rarity:${RARITY_COLOR[item.rarity]}"><i></i><span><strong>${item.name}</strong><small>${item.rarity} ${item.kind}</small></span><b>${item.value}g</b></div>`).join("") : `<div class="empty-stash"><strong>NOTHING TO RECORD</strong><span>The ledger remains clean.</span></div>`}
+            ${recordedItems.length ? recordedItems.map(({ item, outcome }) => `
+              <div class="result-item" style="--rarity:${RARITY_COLOR[item.rarity]}"><i></i><span><strong>${item.name}</strong><small>${item.rarity} ${item.kind} · ${outcome}</small></span><b>${item.value}g</b></div>`).join("") : `<div class="empty-stash"><strong>NOTHING TO RECORD</strong><span>The ledger remains clean.</span></div>`}
           </div>
         </div>
         <button class="return-button" type="button">RETURN TO THE LAST LANTERN</button>
