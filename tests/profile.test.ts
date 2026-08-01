@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
 import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, applyRaidResult, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
-import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat } from "../src/game/combat";
+import { attackDamage, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat } from "../src/game/combat";
 
 describe("loot generation", () => {
   it("maps rarity thresholds deterministically", () => {
@@ -553,6 +553,18 @@ describe("directional combat damage", () => {
     expect(bossTactic(3.4, true)).toBe("chain");
     expect(bossTactic(2.8, true, true)).toBe("chain");
     expect(bossTactic(Number.NaN, true)).toBe("approach");
+  });
+
+  it("leaves readable safe ground inside and beyond the enraged chain ring", () => {
+    expect(bossTollHits(2.44, true)).toBe(false);
+    expect(bossTollHits(2.45, true)).toBe(true);
+    expect(bossTollHits(6.35, true)).toBe(true);
+    expect(bossTollHits(6.36, true)).toBe(false);
+    expect(bossTollHits(4, false)).toBe(false);
+    expect(bossTollHits(Number.NaN, true)).toBe(false);
+    expect(bossTollDamage(30, false)).toBe(25);
+    expect(bossTollDamage(30, true)).toBe(10);
+    expect(bossTollDamage(Number.NaN, false)).toBe(0);
   });
 
   it("makes sustained guards cost class-tuned stamina", () => {

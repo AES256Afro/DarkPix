@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
-import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat } from "./combat";
+import { attackDamage, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, depthRules } from "./depth";
@@ -45,6 +45,10 @@ interface Enemy {
   attackStyle: "melee" | "ranged";
   crippled: boolean;
   carriedLoot: Item[];
+  tollCooldown: number;
+  tollWindup: number;
+  tollWindupDuration: number;
+  tollRing?: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
 }
 
 interface Pickup {
@@ -763,6 +767,19 @@ export class DarkPixGame {
       object.castShadow = true;
       object.userData.enemyId = id;
     });
+    let tollRing: Enemy["tollRing"];
+    if (isBoss) {
+      tollRing = new THREE.Mesh(
+        new THREE.RingGeometry(2.45 / baseScale, 6.35 / baseScale, 24, 1),
+        new THREE.MeshBasicMaterial({ color: 0xc9412f, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }),
+      );
+      tollRing.position.y = 0.055 / baseScale;
+      tollRing.rotation.x = -Math.PI / 2;
+      tollRing.visible = false;
+      tollRing.castShadow = false;
+      tollRing.renderOrder = 2;
+      group.add(tollRing);
+    }
     this.scene.add(group);
     const baseStats = kind === "boss"
       ? { hp: 245, speed: 1.12, damage: 31, range: 2.15, name: "The Tollkeeper" }
@@ -806,6 +823,10 @@ export class DarkPixGame {
       attackStyle: "melee",
       crippled: false,
       carriedLoot: [],
+      tollCooldown: 5,
+      tollWindup: 0,
+      tollWindupDuration: 1.15,
+      tollRing,
     });
   }
 
@@ -1411,7 +1432,8 @@ export class DarkPixGame {
       enemy.speed *= 1.28;
       enemy.damage = Math.round(enemy.damage * 1.2);
       enemy.cooldown = 0;
-      this.feed("THE TOLLKEEPER ENRAGES · its chain quickens", "danger");
+      enemy.tollCooldown = 1.8;
+      this.feed("THE TOLLKEEPER ENRAGES · its chain quickens and the floor becomes a weapon", "danger");
       this.audio.tone(46, 0.6, "sawtooth", 0.16);
     }
     if (enemy.hp > 0) {
@@ -1419,6 +1441,7 @@ export class DarkPixGame {
       return;
     }
     enemy.alive = false;
+    if (enemy.tollRing) enemy.tollRing.visible = false;
     this.killsByKind[enemy.kind] += 1;
     if (enemy.kind === "boss") {
       this.bossKilled = true;
@@ -1458,7 +1481,7 @@ export class DarkPixGame {
     this.threatStateHud.textContent = !enemy.alive
       ? "FELLED"
       : enemy.kind === "boss"
-        ? enemy.group.userData.enraged ? "KEEPER · ENRAGED" : "KEEPER"
+        ? enemy.tollWindup > 0 ? "KEEPER · CHAIN RING" : enemy.group.userData.enraged ? "KEEPER · ENRAGED" : "KEEPER"
         : enemy.kind === "rival"
           ? enemy.crippled ? "HOSTILE DELVER · CRIPPLED" : "HOSTILE DELVER"
           : enemy.crippled ? "CRYPT THREAT · CRIPPLED" : "CRYPT THREAT";
@@ -1473,6 +1496,7 @@ export class DarkPixGame {
       enemy.cooldown = Math.max(0, enemy.cooldown - delta);
       enemy.stagger = Math.max(0, enemy.stagger - delta);
       enemy.pathTimer = Math.max(0, enemy.pathTimer - delta);
+      enemy.tollCooldown = Math.max(0, enemy.tollCooldown - delta);
       enemy.group.scale.set(
         THREE.MathUtils.lerp(enemy.group.scale.x, enemy.baseScale, delta * 7),
         THREE.MathUtils.lerp(enemy.group.scale.y, enemy.baseScale, delta * 7),
@@ -1501,6 +1525,30 @@ export class DarkPixGame {
         { x: enemy.group.position.x, z: enemy.group.position.z },
         0.12,
       );
+      if (enemy.kind === "boss" && enemy.group.userData.enraged) {
+        if (enemy.tollWindup > 0) {
+          enemy.tollWindup = Math.max(0, enemy.tollWindup - delta);
+          const progress = 1 - enemy.tollWindup / enemy.tollWindupDuration;
+          if (enemy.tollRing) {
+            enemy.tollRing.visible = true;
+            enemy.tollRing.material.opacity = 0.08 + progress * 0.28;
+          }
+          this.showThreatVitals(enemy);
+          if (enemy.tollWindup === 0) this.resolveBossToll(enemy, distance, hasSight);
+          continue;
+        }
+        if (enemy.tollCooldown <= 0 && enemy.windup <= 0 && enemy.stagger <= 0 && hasSight && distance <= 7.2) {
+          enemy.tollWindup = enemy.tollWindupDuration;
+          enemy.cooldown = Math.max(enemy.cooldown, enemy.tollWindupDuration);
+          if (enemy.tollRing) {
+            enemy.tollRing.visible = true;
+            enemy.tollRing.material.opacity = 0.08;
+          }
+          this.feed("CHAIN RING MARKED · crowd the keeper or flee beyond the red band", "danger");
+          this.audio.tone(82, 0.36, "sawtooth", 0.11);
+          continue;
+        }
+      }
       if (enemy.windup > 0) {
         enemy.windup = Math.max(0, enemy.windup - delta);
         const windupProgress = enemy.windupDuration > 0 ? enemy.windup / enemy.windupDuration : 0;
@@ -1615,6 +1663,31 @@ export class DarkPixGame {
         enemy.windupDuration = pattern.windup;
         this.audio.tone(enemy.kind === "boss" ? 58 : 110, 0.08, "square", 0.04);
       }
+    }
+  }
+
+  private resolveBossToll(enemy: Enemy, distance: number, hasSight: boolean): void {
+    enemy.tollCooldown = 6.4;
+    if (enemy.tollRing) {
+      enemy.tollRing.visible = false;
+      enemy.tollRing.material.opacity = 0;
+    }
+    this.audio.tone(42, 0.48, "square", 0.14);
+    if (!bossTollHits(distance, hasSight)) {
+      this.feed("CHAIN RING PASSES · safe stone holds", "system");
+      return;
+    }
+    const guardFacing = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    const facingThreat = guardFacesThreat(
+      { x: guardFacing.x, z: guardFacing.z },
+      { x: enemy.group.position.x - this.camera.position.x, z: enemy.group.position.z - this.camera.position.z },
+    );
+    const guarded = this.blocking && facingThreat;
+    const damage = bossTollDamage(enemy.damage, guarded);
+    this.hurt(damage, `${enemy.name}'s chain ring`);
+    if (guarded) {
+      this.stamina = Math.max(0, this.stamina - 14);
+      this.feed("CHAIN RING GUARDED · the impact drains your footing", "system");
     }
   }
 

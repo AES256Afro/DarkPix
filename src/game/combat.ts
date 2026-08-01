@@ -55,6 +55,15 @@ export function bossTactic(distance: number, hasSight: boolean, enraged = false)
   return "approach";
 }
 
+export function bossTollHits(distance: number, hasSight: boolean): boolean {
+  return hasSight && Number.isFinite(distance) && distance >= 2.45 && distance <= 6.35;
+}
+
+export function bossTollDamage(baseDamage: number, guarded: boolean): number {
+  const safeDamage = Number.isFinite(baseDamage) ? Math.max(0, baseDamage) : 0;
+  return Math.round(safeDamage * 0.82 * (guarded ? 0.42 : 1));
+}
+
 export function guardDrainPerSecond(classId: ClassId): number {
   if (classId === "vanguard") return 7;
   if (classId === "hexbound") return 14;

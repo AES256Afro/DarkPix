@@ -57,7 +57,7 @@ export const BESTIARY: Record<ThreatKind, BestiaryEntry> = {
   mimic: { kind: "mimic", name: "Coffer mimic", title: "The Patient Maw", tactic: "Watch deep coffer locks for teeth. A sweep can cripple the awakened thing." },
   warden: { kind: "warden", name: "Ossuary warden", title: "The Sigil Bearer", tactic: "Bait its heavy windup or a floor trap, then take the sigil from the drop." },
   rival: { kind: "rival", name: "Guildless rival", title: "The Other Torch", tactic: "Break sight at throwing range, close through the retreat, and recover its stolen satchel." },
-  boss: { kind: "boss", name: "The Tollkeeper", title: "Keeper of the Blue Toll", tactic: "Its chain needs sight. Heavy blows cannot be parried, and the keeper enrages at half vigor." },
+  boss: { kind: "boss", name: "The Tollkeeper", title: "Keeper of the Blue Toll", tactic: "Its chain needs sight. At half vigor, stand inside or beyond the marked chain ring. A forward guard is a costly fallback." },
 };
 
 export type HexSpellId = "ash_bolt" | "frost_hex";
