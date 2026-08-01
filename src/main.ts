@@ -25,6 +25,8 @@ let merchantNotice = "";
 let pendingSaleId: string | undefined;
 let persistenceWarning = "";
 let gameModulePromise: Promise<typeof import("./game/game")> | undefined;
+let updateRegistration: ServiceWorkerRegistration | undefined;
+let reloadForUpdate = false;
 
 const interruptedRaid = loadRaidEscrow();
 if (interruptedRaid) {
@@ -55,6 +57,43 @@ function persistPreferences(): void {
   persistenceWarning = "This browser refused local storage. Settings will last only until the page closes.";
   const notice = app.querySelector<HTMLElement>(".merchant-notice");
   if (notice) notice.textContent = persistenceWarning;
+}
+
+function showUpdatePrompt(registration: ServiceWorkerRegistration): void {
+  updateRegistration = registration;
+  if (document.querySelector(".update-prompt")) return;
+  const prompt = document.createElement("aside");
+  prompt.className = "update-prompt";
+  prompt.setAttribute("role", "status");
+  prompt.innerHTML = `<span><strong>NEW TORCHLIGHT READY</strong><small>A newer DarkPix release is waiting.</small></span><button type="button">APPLY UPDATE</button>`;
+  const button = prompt.querySelector<HTMLButtonElement>("button");
+  button?.addEventListener("click", () => {
+    if (activeGame) {
+      button.textContent = "FINISH THE RAID FIRST";
+      return;
+    }
+    button.disabled = true;
+    button.textContent = "REKINDLING...";
+    reloadForUpdate = true;
+    updateRegistration?.waiting?.postMessage({ type: "SKIP_WAITING" });
+  });
+  document.body.append(prompt);
+}
+
+function registerOfflineWorker(): void {
+  if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloadForUpdate) location.reload();
+  });
+  void navigator.serviceWorker.register("/sw.js").then((registration) => {
+    if (registration.waiting && navigator.serviceWorker.controller) showUpdatePrompt(registration);
+    registration.addEventListener("updatefound", () => {
+      const worker = registration.installing;
+      worker?.addEventListener("statechange", () => {
+        if (worker.state === "installed" && navigator.serviceWorker.controller) showUpdatePrompt(registration);
+      });
+    });
+  }).catch((error) => console.warn("DarkPix offline shell could not register", error));
 }
 
 function itemMarkup(item: Item, riskable = false): string {
@@ -572,3 +611,4 @@ function finishRaid(result: RaidResult): void {
 }
 
 renderLobby();
+registerOfflineWorker();

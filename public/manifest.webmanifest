@@ -1,0 +1,21 @@
+{
+  "name": "DarkPix: Crypt of the Pale Toll",
+  "short_name": "DarkPix",
+  "description": "A first-person pixel dungeon extraction crawler.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#080707",
+  "theme_color": "#080707",
+  "categories": ["games"],
+  "icons": [
+    {
+      "src": "/darkpix-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

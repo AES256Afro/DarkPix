@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">DarkPix rune</title>
+  <rect width="512" height="512" fill="#080707"/>
+  <path fill="#17130f" stroke="#a8673a" stroke-width="12" d="M256 46 444 148l-34 224-154 94-154-94-34-224z"/>
+  <path fill="#c87a43" d="M142 130h100v44h-52v164h52v44H142zm128 0h61q59 0 59 61 0 38-25 52 33 14 33 61 0 78-73 78h-55zm47 43v51h12q18 0 18-26 0-25-18-25zm0 94v72h13q22 0 22-37 0-35-22-35z"/>
+  <rect x="89" y="238" width="28" height="28" fill="#65d6cf"/>
+  <rect x="397" y="238" width="28" height="28" fill="#65d6cf"/>
+</svg>

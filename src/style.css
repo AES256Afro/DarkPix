@@ -56,6 +56,9 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .account-strip strong { color: #e7c37c; font-size: 14px; }
 .account-strip i { margin-left: 2px; color: #8e774d; font-style: normal; }
 .persistence-warning { position: absolute; inset: 78px 18px auto; z-index: 7; margin: 0 auto; padding: 10px 14px; border: 1px solid #824e39; background: rgba(49,21,15,.94); color: #dcaa91; font: 9px/1.4 ui-monospace, monospace; text-align: center; }
+.update-prompt { position: fixed; inset: auto 18px 18px auto; z-index: 50; display: flex; max-width: min(430px, calc(100vw - 36px)); padding: 12px; align-items: center; gap: 18px; border: 1px solid #735036; background: rgba(20,16,12,.97); box-shadow: 0 16px 55px #000; }
+.update-prompt span { display: flex; min-width: 0; flex: 1; flex-direction: column; }.update-prompt strong { color: #d5b487; font: 700 9px ui-monospace, monospace; letter-spacing: .11em; }.update-prompt small { margin-top: 4px; color: #756c61; font: 11px Georgia, serif; }
+.update-prompt button { padding: 10px 12px; border: 1px solid #805537; background: #382217; color: #d2b18a; font: 800 8px ui-monospace, monospace; letter-spacing: .08em; cursor: pointer; }.update-prompt button:disabled { cursor: wait; opacity: .65; }
 
 .hero {
   position: relative;
