@@ -269,7 +269,15 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .raid-shell.reduced-motion .damage-flash.pulse, .raid-shell.reduced-motion .raid-clock.urgent, .raid-shell.reduced-flashes .damage-flash.pulse, .raid-shell.reduced-flashes .raid-clock.urgent { animation: none; }
 .raid-shell.reduced-flashes .damage-flash.pulse { opacity: .18; }
 .raid-shell.high-contrast-hud .contract-panel, .raid-shell.high-contrast-hud .objective-panel, .raid-shell.high-contrast-hud .interaction-prompt, .raid-shell.high-contrast-hud .quick-slots > div, .raid-shell.high-contrast-hud .bar { border-color: rgba(232,221,202,.72); background-color: rgba(2,2,2,.94); }
-.raid-shell.high-contrast-hud .contract-panel > span:last-child, .raid-shell.high-contrast-hud .objective-panel > span:last-child, .raid-shell.high-contrast-hud .quick-slots small, .raid-shell.high-contrast-hud .attack-direction { color: #d8d0c4; opacity: 1; }
+.raid-shell.high-contrast-hud .contract-panel > .zone-copy, .raid-shell.high-contrast-hud .contract-panel > .journal-copy, .raid-shell.high-contrast-hud .objective-panel > span:last-child, .raid-shell.high-contrast-hud .quick-slots small, .raid-shell.high-contrast-hud .attack-direction, .raid-shell.high-contrast-hud .bar span { color: #f0e8dc; opacity: 1; }
+.raid-shell.high-contrast-hud .contract-panel > .zone-copy.outside { color: #ffad8c; }
+.raid-shell.high-contrast-hud .contract-panel > .journal-copy.failed { color: #ff9b86; }
+.raid-shell.high-contrast-hud .compass { border-color: #d8c8ad; color: #f0e1c9; }
+.raid-shell.high-contrast-hud .compass strong { color: #ffe0ae; }
+.raid-shell.high-contrast-hud .damage-direction { border-color: #f0d2a0; background: #050403; color: #fff0c8; }
+.raid-shell.high-contrast-hud .event-feed { border-color: #d8c8ad; background: rgba(2,2,2,.96); color: #fff; }
+.raid-shell.high-contrast-hud .threat-vitals > div { border-color: #e5d2b4; background: #020202; }
+.raid-shell.high-contrast-hud .threat-vitals strong, .raid-shell.high-contrast-hud .threat-vitals small { color: #fff0dc; }
 .raid-shell.high-contrast-hud .crosshair { filter: brightness(1.7) drop-shadow(0 0 3px #000); }
 .render-host, .game-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; image-rendering: pixelated; }
 .pixel-grid { position: absolute; inset: 0; opacity: .14; background-image: repeating-linear-gradient(0deg, transparent 0 3px, rgba(0,0,0,.28) 3px 4px); pointer-events: none; }

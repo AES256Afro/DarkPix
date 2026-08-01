@@ -49,6 +49,7 @@ Status: Complete for the current map
 - Threat windups, directional pre-hit and impact markers, guard cone, pre-action strike stamina cost, chain telegraphs, safe annulus, darkness bearing, channel interruption reasons, crosshair scaling, rarity rank marks, and loose-loot silhouettes expose actionable state
 - Critical vigor, stamina, spell memory, and torch fuel can redirect the wayfinder to an unused campfire
 - Reduced motion suppresses decorative loading, camera, enemy-step, loot, flame, and portal loops while retaining functional combat telegraphs
+- High contrast strengthens darkness and checkpoint state, navigation, combat warnings, threat vitals, resources, and interaction panels
 - The Ash Tollkeeper begins its annulus phase at full vigor and uses a tighter second-floor cadence
 
 Exit evidence: topology, collision, sightline, pathfinding, variation, combat-rule, and depth tests.
