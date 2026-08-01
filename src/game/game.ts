@@ -14,6 +14,7 @@ import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./r
 import { disposeSceneResources } from "./resources";
 import { RAID_VARIATION_COUNT, raidVariationSeal, validRaidVariationSeed } from "./contract";
 import { rarityShape } from "./rarity";
+import { raidReadinessSummary } from "./readiness";
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
@@ -1102,13 +1103,30 @@ export class DarkPixGame {
     const haulValue = ordinaryHaul.reduce((sum, item) => sum + item.value, 0);
     const coinValue = treasureGoldTotal(this.raidLoot);
     const dropCandidate = dropLeastValuable(this.raidLoot).dropped;
+    const readiness = raidReadinessSummary({
+      classId: this.options.classId,
+      depth: this.depth,
+      health: this.health,
+      maxHealth: this.maxHealth,
+      stamina: this.stamina,
+      maxStamina: this.definition.maxStamina,
+      spellCharges: this.spellCharges,
+      maxSpellCharges: this.maxSpellCharges,
+      sigils,
+      portalUnlocked: this.portalUnlocked,
+      campfireUsed: this.campfireUsed,
+    });
     const itemRow = (item: Item, status: string): string => `<span class="pause-ledger-item" style="--rarity:${RARITY_COLOR[item.rarity]}"><i></i><b>${escapeHtml(item.name)}</b><small>${status} · ${item.value}g</small></span>`;
     this.pauseLedger.innerHTML = `
       <div class="pause-ledger-summary">
+        <span><small>VIGOR</small><strong>${readiness.vigor}</strong></span>
+        <span><small>STAMINA</small><strong>${readiness.stamina}</strong></span>
+        <span><small>SPELL MEMORY</small><strong>${readiness.memory}</strong></span>
+        <span><small>PASSAGE</small><strong>${readiness.passage}</strong></span>
         <span><small>PACKED RISK</small><strong>${remainingPacked.length} ITEM${remainingPacked.length === 1 ? "" : "S"}</strong></span>
         <span><small>UNSECURED HAUL</small><strong>${ordinaryHaul.length} / ${HAUL_CAPACITY} · ${haulValue}G VALUE · ${coinValue}G COIN</strong></span>
         <span><small>RESERVES</small><strong>${this.availableConsumables().length} REMEDY · ${this.availableThrowables().length} THROW</strong></span>
-        <span><small>SIGIL POUCH</small><strong>${sigils} / 2</strong></span>
+        <span><small>CAMPFIRE</small><strong>${readiness.campfire}</strong></span>
       </div>
       <div class="pause-ledger-items">
         ${remainingPacked.map((item) => itemRow(item, "PACKED")).join("")}
