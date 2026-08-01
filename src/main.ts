@@ -142,6 +142,9 @@ function renderLobby(): void {
   const previewLoadout = profile.stash.filter((item) => equippedIds.has(item.id));
   const previewStats = loadoutStats(previewLoadout);
   const packedVigor = equippedPower(previewLoadout, "armor") + previewStats.health;
+  const packedRiskValue = itemValueTotal(previewLoadout);
+  const contractRiskValue = packedRiskValue + selectedRaidRules.entryFee;
+  const classXpAtRisk = selectedRaidRules.wipesClassXpOnFailure ? classXp : 0;
   const boneKills = boneKillCount(profile);
   const contractRecord = contractRecordSummary(profile);
   const ironmongerStanding = merchantStanding(profile.extracts);
@@ -179,7 +182,7 @@ function renderLobby(): void {
             <span>DESCEND INTO THE ${selectedRaidRules.name.toUpperCase()}</span>
             <small>Solo contract · ${selectedRaidMode === "iron_soul" ? "brutal threats · +75% XP · class XP lost on failure" : selectedRaidMode === "high_toll" ? "empowered threats · improved rarity · +35% XP" : "8 roaming threats · 2 sigils · 1 keeper"}</small>
           </button>
-          <p class="raid-warning">${selectedRaidRules.entryFee ? `${selectedRaidRules.entryFee}g is paid on entry. ` : ""}Equipped items are lost on death.${selectedRaidRules.wipesClassXpOnFailure ? " Iron Soul failure also erases this discipline's class XP." : " Class experience persists."}</p>
+          <p class="raid-warning">${packedRiskValue}g packed gear${selectedRaidRules.entryFee ? ` + ${selectedRaidRules.entryFee}g entry fee` : ""} = ${contractRiskValue}g value at risk. ${selectedRaidRules.wipesClassXpOnFailure ? `${classXpAtRisk} ${chosen.name} XP is also at risk.` : "Class experience persists."}</p>
         </div>
         <div class="hero-stats">
           <span><small>SUCCESSFUL EXTRACTS</small><strong>${profile.extracts}</strong></span>
@@ -266,7 +269,7 @@ function renderLobby(): void {
               <div class="perk-list">
                 ${CLASS_PERKS[selectedClass].map((perk) => `<div class="${level >= perk.level ? "unlocked" : "locked"}"><b>LV ${perk.level}</b><span><strong>${perk.name}</strong><small>${perk.description}</small></span></div>`).join("")}
               </div>
-              <div class="risk-total"><span>GEAR AT RISK</span><strong>${equippedIds.size} / 2</strong></div>
+              <div class="risk-total"><span>TOTAL CONTRACT RISK</span><strong>${contractRiskValue}G · ${equippedIds.size} / 2 ITEMS${classXpAtRisk ? ` · ${classXpAtRisk} XP` : ""}</strong></div>
             </section>
             <section class="contract-card" id="contracts">
               <span class="wax-seal">I</span>

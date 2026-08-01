@@ -28,7 +28,7 @@ Status: Complete for local-first play
 - Active-raid escrow settles refreshes and interrupted tabs as abandonment, and clears only after the verdict is durably saved
 - Consumed packed items remain consumed after extraction or failure
 - Treasure coin credit is derived from current haul contents instead of a separate mutable raid counter
-- Verdict value ledgers derive loadout risk and net wealth change from the actual settlement, entry fee, and consumed supplies
+- Pre-raid and verdict value ledgers derive loadout risk, fees, Iron Soul XP exposure, and net wealth change from actual contract state
 - Version 13 migrates older profiles into a bounded single-day commission claim without changing prior progress
 - Class XP, contracts, bestiary ledgers, survival streaks, raid history, settings, and backup import/export survive compatible profile migrations
 - Iron Soul failure clears the selected discipline's XP while preserving the rest of the profile
