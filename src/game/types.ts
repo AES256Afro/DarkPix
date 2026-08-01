@@ -31,12 +31,13 @@ export interface ClassDefinition {
 }
 
 export interface Profile {
-  version: 1;
+  version: 2;
   gold: number;
   xp: Record<ClassId, number>;
   stash: Item[];
   extracts: number;
   deaths: number;
+  bossVictories: number;
   preferredClass: ClassId;
 }
 
@@ -58,6 +59,7 @@ export interface RaidResult {
   kills: number;
   elapsed: number;
   goldFound: number;
+  bossKilled?: boolean;
 }
 
 export interface Vec2 {

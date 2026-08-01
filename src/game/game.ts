@@ -170,6 +170,7 @@ export class DarkPixGame {
   private spellCharges: number;
   private kills = 0;
   private goldFound = 0;
+  private bossKilled = false;
   private readonly consumedIds: string[] = [];
   private sigils = 0;
   private portalUnlocked = false;
@@ -963,6 +964,7 @@ export class DarkPixGame {
       return;
     }
     enemy.alive = false;
+    if (enemy.kind === "boss") this.bossKilled = true;
     this.kills += 1;
     enemy.group.rotation.z = 1.2;
     enemy.group.position.y = -0.55;
@@ -1421,6 +1423,7 @@ export class DarkPixGame {
       kills: this.kills,
       elapsed: this.elapsed,
       goldFound: this.goldFound,
+      bossKilled: this.bossKilled,
     };
     window.setTimeout(() => this.options.onFinish(result), 260);
   }

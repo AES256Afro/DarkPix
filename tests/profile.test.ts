@@ -107,6 +107,29 @@ describe("persistent raid consequences", () => {
     expect(second.gold).toBe(195);
   });
 
+  it("pays the first extracted Tollkeeper victory once and never on death", () => {
+    const victory = {
+      reason: "extracted" as const,
+      classId: "vanguard" as const,
+      loot: [],
+      equippedIds: [],
+      kills: 1,
+      elapsed: 60,
+      goldFound: 0,
+      bossKilled: true,
+    };
+    const first = settleRaid(createProfile(), victory);
+    expect(first.bossContractPaid).toBe(true);
+    expect(first.profile.bossVictories).toBe(1);
+    expect(first.goldGained).toBe(250);
+    const second = settleRaid(first.profile, victory);
+    expect(second.bossContractPaid).toBe(false);
+    expect(second.goldGained).toBe(0);
+    const failed = settleRaid(createProfile(), { ...victory, reason: "slain" });
+    expect(failed.profile.bossVictories).toBe(0);
+    expect(failed.goldGained).toBe(0);
+  });
+
   it("keeps a full stash intact and liquidates extraction overflow", () => {
     const profile = createProfile();
     const template = profile.stash[0]!;

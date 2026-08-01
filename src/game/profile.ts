@@ -24,12 +24,13 @@ const STARTER_STASH: Item[] = [
 
 export function createProfile(): Profile {
   return {
-    version: 1,
+    version: 2,
     gold: 75,
     xp: { vanguard: 0, cutpurse: 0, hexbound: 0 },
     stash: STARTER_STASH.map((item) => ({ ...item })),
     extracts: 0,
     deaths: 0,
+    bossVictories: 0,
     preferredClass: "vanguard",
   };
 }
@@ -73,7 +74,7 @@ export function normalizeProfile(value: unknown): Profile {
     }
   }
   return {
-    version: 1,
+    version: 2,
     gold: nonnegativeInteger(candidate.gold),
     xp: {
       vanguard: nonnegativeInteger(xp.vanguard),
@@ -83,6 +84,7 @@ export function normalizeProfile(value: unknown): Profile {
     stash: Array.isArray(candidate.stash) ? stash : fallback.stash,
     extracts: nonnegativeInteger(candidate.extracts),
     deaths: nonnegativeInteger(candidate.deaths),
+    bossVictories: nonnegativeInteger(candidate.bossVictories),
     preferredClass: validClass(candidate.preferredClass) ? candidate.preferredClass : fallback.preferredClass,
   };
 }
@@ -110,6 +112,7 @@ export interface RaidSettlement {
   overflow: Item[];
   lost: Item[];
   firstContractPaid: boolean;
+  bossContractPaid: boolean;
   overflowGold: number;
   goldGained: number;
   xpGained: number;
@@ -128,6 +131,7 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     overflow: [],
     lost: [],
     firstContractPaid: false,
+    bossContractPaid: false,
     overflowGold: 0,
     goldGained: 0,
     xpGained: xpGain,
@@ -135,8 +139,11 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
 
   if (result.reason === "extracted") {
     const firstContractReward = next.extracts === 0 ? 100 : 0;
+    const bossContractReward = result.bossKilled && next.bossVictories === 0 ? 150 : 0;
     settlement.firstContractPaid = firstContractReward > 0;
+    settlement.bossContractPaid = bossContractReward > 0;
     next.extracts += 1;
+    if (result.bossKilled) next.bossVictories += 1;
     const knownIds = new Set(next.stash.map((item) => item.id));
     const transferable = result.loot.filter((item) => {
       if (item.kind === "sigil" || knownIds.has(item.id) || !validItem(item)) return false;
@@ -152,7 +159,7 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     );
     settlement.goldGained = Math.min(
       Number.MAX_SAFE_INTEGER,
-      nonnegativeInteger(result.goldFound) + firstContractReward + settlement.overflowGold,
+      nonnegativeInteger(result.goldFound) + firstContractReward + bossContractReward + settlement.overflowGold,
     );
     next.stash = [...next.stash, ...settlement.banked];
     next.gold = Math.min(Number.MAX_SAFE_INTEGER, next.gold + settlement.goldGained);
