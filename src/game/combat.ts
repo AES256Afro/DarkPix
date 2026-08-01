@@ -63,14 +63,20 @@ export function guardDrainPerSecond(classId: ClassId): number {
 }
 
 export function classAbilityDamageMultiplier(classId: ClassId, activeSeconds: number): number {
-  return classId === "reaver" && Number.isFinite(activeSeconds) && activeSeconds > 0 ? 1.25 : 1;
+  if (!Number.isFinite(activeSeconds) || activeSeconds <= 0) return 1;
+  return classId === "reaver" ? 1.25 : classId === "shapeshifter" ? 1.3 : 1;
 }
 
 export function classAttackDelay(classId: ClassId, baseDelay: number, activeSeconds: number): number {
   const safeDelay = Number.isFinite(baseDelay) ? Math.max(0.2, baseDelay) : 0.8;
-  return classId === "ranger" && Number.isFinite(activeSeconds) && activeSeconds > 0
-    ? Math.max(0.24, safeDelay * 0.58)
-    : safeDelay;
+  if (!Number.isFinite(activeSeconds) || activeSeconds <= 0) return safeDelay;
+  if (classId === "ranger") return Math.max(0.24, safeDelay * 0.58);
+  if (classId === "shapeshifter") return Math.max(0.28, safeDelay * 0.8);
+  return safeDelay;
+}
+
+export function classMovementMultiplier(classId: ClassId, activeSeconds: number): number {
+  return classId === "shapeshifter" && Number.isFinite(activeSeconds) && activeSeconds > 0 ? 1.15 : 1;
 }
 
 export function healthPercent(current: number, maximum: number): number {

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
-import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat, type ThreatKind } from "./combat";
+import { attackDamage, bossTactic, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat, type ThreatKind } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, depthRules } from "./depth";
@@ -236,6 +236,7 @@ export class DarkPixGame {
   private concealmentTimer = 0;
   private rageTimer = 0;
   private quickdrawTimer = 0;
+  private wildshapeTimer = 0;
   private abandonArmed = false;
   private renderScale = 0;
   private frameTimeTotal = 0;
@@ -662,6 +663,16 @@ export class DarkPixGame {
       const seal = new THREE.Mesh(new THREE.RingGeometry(0.08, 0.12, 8), material(0xd6c58e, 0x8c6c28));
       seal.position.set(0, 0.88, 0.18);
       this.weapon.add(haft, head, seal);
+    } else if (this.options.classId === "shapeshifter") {
+      const bracer = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.34, 0.48), material(0x3f4d2d, 0x16200d));
+      bracer.position.y = 0.05;
+      this.weapon.add(bracer);
+      for (const clawX of [-0.16, 0, 0.16]) {
+        const claw = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.72, 4), material(0xa4a18b, 0x292b19));
+        claw.position.set(clawX, 0.52, -0.08);
+        claw.rotation.z = Math.PI;
+        this.weapon.add(claw);
+      }
     } else {
       const blade = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.05, 0.08), material(this.options.classId === "cutpurse" ? 0x918a7d : 0xb2afa6));
       blade.position.y = 0.38;
@@ -1037,6 +1048,7 @@ export class DarkPixGame {
     this.concealmentTimer = Math.max(0, this.concealmentTimer - delta);
     this.rageTimer = Math.max(0, this.rageTimer - delta);
     this.quickdrawTimer = Math.max(0, this.quickdrawTimer - delta);
+    this.wildshapeTimer = Math.max(0, this.wildshapeTimer - delta);
     this.swingClock = Math.max(0, this.swingClock - delta);
     this.damageCooldown = Math.max(0, this.damageCooldown - delta);
     this.messageTimer = Math.max(0, this.messageTimer - delta);
@@ -1068,7 +1080,7 @@ export class DarkPixGame {
     const sprinting = moving && this.keys.has("ShiftLeft") && this.stamina > 1 && !this.blocking;
     const sprintMultiplier = sprinting ? (this.options.classId === "cutpurse" ? 1.65 : 1.48) : 1;
     const blockMultiplier = this.blocking ? 0.55 : 1;
-    const speed = this.definition.speed * this.loadoutBonuses.movementMultiplier * sprintMultiplier * blockMultiplier;
+    const speed = this.definition.speed * this.loadoutBonuses.movementMultiplier * classMovementMultiplier(this.options.classId, this.wildshapeTimer) * sprintMultiplier * blockMultiplier;
     const sin = Math.sin(this.yaw);
     const cos = Math.cos(this.yaw);
     const dx = (input.x * cos - input.y * sin) * speed * delta;
@@ -1239,7 +1251,8 @@ export class DarkPixGame {
       this.feed("Your spell memory is ash. Find the campfire.", "danger");
       return;
     }
-    const attackDelay = classAttackDelay(this.options.classId, this.definition.attackDelay, this.quickdrawTimer);
+    const cadenceTimer = this.options.classId === "ranger" ? this.quickdrawTimer : this.options.classId === "shapeshifter" ? this.wildshapeTimer : 0;
+    const attackDelay = classAttackDelay(this.options.classId, this.definition.attackDelay, cadenceTimer);
     this.attackCooldown = attackDelay;
     this.concealmentTimer = 0;
     this.swingDuration = Math.min(0.42, attackDelay * 0.72);
@@ -1292,7 +1305,7 @@ export class DarkPixGame {
     const damage = Math.round(
       baseDamage
       * (best.kind === "rival" ? 1 : this.loadoutBonuses.undeadDamageMultiplier)
-      * classAbilityDamageMultiplier(this.options.classId, this.rageTimer)
+      * classAbilityDamageMultiplier(this.options.classId, this.options.classId === "shapeshifter" ? this.wildshapeTimer : this.rageTimer)
       * (spell?.damageMultiplier ?? 1),
     );
     this.damageEnemy(best, damage, headshot, limbHit, Boolean(spell?.cripples && !headshot));
@@ -1809,6 +1822,10 @@ export class DarkPixGame {
     } else if (this.options.classId === "ranger") {
       this.quickdrawTimer = 7;
       this.feed("QUICKDRAW · arrow cadence surges for 7s", "system");
+    } else if (this.options.classId === "shapeshifter") {
+      this.wildshapeTimer = 8;
+      this.stamina = Math.min(this.definition.maxStamina, this.stamina + 20);
+      this.feed("WILDSHAPE · claw, cadence, and stride surge for 8s", "system");
     } else {
       const nearby = this.enemies.filter((enemy) =>
         enemy.alive &&
@@ -2190,6 +2207,8 @@ export class DarkPixGame {
     }
     this.shield.position.z = THREE.MathUtils.lerp(this.shield.position.z, this.blocking ? -0.55 : -1.1, delta * 12);
     this.shield.position.x = THREE.MathUtils.lerp(this.shield.position.x, this.blocking ? -0.18 : -0.72, delta * 12);
+    const wildshapeScale = this.wildshapeTimer > 0 ? 1.14 : 1;
+    this.weapon.scale.setScalar(THREE.MathUtils.lerp(this.weapon.scale.x, wildshapeScale, delta * 8));
   }
 
   private updateHud(): void {
@@ -2216,6 +2235,8 @@ export class DarkPixGame {
       ? `${ability.name} · ${Math.ceil(this.rageTimer)}s RAGING`
       : this.quickdrawTimer > 0
         ? `${ability.name} · ${Math.ceil(this.quickdrawTimer)}s RAPID`
+        : this.wildshapeTimer > 0
+          ? `${ability.name} · ${Math.ceil(this.wildshapeTimer)}s CHANGED`
       : this.abilityCooldown > 0 ? `${ability.name} · ${Math.ceil(this.abilityCooldown)}s` : ability.name;
     this.updateWayfinder();
     this.directionHud.textContent = this.attackDirection;

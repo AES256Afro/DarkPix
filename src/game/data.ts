@@ -150,6 +150,21 @@ export const CLASSES: Record<ClassId, ClassDefinition> = {
     ability: "Sanctuary: recover and sear nearby undead.",
     weapon: "Iron reliquary mace",
   },
+  shapeshifter: {
+    id: "shapeshifter",
+    name: "Shapeshifter",
+    title: "The Thorn Hide",
+    summary: "A close-range druid who becomes a faster, harder-hitting beast for one decisive engagement.",
+    maxHealth: 108,
+    maxStamina: 120,
+    speed: 4.55,
+    damage: 28,
+    reach: 2.45,
+    attackDelay: 0.75,
+    accent: "#8aa66a",
+    ability: "Wildshape: gain speed, attack cadence, and strike damage for eight seconds.",
+    weapon: "Briarbound hand claws",
+  },
 };
 
 export const CLASS_PERKS: Record<ClassId, ClassPerk[]> = {
@@ -182,6 +197,11 @@ export const CLASS_PERKS: Record<ClassId, ClassPerk[]> = {
     { level: 2, name: "Steady Litany", description: "Guard upkeep costs 10% less stamina." },
     { level: 4, name: "Sanctified Steel", description: "+3 strike damage." },
     { level: 6, name: "Martyr's Breath", description: "+8 maximum vigor." },
+  ],
+  shapeshifter: [
+    { level: 2, name: "Hart's Endurance", description: "Sprinting costs 10% less stamina." },
+    { level: 4, name: "Rending Claw", description: "+4 strike damage." },
+    { level: 6, name: "Old Bark", description: "+8 maximum vigor." },
   ],
 };
 
@@ -216,15 +236,20 @@ export const CLASS_ABILITIES: Record<ClassId, ClassAbilityDefinition> = {
     cooldown: 48,
     description: "Restore 22 vigor and 20 stamina while searing nearby crypt threats.",
   },
+  shapeshifter: {
+    name: "Wildshape",
+    cooldown: 46,
+    description: "Gain 30% strike damage, 20% attack cadence, and 15% movement speed for eight seconds.",
+  },
 };
 
 export function classPerkBonuses(classId: ClassId, level: number): ClassPerkBonuses {
   const safeLevel = Math.max(1, Math.floor(level));
   return {
     health: safeLevel >= 6 && classId !== "vanguard" ? 8 : safeLevel >= 4 && classId === "vanguard" ? 8 : 0,
-    damage: safeLevel >= 4 && (classId === "cutpurse" || classId === "cleric") ? 3 : safeLevel >= 4 && (classId === "hexbound" || classId === "reaver" || classId === "ranger") ? 4 : safeLevel >= 6 && classId === "vanguard" ? 3 : 0,
+    damage: safeLevel >= 4 && (classId === "cutpurse" || classId === "cleric") ? 3 : safeLevel >= 4 && (classId === "hexbound" || classId === "reaver" || classId === "ranger" || classId === "shapeshifter") ? 4 : safeLevel >= 6 && classId === "vanguard" ? 3 : 0,
     guardUpkeepMultiplier: safeLevel >= 2 && classId === "vanguard" ? 0.8 : safeLevel >= 2 && (classId === "reaver" || classId === "cleric") ? 0.9 : 1,
-    sprintCostMultiplier: safeLevel >= 2 && classId === "cutpurse" ? 0.8 : safeLevel >= 2 && classId === "ranger" ? 0.9 : 1,
+    sprintCostMultiplier: safeLevel >= 2 && classId === "cutpurse" ? 0.8 : safeLevel >= 2 && (classId === "ranger" || classId === "shapeshifter") ? 0.9 : 1,
     spellCharges: safeLevel >= 2 && classId === "hexbound" ? 1 : 0,
   };
 }

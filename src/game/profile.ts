@@ -32,9 +32,9 @@ const STARTER_STASH: Item[] = [
 
 export function createProfile(): Profile {
   return {
-    version: 7,
+    version: 8,
     gold: 75,
-    xp: { vanguard: 0, cutpurse: 0, hexbound: 0, reaver: 0, ranger: 0, cleric: 0 },
+    xp: { vanguard: 0, cutpurse: 0, hexbound: 0, reaver: 0, ranger: 0, cleric: 0, shapeshifter: 0 },
     stash: STARTER_STASH.map((item) => ({ ...item })),
     extracts: 0,
     deaths: 0,
@@ -46,7 +46,7 @@ export function createProfile(): Profile {
 }
 
 function validClass(value: unknown): value is ClassId {
-  return value === "vanguard" || value === "cutpurse" || value === "hexbound" || value === "reaver" || value === "ranger" || value === "cleric";
+  return value === "vanguard" || value === "cutpurse" || value === "hexbound" || value === "reaver" || value === "ranger" || value === "cleric" || value === "shapeshifter";
 }
 
 function validRaidMode(value: unknown): value is NonNullable<RaidResult["raidMode"]> {
@@ -98,7 +98,7 @@ export function normalizeProfile(value: unknown): Profile {
     }
   }
   return {
-    version: 7,
+    version: 8,
     gold: nonnegativeInteger(candidate.gold, MAX_GOLD),
     xp: {
       vanguard: nonnegativeInteger(xp.vanguard, MAX_CLASS_XP),
@@ -107,6 +107,7 @@ export function normalizeProfile(value: unknown): Profile {
       reaver: nonnegativeInteger(xp.reaver, MAX_CLASS_XP),
       ranger: nonnegativeInteger(xp.ranger, MAX_CLASS_XP),
       cleric: nonnegativeInteger(xp.cleric, MAX_CLASS_XP),
+      shapeshifter: nonnegativeInteger(xp.shapeshifter, MAX_CLASS_XP),
     },
     stash: Array.isArray(candidate.stash) ? stash : fallback.stash,
     extracts: nonnegativeInteger(candidate.extracts, MAX_OUTCOME_COUNT),
