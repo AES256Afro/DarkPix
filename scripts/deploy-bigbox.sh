@@ -17,7 +17,10 @@ if ! docker network inspect gridless_gridless >/dev/null 2>&1; then
 fi
 
 darkpix_release="${DARKPIX_RELEASE:-$(git rev-parse --short HEAD 2>/dev/null || printf 'unknown')}"
-darkpix_public_url="${DARKPIX_PUBLIC_URL:-https://www.ne-gro.com}"
+darkpix_public_urls=("https://ne-gro.com" "https://www.ne-gro.com")
+if [[ -n "${DARKPIX_PUBLIC_URL:-}" ]]; then
+  darkpix_public_urls=("$DARKPIX_PUBLIC_URL")
+fi
 export DARKPIX_RELEASE="$darkpix_release"
 
 echo "Building and starting DarkPix release $darkpix_release on the loopback-only web service..."
@@ -66,16 +69,17 @@ echo "Deployed release: $(docker compose exec -T darkpix wget -q -O - http://127
 echo "Cloudflare service target: http://darkpix:8080"
 
 check_public_release() {
+  local public_url="$1"
   local observed_release
   local public_headers
   if command -v curl >/dev/null 2>&1; then
-    observed_release="$(curl -fsS --max-time 8 "$darkpix_public_url/version.txt" 2>/dev/null)" || return 1
-    public_headers="$(curl -fsSI --max-time 8 "$darkpix_public_url/" 2>/dev/null)" || return 1
-    curl -fsSI --max-time 8 "$darkpix_public_url/sw.js?v=$darkpix_release" 2>/dev/null | grep -qi '^cache-control:.*no-store' || return 1
+    observed_release="$(curl -fsS --max-time 8 "$public_url/version.txt" 2>/dev/null)" || return 1
+    public_headers="$(curl -fsSI --max-time 8 "$public_url/" 2>/dev/null)" || return 1
+    curl -fsSI --max-time 8 "$public_url/sw.js?v=$darkpix_release" 2>/dev/null | grep -qi '^cache-control:.*no-store' || return 1
   elif command -v wget >/dev/null 2>&1; then
-    observed_release="$(wget -q -T 8 -O - "$darkpix_public_url/version.txt" 2>/dev/null)" || return 1
-    public_headers="$(wget -q -T 8 --server-response --spider "$darkpix_public_url/" 2>&1)" || return 1
-    wget -q -T 8 --server-response --spider "$darkpix_public_url/sw.js?v=$darkpix_release" 2>&1 | grep -qi 'cache-control:.*no-store' || return 1
+    observed_release="$(wget -q -T 8 -O - "$public_url/version.txt" 2>/dev/null)" || return 1
+    public_headers="$(wget -q -T 8 --server-response --spider "$public_url/" 2>&1)" || return 1
+    wget -q -T 8 --server-response --spider "$public_url/sw.js?v=$darkpix_release" 2>&1 | grep -qi 'cache-control:.*no-store' || return 1
   else
     echo "curl or wget is required to verify the public release." >&2
     return 1
@@ -91,14 +95,18 @@ check_public_release() {
   [[ "$observed_release" == "$darkpix_release" ]]
 }
 
-for attempt in {1..20}; do
-  if check_public_release; then
-    echo "Public release verified: $darkpix_public_url/version.txt -> $darkpix_release"
-    exit 0
-  fi
-  if [[ "$attempt" -eq 20 ]]; then
+for darkpix_public_url in "${darkpix_public_urls[@]}"; do
+  public_verified=false
+  for attempt in {1..20}; do
+    if check_public_release "$darkpix_public_url"; then
+      echo "Public release verified: $darkpix_public_url/version.txt -> $darkpix_release"
+      public_verified=true
+      break
+    fi
+    sleep 1
+  done
+  if [[ "$public_verified" != true ]]; then
     echo "The public route did not serve release $darkpix_release from $darkpix_public_url/version.txt." >&2
     exit 1
   fi
-  sleep 1
 done
