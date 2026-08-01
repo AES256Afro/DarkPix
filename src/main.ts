@@ -318,6 +318,7 @@ function renderLobby(): void {
               <div class="panel-heading"><span><small>ACCESSIBILITY</small><strong id="settings-heading">Delver settings</strong></span><b>LOCAL</b></div>
               <label class="setting-line"><span>Mouse sensitivity <output data-output="mouseSensitivity">${preferences.mouseSensitivity.toFixed(1)}x</output></span><input type="range" aria-label="Mouse sensitivity" data-preference="mouseSensitivity" min="0.5" max="2" step="0.1" value="${preferences.mouseSensitivity}"></label>
               <label class="setting-line"><span>Field of view <output data-output="fieldOfView">${Math.round(preferences.fieldOfView)}°</output></span><input type="range" aria-label="Field of view" data-preference="fieldOfView" min="60" max="95" step="1" value="${preferences.fieldOfView}"></label>
+              <label class="setting-line"><span>Crosshair size <output data-output="crosshairScale">${Math.round(preferences.crosshairScale * 100)}%</output></span><input type="range" aria-label="Crosshair size" data-preference="crosshairScale" min="0.75" max="1.75" step="0.05" value="${preferences.crosshairScale}"></label>
               <label class="setting-line"><span>Crypt brightness <output data-output="brightness">${Math.round(preferences.brightness * 100)}%</output></span><input type="range" aria-label="Crypt brightness" data-preference="brightness" min="0.75" max="1.4" step="0.05" value="${preferences.brightness}"></label>
               <label class="setting-line"><span>Master volume <output data-output="volume">${Math.round(preferences.volume * 100)}%</output></span><input type="range" aria-label="Master volume" data-preference="volume" min="0" max="1" step="0.05" value="${preferences.volume}"></label>
               <label class="setting-toggle"><input type="checkbox" data-preference="muted" ${preferences.muted ? "checked" : ""}><span>Mute dungeon audio</span></label>
@@ -445,7 +446,7 @@ function renderLobby(): void {
       else preferences = { ...preferences, [key]: Number(input.value) };
       persistPreferences();
       const output = app.querySelector<HTMLOutputElement>(`[data-output="${key}"]`);
-      if (output) output.textContent = key === "brightness" || key === "volume"
+      if (output) output.textContent = key === "brightness" || key === "volume" || key === "crosshairScale"
         ? `${Math.round(Number(input.value) * 100)}%`
         : key === "fieldOfView"
           ? `${Math.round(Number(input.value))}°`

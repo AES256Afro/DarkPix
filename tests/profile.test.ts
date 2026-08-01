@@ -528,10 +528,11 @@ describe("display helpers", () => {
 
 describe("local game preferences", () => {
   it("clamps numeric settings and rejects malformed toggles", () => {
-    expect(normalizePreferences({ mouseSensitivity: 20, brightness: 0, fieldOfView: 120, volume: -5, muted: "yes", reducedMotion: true, reducedFlashes: true, highContrastHud: true, invertY: true })).toEqual({
+    expect(normalizePreferences({ mouseSensitivity: 20, brightness: 0, fieldOfView: 120, crosshairScale: 5, volume: -5, muted: "yes", reducedMotion: true, reducedFlashes: true, highContrastHud: true, invertY: true })).toEqual({
       mouseSensitivity: 2,
       brightness: 0.75,
       fieldOfView: 95,
+      crosshairScale: 1.75,
       volume: 0,
       muted: false,
       reducedMotion: true,
@@ -543,6 +544,7 @@ describe("local game preferences", () => {
     expect(normalizePreferences({ stashSort: "value" }).stashSort).toBe("value");
     expect(normalizePreferences({ fieldOfView: 40 }).fieldOfView).toBe(60);
     expect(normalizePreferences({ volume: 4 }).volume).toBe(1);
+    expect(normalizePreferences({ crosshairScale: 0 }).crosshairScale).toBe(0.75);
     expect(normalizePreferences({ stashSort: "unknown" }).stashSort).toBe("recent");
     expect(normalizePreferences({ invertY: "yes" }).invertY).toBe(false);
     expect(normalizePreferences({ reducedFlashes: "yes", highContrastHud: 1 })).toMatchObject({ reducedFlashes: false, highContrastHud: false });

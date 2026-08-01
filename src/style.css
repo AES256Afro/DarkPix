@@ -291,7 +291,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .threat-vitals small { color: #786e63; font: 700 7px ui-monospace, monospace; letter-spacing: .12em; }
 .threat-vitals[data-kind="boss"] strong, .threat-vitals[data-kind="boss"] small { color: #d18a5f; }
 .threat-vitals[data-kind="rival"] strong { color: #c5829e; }
-.crosshair { position: absolute; top: 50%; left: 50%; width: 22px; height: 22px; transform: translate(-50%, -50%); filter: drop-shadow(0 1px 2px #000); }
+.crosshair { position: absolute; top: 50%; left: 50%; width: 22px; height: 22px; transform: translate(-50%, -50%) scale(var(--crosshair-scale, 1)); filter: drop-shadow(0 1px 2px #000); }
 .crosshair i, .crosshair b, .crosshair em, .crosshair span { position: absolute; display: block; background: rgba(228,218,199,.8); }
 .crosshair i { top: 0; left: 10px; width: 2px; height: 6px; }.crosshair b { right: 0; top: 10px; width: 6px; height: 2px; }.crosshair em { bottom: 0; left: 10px; width: 2px; height: 6px; }.crosshair span { left: 0; top: 10px; width: 6px; height: 2px; }
 .attack-direction { position: absolute; top: calc(50% + 22px); left: 50%; transform: translateX(-50%); color: rgba(196,183,162,.55); font: 700 7px ui-monospace, monospace; letter-spacing: .14em; opacity: .35; transition: opacity .12s; }
