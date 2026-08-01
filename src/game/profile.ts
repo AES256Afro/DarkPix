@@ -1,4 +1,4 @@
-import type { ClassId, Item, Profile, RaidResult, ThreatKind } from "./types";
+import type { ClassId, Item, Profile, RaidJournalEntry, RaidResult, ThreatKind } from "./types";
 import type { CraftingRecipe } from "./data";
 import { raidRules } from "./raid";
 import { depthXpBonus } from "./depth";
@@ -10,6 +10,7 @@ export const MAX_ITEM_POWER = 100;
 export const MAX_ITEM_VALUE = 99_999;
 const MAX_CLASS_XP = 99_999_999;
 const MAX_OUTCOME_COUNT = 9_999_999;
+export const RAID_HISTORY_LIMIT = 10;
 export const BONE_BOUNTY_TARGET = 12;
 export const RIVAL_BOUNTY_TARGET = 3;
 const THREAT_KINDS: ThreatKind[] = ["skeleton", "crawler", "mimic", "warden", "rival", "boss"];
@@ -35,7 +36,7 @@ const STARTER_STASH: Item[] = [
 
 export function createProfile(): Profile {
   return {
-    version: 9,
+    version: 10,
     gold: 75,
     xp: { vanguard: 0, cutpurse: 0, hexbound: 0, reaver: 0, ranger: 0, cleric: 0, shapeshifter: 0 },
     stash: STARTER_STASH.map((item) => ({ ...item })),
@@ -48,6 +49,7 @@ export function createProfile(): Profile {
     boneBountyPaid: false,
     rivalBountyPaid: false,
     preferredClass: "vanguard",
+    raidHistory: [],
   };
 }
 
@@ -59,10 +61,39 @@ function validRaidMode(value: unknown): value is NonNullable<RaidResult["raidMod
   return value === "standard" || value === "high_toll" || value === "iron_soul";
 }
 
+function validRaidReason(value: unknown): value is RaidResult["reason"] {
+  return value === "extracted" || value === "slain" || value === "darkness" || value === "abandoned";
+}
+
 function nonnegativeInteger(value: unknown, maximum = Number.MAX_SAFE_INTEGER): number {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return 0;
   return Math.min(maximum, Math.max(0, Math.floor(numeric)));
+}
+
+function signedInteger(value: unknown, magnitude = Number.MAX_SAFE_INTEGER): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.min(magnitude, Math.max(-magnitude, Math.trunc(numeric)));
+}
+
+function normalizeRaidJournalEntry(value: unknown): RaidJournalEntry | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const entry = value as Partial<RaidJournalEntry>;
+  if (!validClass(entry.classId) || !validRaidMode(entry.raidMode) || !validRaidReason(entry.reason)) return undefined;
+  return {
+    completedAt: nonnegativeInteger(entry.completedAt),
+    classId: entry.classId,
+    raidMode: entry.raidMode,
+    reason: entry.reason,
+    depthReached: entry.depthReached === 2 ? 2 : 1,
+    kills: nonnegativeInteger(entry.kills, 1_000),
+    elapsed: nonnegativeInteger(entry.elapsed, 86_400),
+    goldDelta: nonnegativeInteger(entry.goldDelta, MAX_GOLD),
+    xpDelta: signedInteger(entry.xpDelta, MAX_CLASS_XP),
+    gearLost: nonnegativeInteger(entry.gearLost, 24),
+    bossKilled: entry.bossKilled === true,
+  };
 }
 
 function normalizeItem(value: unknown): Item | undefined {
@@ -104,8 +135,11 @@ export function normalizeProfile(value: unknown): Profile {
       stash.push(normalized);
     }
   }
+  const raidHistory = Array.isArray(candidate.raidHistory)
+    ? candidate.raidHistory.map(normalizeRaidJournalEntry).filter((entry): entry is RaidJournalEntry => Boolean(entry)).slice(0, RAID_HISTORY_LIMIT)
+    : [];
   return {
-    version: 9,
+    version: 10,
     gold: nonnegativeInteger(candidate.gold, MAX_GOLD),
     xp: {
       vanguard: nonnegativeInteger(xp.vanguard, MAX_CLASS_XP),
@@ -133,6 +167,7 @@ export function normalizeProfile(value: unknown): Profile {
     boneBountyPaid: typeof candidate.boneBountyPaid === "boolean" ? candidate.boneBountyPaid : false,
     rivalBountyPaid: typeof candidate.rivalBountyPaid === "boolean" ? candidate.rivalBountyPaid : false,
     preferredClass: validClass(candidate.preferredClass) ? candidate.preferredClass : fallback.preferredClass,
+    raidHistory,
   };
 }
 
@@ -380,6 +415,20 @@ export function settleRaid(profile: Profile, result: RaidResult): RaidSettlement
     settlement.lost = next.stash.filter((item) => risked.has(item.id));
     next.stash = next.stash.filter((item) => !risked.has(item.id));
   }
+  const journalEntry: RaidJournalEntry = {
+    completedAt: nonnegativeInteger(result.finishedAt ?? Date.now()),
+    classId: result.classId,
+    raidMode: rules.mode,
+    reason: result.reason,
+    depthReached: result.depthReached === 2 ? 2 : 1,
+    kills: Math.min(1_000, nonnegativeInteger(result.kills)),
+    elapsed: nonnegativeInteger(result.elapsed, 86_400),
+    goldDelta: settlement.goldGained,
+    xpDelta: settlement.classXpLost > 0 ? -settlement.classXpLost : settlement.xpGained,
+    gearLost: settlement.lost.length,
+    bossKilled: result.bossKilled === true,
+  };
+  next.raidHistory = [journalEntry, ...next.raidHistory].slice(0, RAID_HISTORY_LIMIT);
   return settlement;
 }
 

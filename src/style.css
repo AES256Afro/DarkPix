@@ -210,7 +210,18 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .contract-card strong { margin-top: 3px; color: #c8bcb0; font: 12px Georgia, serif; }
 .contract-card p { margin: 3px 0 0; color: #675f57; font: 10px/1.35 Georgia, serif; }
 .contract-card > b { color: #8b7f70; font: 700 8px ui-monospace, monospace; }
-.bestiary-panel { padding: 22px 24px; border: 1px solid #29261f; background: #11100e; }
+.journal-panel, .bestiary-panel { padding: 22px 24px; border: 1px solid #29261f; background: #11100e; }
+.journal-list { display: grid; gap: 5px; margin-top: 16px; }
+.journal-entry { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; min-height: 68px; padding: 10px; align-items: center; gap: 10px; border: 1px solid #28241e; background: #13110f; }
+.journal-entry > span { display: grid; width: 30px; height: 38px; place-items: center; border: 1px solid #4e4437; color: #a99883; font: 17px Georgia, serif; }
+.journal-entry > div { display: flex; min-width: 0; flex-direction: column; }
+.journal-entry > div small { overflow: hidden; color: #756a5e; font: 700 6px ui-monospace, monospace; letter-spacing: .08em; text-overflow: ellipsis; white-space: nowrap; }
+.journal-entry > div strong { margin-top: 3px; color: #bdb2a4; font: 10px Georgia, serif; }
+.journal-entry > div p { margin: 3px 0 0; color: #686159; font: 8px ui-monospace, monospace; }
+.journal-entry > b { display: flex; flex-direction: column; gap: 3px; color: #9b825e; font: 700 8px ui-monospace, monospace; text-align: right; }
+.journal-entry > b small { color: #6e675e; font-size: 6px; white-space: nowrap; }
+.journal-entry.survived { border-left: 2px solid #477875; }
+.journal-entry.failed { border-left: 2px solid #743b31; }
 .bestiary-list { display: grid; gap: 5px; margin-top: 16px; }
 .bestiary-entry { display: grid; grid-template-columns: 34px 1fr auto; min-height: 72px; padding: 10px; align-items: center; gap: 10px; border: 1px solid #28241e; background: #13110f; }
 .bestiary-entry > span { display: grid; width: 30px; height: 38px; place-items: center; border: 1px solid #554231; color: #b48960; font: 18px Georgia, serif; }

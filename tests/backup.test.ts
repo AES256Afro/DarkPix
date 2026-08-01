@@ -8,11 +8,13 @@ describe("save backups", () => {
     const profile = createProfile();
     profile.gold = 321;
     profile.xp.hexbound = 700;
+    profile.raidHistory.push({ completedAt: 123, classId: "hexbound", raidMode: "standard", reason: "extracted", depthReached: 1, kills: 2, elapsed: 90, goldDelta: 41, xpDelta: 240, gearLost: 0, bossKilled: false });
     const serialized = createSaveBackup(profile, DEFAULT_PREFERENCES, "test-release", new Date("2026-08-01T00:00:00Z"));
     expect(JSON.parse(serialized).format).toBe(SAVE_BACKUP_FORMAT);
     const restored = parseSaveBackup(serialized);
     expect(restored?.profile.gold).toBe(321);
     expect(restored?.profile.xp.hexbound).toBe(700);
+    expect(restored?.profile.raidHistory[0]).toMatchObject({ completedAt: 123, classId: "hexbound", reason: "extracted" });
     expect(restored?.preferences).toEqual(DEFAULT_PREFERENCES);
   });
 

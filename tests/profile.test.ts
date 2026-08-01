@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
-import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, applyRaidResult, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
+import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, RAID_HISTORY_LIMIT, applyRaidResult, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, purchaseItem, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
 import { attackDamage, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, sanctuaryDamage, trapDamageAgainstThreat } from "../src/game/combat";
 
@@ -159,7 +159,7 @@ describe("persistent raid consequences", () => {
     expect(result.extracts).toBe(0);
     expect(result.highTollExtracts).toBe(0);
     expect(result.ashenExtracts).toBe(0);
-    expect(result.version).toBe(9);
+    expect(result.version).toBe(10);
     expect(result.xp.reaver).toBe(0);
     expect(result.xp.ranger).toBe(0);
     expect(result.xp.cleric).toBe(0);
@@ -168,6 +168,7 @@ describe("persistent raid consequences", () => {
     expect(result.boneBountyPaid).toBe(false);
     expect(result.rivalBountyPaid).toBe(false);
     expect(result.preferredClass).toBe("vanguard");
+    expect(result.raidHistory).toEqual([]);
   });
 
   it("migrates pre-Shapeshifter profiles without changing established progression", () => {
@@ -175,7 +176,7 @@ describe("persistent raid consequences", () => {
     legacy.version = 7;
     legacy.xp = { vanguard: 700, cutpurse: 350, hexbound: 0, reaver: 0, ranger: 0, cleric: 0 };
     const migrated = normalizeProfile(legacy);
-    expect(migrated.version).toBe(9);
+    expect(migrated.version).toBe(10);
     expect(migrated.xp.vanguard).toBe(700);
     expect(migrated.xp.cutpurse).toBe(350);
     expect(migrated.xp.shapeshifter).toBe(0);
@@ -184,10 +185,52 @@ describe("persistent raid consequences", () => {
   it("migrates pre-bestiary profiles with empty bounded ledgers", () => {
     const legacy = { ...createProfile(), version: 8, threatKills: undefined, boneBountyPaid: undefined, rivalBountyPaid: undefined };
     const migrated = normalizeProfile(legacy);
-    expect(migrated.version).toBe(9);
+    expect(migrated.version).toBe(10);
     expect(migrated.threatKills).toEqual({ skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 });
     expect(migrated.boneBountyPaid).toBe(false);
     expect(migrated.rivalBountyPaid).toBe(false);
+    expect(migrated.raidHistory).toEqual([]);
+  });
+
+  it("records a bounded newest-first contract journal", () => {
+    let profile = createProfile();
+    for (let index = 0; index < RAID_HISTORY_LIMIT + 2; index += 1) {
+      profile = settleRaid(profile, {
+        reason: index % 2 === 0 ? "extracted" : "slain",
+        raidMode: index === 11 ? "high_toll" : "standard",
+        depthReached: index === 11 ? 2 : 1,
+        classId: "ranger",
+        loot: [],
+        equippedIds: [],
+        kills: index,
+        elapsed: 60 + index,
+        goldFound: index,
+        bossKilled: index === 11,
+        finishedAt: 1_000 + index,
+      }).profile;
+    }
+    expect(profile.raidHistory).toHaveLength(RAID_HISTORY_LIMIT);
+    expect(profile.raidHistory[0]).toMatchObject({ completedAt: 1_011, raidMode: "high_toll", depthReached: 2, kills: 11, bossKilled: true });
+    expect(profile.raidHistory.at(-1)?.completedAt).toBe(1_002);
+    expect(profile.raidHistory.some((entry) => entry.completedAt === 1_000)).toBe(false);
+  });
+
+  it("sanitizes malformed contract journal entries and signed XP", () => {
+    const valid = {
+      completedAt: 123,
+      classId: "vanguard",
+      raidMode: "iron_soul",
+      reason: "slain",
+      depthReached: 2,
+      kills: 5,
+      elapsed: 300,
+      goldDelta: 0,
+      xpDelta: -700,
+      gearLost: 2,
+      bossKilled: true,
+    };
+    const profile = normalizeProfile({ ...createProfile(), raidHistory: [{ ...valid }, { ...valid, classId: "dragon" }, null] });
+    expect(profile.raidHistory).toEqual([valid]);
   });
 
   it("rejects non-finite items and deduplicates persisted stash IDs", () => {

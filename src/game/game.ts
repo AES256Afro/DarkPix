@@ -2426,6 +2426,7 @@ export class DarkPixGame {
       elapsed: this.elapsed,
       goldFound: this.goldFound,
       bossKilled: this.bossKilled,
+      finishedAt: Date.now(),
     };
     window.setTimeout(() => this.options.onFinish(result), 260);
   }

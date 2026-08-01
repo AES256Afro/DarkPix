@@ -112,6 +112,13 @@ function itemMarkup(item: Item, riskable = false): string {
     </article>`;
 }
 
+function journalDate(completedAt: number): string {
+  if (!Number.isFinite(completedAt) || completedAt <= 0) return "RECOVERED RAID";
+  const date = new Date(completedAt);
+  if (Number.isNaN(date.getTime())) return "RECOVERED RAID";
+  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(date).toUpperCase();
+}
+
 function renderLobby(): void {
   activeGame?.destroy();
   activeGame = undefined;
@@ -277,6 +284,22 @@ function renderLobby(): void {
               <span class="wax-seal">VI</span>
               <div><small>KNIVES OF THE GUILDLESS</small><strong>${profile.rivalBountyPaid ? "Rival ledger settled" : profile.threatKills.rival >= RIVAL_BOUNTY_TARGET ? "Return alive to claim" : "Defeat rival delvers"}</strong><p>${profile.rivalBountyPaid ? "The guild paid 225g for three hostile delver marks." : "Kill three rival delvers across any contracts. Reward: 225g on extraction."}</p></div>
               <b>${profile.rivalBountyPaid ? "PAID" : `${Math.min(RIVAL_BOUNTY_TARGET, profile.threatKills.rival)} / ${RIVAL_BOUNTY_TARGET}`}</b>
+            </section>
+            <section class="journal-panel" aria-labelledby="journal-heading">
+              <div class="panel-heading"><span><small>PERSISTENT LEDGER</small><strong id="journal-heading">Recent contracts</strong></span><b>${profile.raidHistory.length} / 10</b></div>
+              <div class="journal-list">
+                ${profile.raidHistory.length ? profile.raidHistory.map((entry) => {
+                  const rules = raidRules(entry.raidMode);
+                  const outcome = entry.reason === "extracted" ? "EXTRACTED" : entry.reason === "darkness" ? "TAKEN BY DARK" : entry.reason === "abandoned" ? "FORFEITED" : "SLAIN";
+                  const floor = entry.depthReached === 2 ? "ASHEN DEPTH" : "PALE TOLL";
+                  const xp = entry.xpDelta >= 0 ? `+${entry.xpDelta} XP` : `${entry.xpDelta} XP`;
+                  return `<article class="journal-entry ${entry.reason === "extracted" ? "survived" : "failed"}">
+                    <span>${CLASS_RUNES[entry.classId]}</span>
+                    <div><small>${journalDate(entry.completedAt)} · ${rules.name.toUpperCase()} · ${floor}</small><strong>${outcome}${entry.bossKilled ? " · KEEPER FELLED" : ""}</strong><p>${CLASSES[entry.classId].name} · ${formatTime(entry.elapsed)} · ${entry.kills} kills${entry.gearLost ? ` · ${entry.gearLost} gear lost` : ""}</p></div>
+                    <b>${entry.goldDelta > 0 ? `+${entry.goldDelta}G` : "0G"}<small>${xp}</small></b>
+                  </article>`;
+                }).join("") : `<div class="empty-stash"><strong>NO CONTRACTS RECORDED</strong><span>Your next verdict will be preserved here.</span></div>`}
+              </div>
             </section>
             <section class="bestiary-panel" aria-labelledby="bestiary-heading">
               <div class="panel-heading"><span><small>PERSISTENT INTELLIGENCE</small><strong id="bestiary-heading">Crypt bestiary</strong></span><b>${Object.values(profile.threatKills).filter((count) => count > 0).length} / 6</b></div>
