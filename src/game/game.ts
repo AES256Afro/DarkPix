@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { escapeHtml } from "../html";
 import { AudioDirector } from "./audio";
-import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, delverActionLock, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
+import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, trapDamageAgainstThreat, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
@@ -1039,13 +1039,17 @@ export class DarkPixGame {
     if (event.button === 0) this.attack();
     if (event.button === 2) {
       if (this.remedyBlocks("GUARD")) return;
-      const denial = guardDenialReason(this.stamina, this.guardBreakTimer, this.attackCooldown);
+      const denial = guardDenialReason(this.stamina, this.guardBreakTimer, this.attackCooldown, this.dodgeCooldown);
       if (denial === "guard_broken") {
         this.feed(`GUARD BROKEN · ${this.guardBreakTimer.toFixed(1)}s`, "danger");
         return;
       }
       if (denial === "action_recovery") {
         this.feed(`GUARD DENIED · action recovery ${this.attackCooldown.toFixed(1)}s`, "danger");
+        return;
+      }
+      if (denial === "sidestep_recovery") {
+        this.feed(`GUARD DENIED · sidestep recovery ${this.dodgeCooldown.toFixed(1)}s`, "danger");
         return;
       }
       if (denial === "stamina") {
@@ -1343,7 +1347,7 @@ export class DarkPixGame {
     } else if (this.blocking) {
       this.drainGuard(delta * guardDrainPerSecond(this.options.classId) * this.perkBonuses.guardUpkeepMultiplier);
     } else {
-      const recovering = this.attackCooldown > 0 || this.swingClock > 0 || this.dodgeCooldown > 0 || this.guardBreakTimer > 0 || Boolean(this.remedyItemId);
+      const recovering = delverRecoveryActive(this.attackCooldown, this.swingClock, this.dodgeCooldown, this.guardBreakTimer, Boolean(this.remedyItemId));
       this.stamina = Math.min(this.definition.maxStamina, this.stamina + delta * staminaRecoveryPerSecond(moving, recovering));
     }
 
@@ -1596,6 +1600,10 @@ export class DarkPixGame {
     if (this.remedyBlocks("ATTACK")) return;
     if (this.guardBreakTimer > 0) {
       this.feed(`ATTACK DENIED · guard broken ${this.guardBreakTimer.toFixed(1)}s`, "danger");
+      return;
+    }
+    if (this.dodgeCooldown > 0) {
+      this.feed(`ATTACK DENIED · sidestep recovery ${this.dodgeCooldown.toFixed(1)}s`, "danger");
       return;
     }
     const staminaCost = attackStaminaCost(this.options.classId, this.attackDirection);
@@ -2287,7 +2295,7 @@ export class DarkPixGame {
   private useConsumable(): void {
     if (this.paused || this.ended) return;
     if (this.remedyBlocks("REMEDY")) return;
-    if (this.blocking || this.attackCooldown > 0 || this.swingClock > 0 || this.dodgeCooldown > 0 || this.guardBreakTimer > 0 || this.interactionHold > 0) {
+    if (this.blocking || delverRecoveryActive(this.attackCooldown, this.swingClock, this.dodgeCooldown, this.guardBreakTimer, false) || this.interactionHold > 0) {
       this.feed("REMEDY BLOCKED · free your hands and recover first", "system");
       return;
     }
@@ -2687,7 +2695,7 @@ export class DarkPixGame {
       targeted: activeTargeted,
       moving,
       guarding: this.blocking,
-      recovering: this.attackCooldown > 0 || this.swingClock > 0 || this.guardBreakTimer > 0 || Boolean(this.remedyItemId),
+      recovering: delverRecoveryActive(this.attackCooldown, this.swingClock, this.dodgeCooldown, this.guardBreakTimer, Boolean(this.remedyItemId)),
       damaged: this.damageCooldown > 0,
     }) : undefined;
     if (this.interactionHold > 0 && activeInterruption) this.breakInteractionChannel(activeInterruption);
@@ -2702,7 +2710,7 @@ export class DarkPixGame {
       targeted: true,
       moving,
       guarding: this.blocking,
-      recovering: this.attackCooldown > 0 || this.swingClock > 0 || this.guardBreakTimer > 0 || Boolean(this.remedyItemId),
+      recovering: delverRecoveryActive(this.attackCooldown, this.swingClock, this.dodgeCooldown, this.guardBreakTimer, Boolean(this.remedyItemId)),
       damaged: this.damageCooldown > 0,
     }) : undefined;
     const channeling = Boolean(candidateInput && !candidateInterruption);
@@ -3083,7 +3091,7 @@ export class DarkPixGame {
     this.updateStealthCue(Math.max(this.definition.reach, selectedThrowable ? 10 : 0));
     this.updateWayfinder();
     const strikeStamina = attackStaminaCost(this.options.classId, this.attackDirection);
-    const combatOverride = this.guardBreakTimer > 0 || Boolean(this.remedyItemId) || this.attackCooldown > 0 || this.riposteTimer > 0;
+    const combatOverride = this.guardBreakTimer > 0 || Boolean(this.remedyItemId) || this.attackCooldown > 0 || this.dodgeCooldown > 0 || this.riposteTimer > 0;
     const strikeExhausted = !combatOverride && this.stamina < strikeStamina;
     this.directionHud.textContent = this.guardBreakTimer > 0
       ? `GUARD BROKEN · ${this.guardBreakTimer.toFixed(1)}s`
@@ -3091,6 +3099,8 @@ export class DarkPixGame {
         ? `TREATING · ${this.remedyTimer.toFixed(1)}s`
       : this.attackCooldown > 0
         ? `ACTION RECOVERY · ${this.attackCooldown.toFixed(1)}s · GUARD LOCKED`
+      : this.dodgeCooldown > 0
+        ? `SIDESTEP RECOVERY · ${this.dodgeCooldown.toFixed(1)}s · HANDS LOCKED`
       : this.riposteTimer > 0
         ? `RIPOSTE · ${this.riposteTimer.toFixed(1)}s`
         : `${this.attackDirection} · ${strikeExhausted ? "NEED" : "COST"} ${strikeStamina} STA`;
