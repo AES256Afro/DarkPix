@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
-import { attackDamage, enemyAttackPattern, type ThreatKind } from "./combat";
+import { attackDamage, enemyAttackPattern, guardDrainPerSecond, type ThreatKind } from "./combat";
 import { CLASSES, RARITY_COLOR, createLoot, createSigil, formatTime, progressionBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { cardinalDirection, circlesOverlap } from "./navigation";
@@ -703,8 +703,19 @@ export class DarkPixGame {
     const dx = (input.x * cos - input.y * sin) * speed * delta;
     const dz = (-input.x * sin - input.y * cos) * speed * delta;
     this.tryMove(dx, dz);
-    if (sprinting) this.stamina = Math.max(0, this.stamina - delta * (this.options.classId === "cutpurse" ? 17 : 24));
-    else if (!this.blocking) this.stamina = Math.min(this.definition.maxStamina, this.stamina + delta * 19);
+    if (sprinting) {
+      this.stamina = Math.max(0, this.stamina - delta * (this.options.classId === "cutpurse" ? 17 : 24));
+    } else if (this.blocking) {
+      this.stamina = Math.max(0, this.stamina - delta * guardDrainPerSecond(this.options.classId));
+      if (this.stamina <= 0) {
+        this.blocking = false;
+        this.blockAge = 0;
+        this.feed("GUARD BROKEN · recover your footing", "danger");
+        this.audio.tone(72, 0.24, "sawtooth", 0.1);
+      }
+    } else {
+      this.stamina = Math.min(this.definition.maxStamina, this.stamina + delta * 19);
+    }
 
     if (moving && !this.options.preferences.reducedMotion) {
       this.footstepClock += delta * speed;

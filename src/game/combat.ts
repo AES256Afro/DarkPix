@@ -1,3 +1,5 @@
+import type { ClassId } from "./types";
+
 export type AttackDirection = "OVERHEAD" | "THRUST" | "SWEEP";
 export type ThreatKind = "skeleton" | "crawler" | "warden" | "rival" | "boss";
 
@@ -29,4 +31,10 @@ export function enemyAttackPattern(kind: ThreatKind, enraged = false): EnemyAtta
   if (kind === "warden") return { windup: 0.48, recovery: 1.9 };
   if (kind === "crawler") return { windup: 0.26, recovery: 1.25 };
   return { windup: 0.36, recovery: 1.55 };
+}
+
+export function guardDrainPerSecond(classId: ClassId): number {
+  if (classId === "vanguard") return 7;
+  if (classId === "hexbound") return 14;
+  return 11;
 }

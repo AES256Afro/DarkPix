@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createLoot, formatTime, levelForXp, progressionBonuses, rarityFromRoll } from "../src/game/data";
 import { applyRaidResult, createProfile, normalizeProfile, purchaseItem, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
-import { attackDamage, enemyAttackPattern } from "../src/game/combat";
+import { attackDamage, enemyAttackPattern, guardDrainPerSecond } from "../src/game/combat";
 
 describe("loot generation", () => {
   it("maps rarity thresholds deterministically", () => {
@@ -221,5 +221,11 @@ describe("directional combat damage", () => {
     expect(enemyAttackPattern("warden").windup).toBeGreaterThan(enemyAttackPattern("crawler").windup);
     expect(enemyAttackPattern("boss").windup).toBeGreaterThan(enemyAttackPattern("rival").windup);
     expect(enemyAttackPattern("boss", true)).toEqual({ windup: 0.34, recovery: 1.2 });
+  });
+
+  it("makes sustained guards cost class-tuned stamina", () => {
+    expect(guardDrainPerSecond("vanguard")).toBe(7);
+    expect(guardDrainPerSecond("cutpurse")).toBe(11);
+    expect(guardDrainPerSecond("hexbound")).toBe(14);
   });
 });
