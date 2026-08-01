@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { AudioDirector } from "./audio";
-import { attackDamage, enemyAttackPattern, guardDrainPerSecond, healthPercent, rivalTactic, type ThreatKind } from "./combat";
+import { attackDamage, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic, type ThreatKind } from "./combat";
 import { CLASSES, RARITY_COLOR, classPerkBonuses, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, type ClassPerkBonuses } from "./data";
 import { DUNGEON, dungeonLineOfSight, dungeonPath } from "./dungeon";
 import { HAUL_CAPACITY, canAddToHaul, dropLeastValuable, haulCount, treasureGold } from "./haul";
@@ -1099,19 +1099,25 @@ export class DarkPixGame {
         if (distance > attackRange + 0.25 || !hasSight) continue;
 
         if (enemy.kind === "rival" && enemy.attackStyle === "ranged") this.spawnRivalKnife(enemy);
-        const parried = enemy.kind !== "boss" && this.blocking && this.blockAge < 0.24;
+        const guardFacing = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+        const facingThreat = guardFacesThreat(
+          { x: guardFacing.x, z: guardFacing.z },
+          { x: enemy.group.position.x - player.x, z: enemy.group.position.z - player.z },
+        );
+        const guardingAttack = this.blocking && facingThreat;
+        const parried = enemy.kind !== "boss" && guardingAttack && this.blockAge < 0.24;
         if (parried) {
           enemy.stagger = 1.0;
           this.stamina = Math.max(0, this.stamina - 5);
           this.feed(`PARRIED · ${enemy.name} is exposed`, "system");
           this.audio.tone(780, 0.12, "square", 0.13);
         } else {
-          const reduction = this.blocking ? (this.options.classId === "hexbound" ? 0.45 : 0.72) : 0;
+          const reduction = guardingAttack ? (this.options.classId === "hexbound" ? 0.45 : 0.72) : 0;
           const attackDamage = enemy.kind === "rival" && enemy.attackStyle === "melee"
             ? Math.round(enemy.damage * 0.75)
             : enemy.damage;
           this.hurt(attackDamage * (1 - reduction), enemy.name);
-          if (this.blocking) this.stamina = Math.max(0, this.stamina - attackDamage * 0.75);
+          if (guardingAttack) this.stamina = Math.max(0, this.stamina - attackDamage * 0.75);
         }
         continue;
       }

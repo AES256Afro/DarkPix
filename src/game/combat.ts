@@ -1,4 +1,5 @@
 import type { ClassId } from "./types";
+import type { Vec2 } from "./types";
 
 export type AttackDirection = "OVERHEAD" | "THRUST" | "SWEEP";
 export type ThreatKind = "skeleton" | "crawler" | "warden" | "rival" | "boss";
@@ -52,4 +53,12 @@ export function guardDrainPerSecond(classId: ClassId): number {
 export function healthPercent(current: number, maximum: number): number {
   if (!Number.isFinite(current) || !Number.isFinite(maximum) || maximum <= 0) return 0;
   return Math.min(100, Math.max(0, (current / maximum) * 100));
+}
+
+export function guardFacesThreat(facing: Vec2, toThreat: Vec2, minimumAlignment = 0.2): boolean {
+  const facingLength = Math.hypot(facing.x, facing.z);
+  const threatLength = Math.hypot(toThreat.x, toThreat.z);
+  if (!Number.isFinite(facingLength) || !Number.isFinite(threatLength) || facingLength <= 0.001 || threatLength <= 0.001) return false;
+  const alignment = (facing.x * toThreat.x + facing.z * toThreat.z) / (facingLength * threatLength);
+  return alignment >= Math.min(1, Math.max(-1, minimumAlignment));
 }

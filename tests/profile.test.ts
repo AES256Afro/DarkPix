@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CRAFTING_RECIPES, MERCHANT_OFFERS, classPerkBonuses, createBossLoot, createLoot, formatTime, levelForXp, merchantOfferUnlocked, progressionBonuses, rarityFromRoll } from "../src/game/data";
 import { applyRaidResult, craftItem, createProfile, normalizeProfile, purchaseItem, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, normalizePreferences } from "../src/game/preferences";
-import { attackDamage, enemyAttackPattern, guardDrainPerSecond, healthPercent, rivalTactic } from "../src/game/combat";
+import { attackDamage, enemyAttackPattern, guardDrainPerSecond, guardFacesThreat, healthPercent, rivalTactic } from "../src/game/combat";
 
 describe("loot generation", () => {
   it("maps rarity thresholds deterministically", () => {
@@ -285,6 +285,13 @@ describe("directional combat damage", () => {
     expect(guardDrainPerSecond("vanguard")).toBe(7);
     expect(guardDrainPerSecond("cutpurse")).toBe(11);
     expect(guardDrainPerSecond("hexbound")).toBe(14);
+  });
+
+  it("blocks only threats inside the forward guard cone", () => {
+    expect(guardFacesThreat({ x: 0, z: -1 }, { x: 0.2, z: -2 })).toBe(true);
+    expect(guardFacesThreat({ x: 0, z: -1 }, { x: 1, z: 0 })).toBe(false);
+    expect(guardFacesThreat({ x: 0, z: -1 }, { x: 0, z: 3 })).toBe(false);
+    expect(guardFacesThreat({ x: 0, z: 0 }, { x: 0, z: -1 })).toBe(false);
   });
 
   it("clamps target vigor display percentages", () => {
