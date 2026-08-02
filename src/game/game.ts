@@ -20,7 +20,7 @@ import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, poi
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
 import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
-import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileSegmentConnects, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
+import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileSegmentConnects, projectileSegmentContact, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
 import { DARKNESS_PULSE_SECONDS, darknessPulseReady, directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "./zone";
 
@@ -95,7 +95,7 @@ interface EnemyProjectile {
   end: THREE.Vector3;
   elapsed: number;
   duration: number;
-  sourceId: number;
+  sourceId?: number;
   sourceName: string;
   damage: number;
 }
@@ -1688,57 +1688,14 @@ export class DarkPixGame {
   private fireDartTrap(trap: DartTrap): void {
     trap.cooldown = 4.2;
     trap.portMaterial.emissiveIntensity = 0.15;
-    const origin = { x: trap.group.position.x, z: trap.group.position.z };
-    let victim: Enemy | undefined;
-    let victimDistance = Number.POSITIVE_INFINITY;
-    for (const enemy of this.enemies) {
-      if (!enemy.alive) continue;
-      const distance = dartTrapTargetDistance(origin, trap.direction, trap.range, enemy.group.position, enemy.kind === "boss" ? 0.72 : 0.5);
-      if (distance < victimDistance) {
-        victim = enemy;
-        victimDistance = distance;
-      }
-    }
-    const playerDistance = dartTrapTargetDistance(origin, trap.direction, trap.range, this.camera.position);
-    const strikeDistance = Math.min(playerDistance, victimDistance);
-    this.spawnDartVolley(trap, Number.isFinite(strikeDistance) ? strikeDistance : trap.range);
-    if (playerDistance < victimDistance) {
-      const guardFacing = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
-      const facingPort = guardFacesThreat(
-        { x: guardFacing.x, z: guardFacing.z },
-        { x: origin.x - this.camera.position.x, z: origin.z - this.camera.position.z },
-      );
-      const guarded = this.blocking && facingPort;
-      const impactAccepted = this.hurt(trap.damage * (guarded ? 0.28 : 1), "a wall dart", true, origin);
-      if (this.ended) return;
-      if (guarded && impactAccepted) this.drainGuard(trap.damage * 0.5);
-      return;
-    }
-    if (!victim || !Number.isFinite(victimDistance)) return;
-    this.damageEnemy(victim, trapDamageAgainstThreat(trap.damage, victim.kind), false, false);
-    this.feed(`WALL DART · ${victim.name} is pinned`, "combat");
+    this.launchDartProjectile(trap);
   }
 
-  private spawnDartVolley(trap: DartTrap, distance: number): void {
+  private launchDartProjectile(trap: DartTrap): void {
     const direction = new THREE.Vector3(trap.direction.x, 0, trap.direction.z).normalize();
     const start = trap.group.position.clone().add(new THREE.Vector3(0, 1.35, 0)).add(direction.clone().multiplyScalar(0.18));
-    const dartMaterial = material(0x9f978c, 0x21120c);
-    const darts: THREE.Mesh[] = [];
-    for (const offset of [-0.22, 0, 0.22]) {
-      const dart = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, Math.max(0.2, distance)), dartMaterial);
-      dart.position.copy(start).add(new THREE.Vector3(0, offset, 0)).add(direction.clone().multiplyScalar(distance / 2));
-      dart.lookAt(start.clone().add(direction));
-      this.scene.add(dart);
-      darts.push(dart);
-    }
-    this.audio.tone(190, 0.11, "sawtooth", 0.08);
-    this.lifecycleTimers.schedule(() => {
-      for (const dart of darts) {
-        this.scene.remove(dart);
-        dart.geometry.dispose();
-      }
-      dartMaterial.dispose();
-    }, 95);
+    const end = start.clone().add(direction.multiplyScalar(Math.max(0.2, trap.range - 0.18)));
+    this.launchIncomingProjectile("dart", start, end, trap.damage, "a wall dart");
   }
 
   private attack(): void {
@@ -1961,9 +1918,17 @@ export class DarkPixGame {
       start.y = enemy.group.position.y + 1.35;
       end.y = this.camera.position.y - 0.28;
     }
-    const projectileMaterial = material(kind === "chain" ? 0x796554 : 0xa59b8d, kind === "chain" ? 0x301712 : 0x3b2921);
+    this.launchIncomingProjectile(kind, start, end, damage, enemy.name, enemy.id);
+  }
+
+  private launchIncomingProjectile(kind: EnemyProjectileKind, start: THREE.Vector3, end: THREE.Vector3, damage: number, sourceName: string, sourceId?: number): void {
+    const projectileMaterial = material(
+      kind === "chain" ? 0x796554 : kind === "dart" ? 0x9f978c : 0xa59b8d,
+      kind === "chain" ? 0x301712 : kind === "dart" ? 0x21120c : 0x3b2921,
+    );
+    const size = kind === "chain" ? [0.13, 0.13, 0.62] : kind === "dart" ? [0.38, 0.07, 0.28] : [0.065, 0.065, 0.34];
     const projectile = new THREE.Mesh(
-      new THREE.BoxGeometry(kind === "chain" ? 0.13 : 0.065, kind === "chain" ? 0.13 : 0.065, kind === "chain" ? 0.62 : 0.34),
+      new THREE.BoxGeometry(size[0], size[1], size[2]),
       projectileMaterial,
     );
     projectile.position.copy(start);
@@ -1978,13 +1943,13 @@ export class DarkPixGame {
       end,
       elapsed: 0,
       duration,
-      sourceId: enemy.id,
-      sourceName: enemy.name,
+      sourceId,
+      sourceName,
       damage,
     });
     const cue = enemyProjectileFlightCue(kind, duration);
     this.showDirectionalCue(start, cue.label, cue.duration, "warning");
-    this.audio.tone(kind === "chain" ? 74 : 420, Math.min(0.22, duration), kind === "chain" ? "sawtooth" : "square", 0.055);
+    this.audio.tone(kind === "chain" ? 74 : kind === "dart" ? 190 : 420, Math.min(0.22, duration), kind === "chain" || kind === "dart" ? "sawtooth" : "square", kind === "dart" ? 0.08 : 0.055);
   }
 
   private updateEnemyProjectiles(delta: number): void {
@@ -2000,7 +1965,24 @@ export class DarkPixGame {
         this.removeEnemyProjectile(index);
         continue;
       }
-      if (projectileSegmentConnects(previous, position, this.camera.position, PLAYER_RADIUS + 0.18)) {
+      const playerContact = projectileSegmentContact(previous, position, this.camera.position, PLAYER_RADIUS + 0.18);
+      let enemyContact: { enemy: Enemy; progress: number } | undefined;
+      if (projectile.kind === "dart") {
+        for (const enemy of this.enemies) {
+          if (!enemy.alive) continue;
+          const target = enemy.group.position.clone().add(new THREE.Vector3(0, 1, 0));
+          const progress = projectileSegmentContact(previous, position, target, enemy.kind === "boss" ? 0.72 : 0.5);
+          if (progress === undefined || (enemyContact && enemyContact.progress <= progress)) continue;
+          enemyContact = { enemy, progress };
+        }
+      }
+      if (enemyContact && (playerContact === undefined || enemyContact.progress <= playerContact)) {
+        this.removeEnemyProjectile(index);
+        this.damageEnemy(enemyContact.enemy, trapDamageAgainstThreat(projectile.damage, enemyContact.enemy.kind), false, false);
+        this.feed(`WALL DART · ${enemyContact.enemy.name} is pinned`, "combat");
+        continue;
+      }
+      if (playerContact !== undefined) {
         this.removeEnemyProjectile(index);
         this.resolveEnemyProjectileHit(projectile);
         if (this.ended) return;
@@ -2008,13 +1990,13 @@ export class DarkPixGame {
       }
       if (projectile.elapsed >= projectile.duration) {
         this.removeEnemyProjectile(index);
-        this.feed(`${projectile.kind === "chain" ? "CHAIN EVADED" : "MISSILE EVADED"} · the committed line passes`, "system");
+        if (projectile.kind !== "dart") this.feed(`${projectile.kind === "chain" ? "CHAIN EVADED" : "MISSILE EVADED"} · the committed line passes`, "system");
       }
     }
   }
 
   private resolveEnemyProjectileHit(projectile: EnemyProjectile): void {
-    const source = this.enemies.find((enemy) => enemy.id === projectile.sourceId);
+    const source = projectile.sourceId === undefined ? undefined : this.enemies.find((enemy) => enemy.id === projectile.sourceId);
     const guardFacing = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
     const facingSource = guardFacesThreat(
       { x: guardFacing.x, z: guardFacing.z },
@@ -2033,10 +2015,10 @@ export class DarkPixGame {
       return;
     }
     const guardingAttack = defense === "guard";
-    const reduction = guardingAttack ? (this.options.classId === "hexbound" ? 0.45 : 0.72) : 0;
+    const reduction = guardingAttack ? (projectile.kind === "dart" ? 0.72 : this.options.classId === "hexbound" ? 0.45 : 0.72) : 0;
     const impactAccepted = this.hurt(projectile.damage * (1 - reduction), projectile.sourceName, true, { x: projectile.start.x, z: projectile.start.z });
     if (this.ended) return;
-    if (guardingAttack && impactAccepted) this.drainGuard(projectile.damage * 0.75);
+    if (guardingAttack && impactAccepted) this.drainGuard(projectile.damage * (projectile.kind === "dart" ? 0.5 : 0.75));
   }
 
   private removeEnemyProjectile(index: number): void {

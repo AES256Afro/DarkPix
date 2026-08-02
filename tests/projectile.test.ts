@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileImpactConnects, projectileSegmentConnects } from "../src/game/projectile";
+import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileImpactConnects, projectileSegmentConnects, projectileSegmentContact } from "../src/game/projectile";
 
 describe("player projectile travel", () => {
   it("gives arrows and spells bounded nonzero travel time", () => {
@@ -26,9 +26,10 @@ describe("player projectile travel", () => {
     expect(projectileImpactConnects(impact, { x: Number.NaN, z: 4 }, 0.5)).toBe(false);
   });
 
-  it("gives hostile knives and chains their own readable approach window", () => {
+  it("gives hostile knives, chains, and dart volleys readable approach windows", () => {
     expect(enemyProjectileDuration(6.5, "knife")).toBe(0.5);
     expect(enemyProjectileDuration(5, "chain")).toBe(0.5);
+    expect(enemyProjectileDuration(8, "dart")).toBe(0.5);
     expect(enemyProjectilePosition({ x: 0, y: 1, z: 0 }, { x: 0, y: 1, z: 5 }, 0.5, 1, "chain")).toEqual({ x: 0, y: 1, z: 2.5 });
     expect(enemyProjectilePosition({ x: 0, y: 1, z: 0 }, { x: 0, y: 1, z: 5 }, 0.5, 1, "knife")).toEqual({ x: 0, y: 1.14, z: 2.5 });
   });
@@ -37,6 +38,7 @@ describe("player projectile travel", () => {
     expect(enemyProjectileDefense("knife", true, true, 0.12)).toBe("parry");
     expect(enemyProjectileDefense("knife", true, true, 0.24)).toBe("guard");
     expect(enemyProjectileDefense("chain", true, true, 0.04)).toBe("guard");
+    expect(enemyProjectileDefense("dart", true, true, 0.04)).toBe("guard");
     expect(enemyProjectileDefense("knife", true, false, 0.04)).toBe("hit");
     expect(enemyProjectileDefense("knife", false, true, 0.04)).toBe("hit");
     expect(enemyProjectileDefense("knife", true, true, Number.NaN)).toBe("guard");
@@ -45,6 +47,7 @@ describe("player projectile travel", () => {
   it("keeps a shape-and-text warning alive for the full hostile flight", () => {
     expect(enemyProjectileFlightCue("knife", 0.5)).toEqual({ label: "KNIFE IN FLIGHT", duration: 0.62 });
     expect(enemyProjectileFlightCue("chain", 0.8)).toEqual({ label: "CHAIN IN FLIGHT", duration: 0.92 });
+    expect(enemyProjectileFlightCue("dart", 0.4)).toEqual({ label: "DARTS IN FLIGHT", duration: 0.52 });
     expect(enemyProjectileFlightCue("knife", Number.NaN)).toEqual({ label: "KNIFE IN FLIGHT", duration: 0.26 });
   });
 
@@ -53,6 +56,7 @@ describe("player projectile travel", () => {
     expect(enemyProjectilePauseSummary(["knife"])).toBe("1 KNIFE");
     expect(enemyProjectilePauseSummary(["knife", "knife", "chain"])).toBe("2 KNIVES · 1 CHAIN");
     expect(enemyProjectilePauseSummary(["chain", "chain"])).toBe("2 CHAINS");
+    expect(enemyProjectilePauseSummary(["dart", "knife", "dart"])).toBe("1 KNIFE · 2 DART VOLLEYS");
   });
 
   it("detects a threat crossed by a fast projectile without tunneling", () => {
@@ -63,5 +67,7 @@ describe("player projectile travel", () => {
     expect(projectileSegmentConnects(start, end, { x: 0, y: 1, z: -1.2 }, 0.25)).toBe(true);
     expect(projectileSegmentConnects(start, end, { x: 0, y: 1, z: -1.4 }, 0.25)).toBe(false);
     expect(projectileSegmentConnects({ x: 0, y: 1.4, z: 0 }, { x: 0, y: 1.82, z: -1 }, { x: 0, y: 1.82, z: -1 }, 0.3)).toBe(true);
+    expect(projectileSegmentContact(start, end, { x: 0, y: 1, z: -0.75 }, 0.2)).toBeCloseTo(0.75);
+    expect(projectileSegmentContact(start, end, { x: 1, y: 1, z: -0.5 }, 0.2)).toBeUndefined();
   });
 });
