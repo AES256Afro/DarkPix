@@ -916,11 +916,8 @@ async function startRaid(): Promise<void> {
     }, 3_000);
     profile.gold = escrow.goldAfterEntry ?? Math.max(0, goldBeforeEntry - rules.entryFee);
     if (!saveProfile(profile)) {
-      profile.gold = goldBeforeEntry;
-      const canceled = clearRaidEscrow();
-      if (canceled) activeRaidStartedAt = 0;
-      else {
-        profile.lastSettledRaidStartedAt = activeRaidStartedAt;
+      const canceled = refundFailedRaidStart(goldBeforeEntry);
+      if (!canceled) {
         interruptedSettlementPending = true;
         interruptedSettlementNotice = "Canceled raid entry reconciled without charging its fee.";
       }

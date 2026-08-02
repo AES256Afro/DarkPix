@@ -70,6 +70,8 @@ A retained settled journal is reconciled before its old page-owner lease is cons
 
 The final pre-descent journal check applies the same rule. It removes an already-settled journal before writing the next raid, while a removal failure blocks descent rather than overwriting recovery evidence.
 
+If the raid-entry profile write is rejected after the loading lease begins, cancellation stops that heartbeat before durably recording the refund marker and clearing escrow. The canceled journal therefore cannot be recreated by its own timer.
+
 Active-journal loading uses disjoint state records, so a `loaded` result always carries its validated escrow and recovery text exists only for a damaged result.
 
 ## Extraction loop

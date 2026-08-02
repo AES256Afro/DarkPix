@@ -90,6 +90,16 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource.indexOf("if (startedAt === undefined)")).toBeLessThan(mainSource.indexOf("let escrow = createRaidEscrow"));
   });
 
+  it("stops the loading lease before refunding a rejected raid-entry write", () => {
+    const refund = mainSource.slice(mainSource.indexOf("function refundFailedRaidStart"), mainSource.indexOf("async function startRaid"));
+    const entryWriteStart = mainSource.indexOf("profile.gold = escrow.goldAfterEntry");
+    const entryWriteFailure = mainSource.slice(entryWriteStart, mainSource.indexOf("app.innerHTML = `<main class=\"game-mount\"", entryWriteStart));
+    expect(refund.indexOf("stopRaidHeartbeat()")).toBeLessThan(refund.indexOf("saveProfile(profile)"));
+    expect(refund.indexOf("saveProfile(profile)")).toBeLessThan(refund.indexOf("clearRaidEscrow()"));
+    expect(entryWriteFailure).toContain("const canceled = refundFailedRaidStart(goldBeforeEntry)");
+    expect(entryWriteFailure).not.toContain("const canceled = clearRaidEscrow()");
+  });
+
   it("recovers an update prompt after another tab activates its worker", () => {
     expect(mainSource).toContain("const waitingWorker = updateRegistration?.waiting");
     expect(mainSource).toContain("RELOADING APPLIED UPDATE...");
