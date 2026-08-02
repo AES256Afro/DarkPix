@@ -124,7 +124,7 @@ function activeRaidJournalOwnershipLost(): boolean {
 
 function renewActiveRaidEscrow(escrow: ReturnType<typeof createRaidEscrow>): boolean {
   const renewal = renewRaidEscrow(escrow);
-  if (renewal === "ownership_lost") queueRaidLeaseLoss();
+  if (renewal !== "secure" && activeRaidJournalOwnershipLost()) queueRaidLeaseLoss();
   return renewal === "secure";
 }
 

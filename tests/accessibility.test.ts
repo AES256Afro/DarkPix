@@ -97,7 +97,7 @@ describe("lobby accessibility contracts", () => {
   it("stops a losing concurrent raid claim without overwriting the winning journal", () => {
     expect(mainSource).toContain("function queueRaidLeaseLoss()");
     expect(mainSource).toContain("raidEscrowOwnedBy(journal.escrow, raidOwnerId, activeRaidStartedAt)");
-    expect(mainSource).toContain('renewal === "ownership_lost"');
+    expect(mainSource).toContain('renewal !== "secure" && activeRaidJournalOwnershipLost()');
     expect(mainSource).toContain("lostRaidLeaseStartedAt === claimedRaidStartedAt");
     expect(mainSource).toContain("() => activeRaidJournalOwned() && persistProfile()");
     expect(mainSource).toContain("clearOwnedRaidEscrow(raidOwnerId, activeRaidStartedAt)");
@@ -105,6 +105,11 @@ describe("lobby accessibility contracts", () => {
     const leaseLoss = mainSource.slice(mainSource.indexOf("function queueRaidLeaseLoss"), mainSource.indexOf("function loadGameModule"));
     expect(leaseLoss).not.toContain("clearRaidEscrow");
     expect(leaseLoss).not.toContain("saveProfile");
+  });
+
+  it("rechecks journal continuity after every failed active lease renewal", () => {
+    expect(mainSource).toContain('renewal !== "secure" && activeRaidJournalOwnershipLost()');
+    expect(mainSource).toContain("queueRaidLeaseLoss()");
   });
 
   it("refreshes an idle lobby when another tab stores a durable profile", () => {
