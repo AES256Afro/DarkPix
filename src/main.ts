@@ -35,6 +35,8 @@ let merchantNotice = "";
 let pendingSaleId: string | undefined;
 let persistenceWarning = profileLoad.status === "corrupt"
   ? "The stored profile was unreadable. Its raw contents were preserved for download in Settings before a starter profile was shown."
+  : profileLoad.status === "incompatible"
+    ? "This profile belongs to a newer DarkPix release. Its raw contents were preserved for download instead of being downgraded."
   : storageWritableAtStart
     ? ""
     : "Persistent browser storage is unavailable. Lobby changes may vanish, and no raid will start unless its risk journal can be secured.";
@@ -48,7 +50,7 @@ let lobbyEpoch = 0;
 const raidLaunchGate = new SingleFlightGate();
 const saveImportGate = new SingleFlightGate();
 
-const interruptedRaid = loadRaidEscrow();
+const interruptedRaid = profileLoad.status === "incompatible" ? undefined : loadRaidEscrow();
 if (interruptedRaid) {
   if (raidEscrowAlreadySettled(profile, interruptedRaid)) {
     if (clearRaidEscrow()) merchantNotice = "A completed raid journal was reconciled without repeating its verdict.";
@@ -147,6 +149,14 @@ function downloadTextFile(contents: string, filename: string, type: string): voi
   anchor.download = filename;
   anchor.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function renderIncompatibleProfileRecovery(): void {
+  app.innerHTML = `<main class="game-mount" aria-label="DarkPix profile recovery"><section class="runtime-error persistence-recovery"><span>†</span><h1>A NEWER LEDGER IS SEALED HERE</h1><p role="alert">This DarkPix release cannot safely read the stored profile. Lobby actions are locked so unknown progress is not overwritten. Download the raw save, then update DarkPix or return to the newer release that created it.</p><button type="button">DOWNLOAD RAW SAVE</button></section></main>`;
+  app.querySelector<HTMLButtonElement>("button")?.addEventListener("click", () => {
+    if (profileRecovery === undefined) return;
+    downloadTextFile(profileRecovery, `darkpix-newer-profile-${new Date().toISOString().slice(0, 10)}.json`, "application/json");
+  });
 }
 
 function itemMarkup(item: Item, riskable = false): string {
@@ -869,5 +879,6 @@ function finishRaid(result: RaidResult): void {
   });
 }
 
-renderLobby();
+if (profileLoad.status === "incompatible") renderIncompatibleProfileRecovery();
+else renderLobby();
 registerOfflineWorker();

@@ -43,6 +43,7 @@ Status: Complete for local-first play
 - Future-dated verdicts cannot pre-claim a later daily commission or poison the contract journal clock
 - The exact floor deadline and first lethal source stop the terminal simulation frame before later systems can mutate a captured verdict
 - Version 15 migrates older profiles into the Quiet Knives contract and settled-journal marker without changing prior progress
+- Future profile schemas and backup imports are preserved or rejected instead of being destructively downgraded
 - Class XP, contracts, bestiary ledgers, survival streaks, raid history, settings, and backup import/export survive compatible profile migrations
 - Save import is single-flight, bound to its originating idle lobby, and must durably store the profile before replacing in-memory state
 - Iron Soul failure clears the selected discipline's XP while preserving the rest of the profile

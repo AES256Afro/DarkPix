@@ -10,6 +10,7 @@ import { MAX_UNSEEN_STRIKES, QUIET_KNIVES_REWARD, QUIET_KNIVES_TARGET } from "./
 const PROFILE_KEY = "darkpix-profile-v1";
 const PROFILE_RECOVERY_KEY = "darkpix-profile-recovery-v1";
 const RAID_ESCROW_KEY = "darkpix-active-raid-v1";
+export const PROFILE_VERSION = 15;
 export const MAX_GOLD = 9_999_999;
 export const MAX_ITEM_POWER = 100;
 export const MAX_ITEM_VALUE = 99_999;
@@ -44,7 +45,7 @@ const STARTER_STASH: Item[] = [
 
 export function createProfile(): Profile {
   return {
-    version: 15,
+    version: PROFILE_VERSION,
     gold: 75,
     xp: { vanguard: 0, cutpurse: 0, hexbound: 0, reaver: 0, ranger: 0, cleric: 0, shapeshifter: 0, minstrel: 0 },
     stash: STARTER_STASH.map((item) => ({ ...item })),
@@ -167,7 +168,7 @@ export function normalizeProfile(value: unknown): Profile {
     ? candidate.raidHistory.map(normalizeRaidJournalEntry).filter((entry): entry is RaidJournalEntry => Boolean(entry)).slice(0, RAID_HISTORY_LIMIT)
     : [];
   return {
-    version: 15,
+    version: PROFILE_VERSION,
     gold: nonnegativeInteger(candidate.gold, MAX_GOLD),
     xp: {
       vanguard: nonnegativeInteger(xp.vanguard, MAX_CLASS_XP),
@@ -314,7 +315,7 @@ interface ProfileStorageTarget {
 
 export interface ProfileLoadResult {
   profile: Profile;
-  status: "loaded" | "missing" | "corrupt" | "unavailable";
+  status: "loaded" | "missing" | "corrupt" | "incompatible" | "unavailable";
   recovery?: string;
 }
 
@@ -343,6 +344,14 @@ export function loadProfileState(storage?: ProfileStorageTarget): ProfileLoadRes
   try {
     const parsed = JSON.parse(serialized) as unknown;
     if (!recognizableStoredProfile(parsed)) throw new Error("unrecognizable DarkPix profile");
+    if ((parsed as { version: number }).version > PROFILE_VERSION) {
+      try {
+        target.setItem(PROFILE_RECOVERY_KEY, serialized);
+      } catch {
+        // The raw future profile still remains available to the current page.
+      }
+      return { profile: createProfile(), status: "incompatible", recovery: serialized };
+    }
     return { profile: normalizeProfile(parsed), status: "loaded", ...(existingRecovery !== undefined ? { recovery: existingRecovery } : {}) };
   } catch {
     try {

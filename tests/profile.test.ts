@@ -315,6 +315,20 @@ describe("persistent raid consequences", () => {
     expect([...values.values()]).toContain("{broken-json");
   });
 
+  it("preserves a future stored schema instead of downgrading it", () => {
+    const future = { ...createProfile(), version: 16, futureLedger: { unknown: true } };
+    const serialized = JSON.stringify(future);
+    const values = new Map<string, string>([["darkpix-profile-v1", serialized]]);
+    const loaded = loadProfileState({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => { values.set(key, value); },
+    });
+    expect(loaded.status).toBe("incompatible");
+    expect(loaded.profile.version).toBe(15);
+    expect(JSON.parse(loaded.recovery ?? "{}")).toMatchObject({ version: 16, futureLedger: { unknown: true } });
+    expect(values.get("darkpix-profile-recovery-v1")).toBe(serialized);
+  });
+
   it("distinguishes a missing profile from unavailable storage", () => {
     const missing = loadProfileState({ getItem: () => null, setItem: () => undefined });
     const unavailable = loadProfileState({

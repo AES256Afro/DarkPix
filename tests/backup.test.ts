@@ -29,6 +29,13 @@ describe("save backups", () => {
     }))).toBeUndefined();
   });
 
+  it("rejects a backup written by a newer profile schema", () => {
+    const backup = JSON.parse(createSaveBackup(createProfile(), DEFAULT_PREFERENCES, "future"));
+    backup.profile.version = 16;
+    backup.profile.futureLedger = { unknown: true };
+    expect(parseSaveBackup(JSON.stringify(backup))).toBeUndefined();
+  });
+
   it("stores an imported profile before settings and rejects memory replacement when profile storage fails", () => {
     const imported = { profile: createProfile(), preferences: DEFAULT_PREFERENCES };
     const order: string[] = [];

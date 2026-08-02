@@ -24,6 +24,12 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain('"RETRY SECURING VERDICT"');
   });
 
+  it("locks an incompatible future profile to a raw recovery download", () => {
+    expect(mainSource).toContain("renderIncompatibleProfileRecovery");
+    expect(mainSource).toContain("Lobby actions are locked so unknown progress is not overwritten.");
+    expect(mainSource).toContain("DOWNLOAD RAW SAVE");
+  });
+
   it("offers a paused live-journal retry without resuming the raid", () => {
     const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
     expect(gameSource).toContain('class="retry-journal hidden"');

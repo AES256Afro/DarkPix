@@ -1,5 +1,5 @@
 import { normalizePreferences } from "./preferences";
-import { normalizeProfile } from "./profile";
+import { PROFILE_VERSION, normalizeProfile } from "./profile";
 import type { GamePreferences, Profile } from "./types";
 
 export const SAVE_BACKUP_FORMAT = "darkpix-save-v1";
@@ -20,7 +20,7 @@ function recognizableProfile(value: unknown): boolean {
   const candidate = record(value);
   return Boolean(
     candidate &&
-    typeof candidate.version === "number" && Number.isFinite(candidate.version) &&
+    typeof candidate.version === "number" && Number.isFinite(candidate.version) && candidate.version <= PROFILE_VERSION &&
     typeof candidate.gold === "number" && Number.isFinite(candidate.gold) &&
     record(candidate.xp) &&
     Array.isArray(candidate.stash) &&
