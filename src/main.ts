@@ -850,7 +850,12 @@ function renderLobby(): void {
     } finally {
       saveImportGate.finish(importTicket);
     }
-  })());
+  })().catch((error) => {
+    console.error("DarkPix could not import the selected save", error);
+    if (!lobbyOperationCurrent(renderedLobbyEpoch, lobbyEpoch, raidLaunchGate.busy, Boolean(activeGame))) return;
+    merchantNotice = "The selected save could not be read. The current profile remains active.";
+    renderLobby();
+  }));
   const descendButton = app.querySelector<HTMLButtonElement>(".descend-button");
   descendButton?.addEventListener("pointerenter", warmGameModule);
   descendButton?.addEventListener("focus", warmGameModule);

@@ -143,6 +143,13 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain("const { DarkPixGame: GameRuntime } = await loadGameModule()");
   });
 
+  it("contains unexpected save-import failures inside the originating idle lobby", () => {
+    expect(mainSource).toContain('console.error("DarkPix could not import the selected save", error)');
+    expect(mainSource).toContain('merchantNotice = "The selected save could not be read. The current profile remains active."');
+    expect(mainSource).toMatch(/saveFileInput\?\.addEventListener\("change"[\s\S]+\}\)\(\)\.catch\(\(error\) =>/);
+    expect(mainSource).toMatch(/\.catch\(\(error\) => \{[\s\S]+lobbyOperationCurrent\(renderedLobbyEpoch, lobbyEpoch, raidLaunchGate\.busy, Boolean\(activeGame\)\)/);
+  });
+
   it("offers a paused live-journal retry without resuming the raid", () => {
     const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
     expect(gameSource).toContain('class="retry-journal hidden"');
