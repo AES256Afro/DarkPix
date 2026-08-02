@@ -115,6 +115,7 @@ Status: Complete for the current map
 - Repeated melee and ranged attack acquisition reuses raid-owned Three.js vectors instead of cloning the camera and allocating target vectors per living threat
 - Thrown-weapon acquisition shares the same raid-owned facing and target vectors, including head and body aim selection, instead of allocating vectors for every living threat
 - Migrating darkness updates one raid-owned zone record, measures player distance once, and reuses the direction scratch record only when the delver is outside safety
+- Non-finite darkness clocks, durations, or passage coordinates normalize before they can poison the damage boundary, HUD, or renderer with invalid values
 - Stable darkness skips unchanged shell-style writes, and loose-sigil wayfinding uses a direct early-exit scan without allocating a repeated callback
 - Player and threat collision plus floor and dart-trap scans use early-exit loops and squared scalar overlap math instead of frame-hot square roots, callbacks, and coordinate pairs
 - Floor spikes resolve the nearest overlapping delver or threat instead of favoring the player or enemy array order, making baited trap outcomes spatially deterministic

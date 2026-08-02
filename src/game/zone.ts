@@ -15,12 +15,16 @@ export function darknessPulseReady(outsideDistance: number, pulseRemaining: numb
 }
 
 export function zoneState(elapsed: number, duration = 210, passage: Vec2 = DUNGEON.portal, result?: ZoneState): ZoneState {
-  const closingDuration = Math.max(1, duration - 20);
-  const progress = Math.min(1, Math.max(0, (elapsed - 20) / closingDuration));
+  const safeElapsed = Number.isFinite(elapsed) ? Math.max(0, elapsed) : 0;
+  const safeDuration = Number.isFinite(duration) ? Math.max(21, duration) : 210;
+  const passageX = Number.isFinite(passage.x) ? passage.x : DUNGEON.portal.x;
+  const passageZ = Number.isFinite(passage.z) ? passage.z : DUNGEON.portal.z;
+  const closingDuration = safeDuration - 20;
+  const progress = Math.min(1, Math.max(0, (safeElapsed - 20) / closingDuration));
   const zone = result ?? { progress: 0, center: { x: 0, z: 0 }, radius: 0 };
   zone.progress = progress;
-  zone.center.x = passage.x * 0.75 * progress;
-  zone.center.z = passage.z * 0.75 * progress;
+  zone.center.x = progress === 0 ? 0 : passageX * 0.75 * progress;
+  zone.center.z = progress === 0 ? 0 : passageZ * 0.75 * progress;
   zone.radius = 31 + (6.2 - 31) * progress;
   return zone;
 }

@@ -346,6 +346,19 @@ describe("migrating darkness", () => {
     });
   });
 
+  it("keeps malformed darkness timing and passage coordinates finite", () => {
+    expect(zoneState(Number.NaN, Number.NaN, { x: Number.NaN, z: Number.POSITIVE_INFINITY })).toEqual({
+      progress: 0,
+      center: { x: 0, z: 0 },
+      radius: 31,
+    });
+    const compressed = zoneState(999, -10, DUNGEON.portal);
+    expect(compressed.progress).toBe(1);
+    expect(Number.isFinite(compressed.center.x)).toBe(true);
+    expect(Number.isFinite(compressed.center.z)).toBe(true);
+    expect(Number.isFinite(compressed.radius)).toBe(true);
+  });
+
   it("paces darkness damage independently from ordinary hit recovery", () => {
     expect(DARKNESS_PULSE_SECONDS).toBe(0.32);
     expect(darknessPulseReady(0.1, 0)).toBe(true);
