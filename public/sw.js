@@ -34,8 +34,9 @@ async function cacheBuildAssets() {
   const cache = await caches.open(CACHE_NAME);
   await cache.addAll(SHELL_URLS);
   const shell = await cache.match("/");
-  if (!shell) return;
+  if (!shell) throw new Error("Release shell is missing from its offline cache");
   const queue = assetReferences(await shell.clone().text(), shell.url);
+  if (queue.length === 0) throw new Error("Release shell exposed no cacheable build assets");
   const visited = new Set();
   while (queue.length > 0 && visited.size < 24) {
     const assetUrl = queue.shift();

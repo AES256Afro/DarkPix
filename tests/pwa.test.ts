@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import manifestSource from "../public/manifest.webmanifest?raw";
 import worker from "../public/sw.js?raw";
 
@@ -16,6 +16,8 @@ describe("installable offline shell", () => {
     expect(worker).toContain('request.mode === "navigate"');
     expect(worker).toContain('event.data?.type === "SKIP_WAITING"');
     expect(worker).toContain("cacheBuildAssets");
+    expect(worker).toContain('throw new Error("Release shell is missing from its offline cache")');
+    expect(worker).toContain('throw new Error("Release shell exposed no cacheable build assets")');
     expect(worker).toContain("visited.size < 24");
     expect(worker).toContain('throw new Error("Release asset graph exceeds the offline cache limit")');
     expect(worker).toContain("await caches.delete(CACHE_NAME)");
@@ -41,5 +43,28 @@ describe("installable offline shell", () => {
     expect(installFunction).toContain("await cacheBuildAssets()");
     expect(installFunction).toContain("await caches.delete(CACHE_NAME)");
     expect(installFunction).toContain("throw error");
+  });
+
+  it("rejects the install event and deletes its partial cache when the shell is absent", async () => {
+    const handlers = new Map<string, (event: { waitUntil(promise: Promise<unknown>): void }) => void>();
+    const deleteCache = vi.fn(async () => true);
+    const cache = { addAll: vi.fn(async () => undefined), match: vi.fn(async () => undefined) };
+    const workerScope = {
+      location: { href: "https://darkpix.test/sw.js?v=broken-release", origin: "https://darkpix.test" },
+      clients: { claim: vi.fn(async () => undefined) },
+      skipWaiting: vi.fn(async () => undefined),
+      addEventListener: (name: string, handler: (event: { waitUntil(promise: Promise<unknown>): void }) => void) => handlers.set(name, handler),
+    };
+    const cacheStorage = {
+      open: vi.fn(async () => cache),
+      keys: vi.fn(async () => []),
+      delete: deleteCache,
+    };
+    new Function("self", "caches", "fetch", worker)(workerScope, cacheStorage, vi.fn());
+    let installation: Promise<unknown> | undefined;
+    handlers.get("install")?.({ waitUntil: (promise) => { installation = promise; } });
+
+    await expect(installation).rejects.toThrow("Release shell is missing from its offline cache");
+    expect(deleteCache).toHaveBeenCalledWith("darkpix-runtime-broken-release");
   });
 });
