@@ -7,7 +7,7 @@ import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, dunge
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
 import { HAUL_CAPACITY, RIVAL_EXTRACTION_SECONDS, advanceRivalExtraction, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, rivalShouldExtract, treasureGoldTotal } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, pickupDecision, type LoadoutStats } from "./loadout";
-import { cardinalDirection, circlesOverlap, directionalCue, movementOffset, passiveAwarenessRange, recoveryNeed } from "./navigation";
+import { cardinalDirection, circlesOverlap, directionalCue, movementOffset, movementSubstepCount, passiveAwarenessRange, recoveryNeed } from "./navigation";
 import { raidRules, type RaidRules } from "./raid";
 import { consumablesInUseOrder, nextConsumableId, nextThrowableId, resolveConsumableId, resolveThrowableId, throwablesInUseOrder } from "./quickslots";
 import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./resolution";
@@ -1486,7 +1486,7 @@ export class DarkPixGame {
     const cos = Math.cos(this.yaw);
     const dx = (input.x * cos - input.y * sin) * speed * delta;
     const dz = (-input.x * sin - input.y * cos) * speed * delta;
-    this.tryMove(dx, dz);
+    this.moveWithCollision(dx, dz);
     if (sprinting) {
       this.stamina = Math.max(0, this.stamina - delta * (this.options.classId === "cutpurse" ? 17 : 24) * this.perkBonuses.sprintCostMultiplier);
     } else if (this.blocking) {
@@ -1534,7 +1534,7 @@ export class DarkPixGame {
     const offset = movementOffset(this.yaw, strafe, forward, stats.distance);
     const startX = this.camera.position.x;
     const startZ = this.camera.position.z;
-    for (let step = 0; step < 5; step += 1) this.tryMove(offset.x / 5, offset.z / 5);
+    this.moveWithCollision(offset.x, offset.z);
     const moved = Math.hypot(this.camera.position.x - startX, this.camera.position.z - startZ);
     if (moved < 0.1) {
       this.feed("SIDESTEP BLOCKED · the masonry holds", "system");
@@ -1552,6 +1552,12 @@ export class DarkPixGame {
     const nextZ = this.camera.position.z + dz;
     if (!this.collides(nextX, this.camera.position.z)) this.camera.position.x = nextX;
     if (!this.collides(this.camera.position.x, nextZ)) this.camera.position.z = nextZ;
+  }
+
+  private moveWithCollision(dx: number, dz: number): void {
+    if (!Number.isFinite(dx) || !Number.isFinite(dz)) return;
+    const substeps = movementSubstepCount(Math.hypot(dx, dz));
+    for (let step = 0; step < substeps; step += 1) this.tryMove(dx / substeps, dz / substeps);
   }
 
   private collides(x: number, z: number): boolean {

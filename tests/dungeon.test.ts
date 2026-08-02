@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DUNGEON, dartTrapTargetDistance, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists, dungeonProjectilePathClear, dungeonProjectileStoneContact, encounterPosition, selectRaidVariation } from "../src/game/dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES } from "../src/game/depth";
 import { channelCommitmentLabel, channelInterruptionReason, continuousHold, heldInteractionTargetMatches, targetDistanceInView } from "../src/game/targeting";
-import { cardinalDirection, circlesOverlap, directionalCue, movementOffset, passiveAwarenessRange, recoveryNeed, relativeDirectionToSource } from "../src/game/navigation";
+import { cardinalDirection, circlesOverlap, directionalCue, movementOffset, movementSubstepCount, passiveAwarenessRange, recoveryNeed, relativeDirectionToSource } from "../src/game/navigation";
 import { DARKNESS_PULSE_SECONDS, darknessPulseReady, directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "../src/game/zone";
 import type { Vec2 } from "../src/game/types";
 import { RAID_VARIATION_COUNT, normalizeRaidVariationSeed, raidVariationSeal, validRaidVariationSeed } from "../src/game/contract";
@@ -246,6 +246,17 @@ describe("contract wayfinding", () => {
     expect(Math.hypot(...Object.values(movementOffset(0, 1, 1, 1.5)))).toBeCloseTo(1.5);
     expect(movementOffset(0, Number.NaN, 0, 2)).toEqual({ x: 0, z: 0 });
     expect(movementOffset(0, 1, 0, -2)).toEqual({ x: 0, z: 0 });
+  });
+
+  it("derives bounded collision substeps from movement distance", () => {
+    expect(movementSubstepCount(0)).toBe(1);
+    expect(movementSubstepCount(0.2)).toBe(1);
+    expect(movementSubstepCount(0.21)).toBe(2);
+    expect(movementSubstepCount(1.8)).toBe(9);
+    expect(movementSubstepCount(1.8, 0.3)).toBe(6);
+    expect(movementSubstepCount(Number.NaN)).toBe(1);
+    expect(movementSubstepCount(1, 0)).toBe(1);
+    expect(movementSubstepCount(1_000)).toBe(64);
   });
 
   it("requests campfire guidance only for critical recoverable resources", () => {

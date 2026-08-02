@@ -59,6 +59,11 @@ export function movementOffset(yaw: number, strafe: number, forward: number, dis
   };
 }
 
+export function movementSubstepCount(distance: number, maximumStep = 0.2): number {
+  if (!Number.isFinite(distance) || distance <= 0 || !Number.isFinite(maximumStep) || maximumStep <= 0) return 1;
+  return Math.min(64, Math.max(1, Math.ceil(distance / maximumStep)));
+}
+
 export function passiveAwarenessRange(torchLit: boolean, crouching: boolean, sprinting = false, moving = true, armorWeight = 0): number {
   const base = torchLit ? 10.5 : 6.5;
   const movementNoise = crouching ? (moving ? 0.66 : 0.56) : !moving ? 0.78 : sprinting ? 1.35 : 1;
