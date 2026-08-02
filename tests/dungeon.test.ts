@@ -3,7 +3,7 @@ import { DUNGEON, dartTrapTargetDistance, dungeonCollides, dungeonLineOfSight, d
 import { ASHEN_CHESTS, ASHEN_ENEMIES } from "../src/game/depth";
 import { channelInterruptionReason, continuousHold, targetDistanceInView } from "../src/game/targeting";
 import { cardinalDirection, circlesOverlap, directionalCue, movementOffset, passiveAwarenessRange, recoveryNeed, relativeDirectionToSource } from "../src/game/navigation";
-import { directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "../src/game/zone";
+import { DARKNESS_PULSE_SECONDS, darknessPulseReady, directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "../src/game/zone";
 import type { Vec2 } from "../src/game/types";
 import { RAID_VARIATION_COUNT, normalizeRaidVariationSeed, raidVariationSeal, validRaidVariationSeed } from "../src/game/contract";
 
@@ -237,5 +237,13 @@ describe("migrating darkness", () => {
     expect(distanceOutsideZone({ x: 3, z: 5 }, zone)).toBe(3);
     expect(directionToZoneCenter({ x: 8, z: -1 }, zone)).toEqual({ x: -5, z: -3 });
     expect(cardinalDirection(directionToZoneCenter({ x: 8, z: -1 }, zone))).toBe("NW");
+  });
+
+  it("paces darkness damage independently from ordinary hit recovery", () => {
+    expect(DARKNESS_PULSE_SECONDS).toBe(0.32);
+    expect(darknessPulseReady(0.1, 0)).toBe(true);
+    expect(darknessPulseReady(2, 0.1)).toBe(false);
+    expect(darknessPulseReady(0, 0)).toBe(false);
+    expect(darknessPulseReady(Number.NaN, 0)).toBe(false);
   });
 });

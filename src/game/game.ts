@@ -20,7 +20,7 @@ import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
 import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
-import { directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "./zone";
+import { DARKNESS_PULSE_SECONDS, darknessPulseReady, directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "./zone";
 
 interface WallCollider {
   x: number;
@@ -284,6 +284,7 @@ export class DarkPixGame {
   private swingDuration = 0.42;
   private footstepClock = 0;
   private damageCooldown = 0;
+  private darknessPulseTimer = 0;
   private damageDirectionTimer = 0;
   private interactHeld = false;
   private descendHeld = false;
@@ -1320,6 +1321,7 @@ export class DarkPixGame {
       }
     }
     this.damageCooldown = Math.max(0, this.damageCooldown - delta);
+    this.darknessPulseTimer = Math.max(0, this.darknessPulseTimer - delta);
     this.damageDirectionTimer = Math.max(0, this.damageDirectionTimer - delta);
     this.messageTimer = Math.max(0, this.messageTimer - delta);
     this.threatTimer = Math.max(0, this.threatTimer - delta);
@@ -2273,11 +2275,11 @@ export class DarkPixGame {
     return this.options.preferences.reducedMotion ? 0 : Math.sin(this.elapsed * 7 + enemy.phase) * 0.025;
   }
 
-  private hurt(amount: number, source: string, physical = true, sourcePosition?: Vec2): void {
-    if (this.damageCooldown > 0 || this.ended) return;
+  private hurt(amount: number, source: string, physical = true, sourcePosition?: Vec2, independentPulse = false): void {
+    if ((!independentPulse && this.damageCooldown > 0) || this.ended) return;
     const channelBroken = this.interactionHold > 0;
     const remedyInterrupted = Boolean(this.remedyItemId);
-    this.damageCooldown = 0.18;
+    if (!independentPulse) this.damageCooldown = 0.18;
     if (channelBroken) {
       this.resetInteractionChannel();
       this.interactHeld = false;
@@ -2639,8 +2641,11 @@ export class DarkPixGame {
     }
     if (distance > zone.radius) {
       this.vignette = Math.max(this.vignette, 0.68);
-      if (this.damageCooldown <= 0) this.hurt(5, "the dark", false);
-    }
+      if (darknessPulseReady(outsideDistance, this.darknessPulseTimer)) {
+        this.darknessPulseTimer = DARKNESS_PULSE_SECONDS;
+        this.hurt(5, "the dark", false, undefined, true);
+      }
+    } else this.darknessPulseTimer = 0;
     const shell = this.mount.querySelector<HTMLElement>(".raid-shell");
     shell?.style.setProperty("--darkness", String(Math.max(this.vignette, distance > zone.radius ? 0.85 : zone.progress * 0.26)));
   }

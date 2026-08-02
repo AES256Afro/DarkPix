@@ -7,6 +7,13 @@ export interface ZoneState {
   radius: number;
 }
 
+export const DARKNESS_PULSE_SECONDS = 0.32;
+
+export function darknessPulseReady(outsideDistance: number, pulseRemaining: number): boolean {
+  return Number.isFinite(outsideDistance) && outsideDistance > 0 &&
+    (!Number.isFinite(pulseRemaining) || pulseRemaining <= 0);
+}
+
 export function zoneState(elapsed: number, duration = 210, passage: Vec2 = DUNGEON.portal): ZoneState {
   const closingDuration = Math.max(1, duration - 20);
   const progress = Math.min(1, Math.max(0, (elapsed - 20) / closingDuration));
