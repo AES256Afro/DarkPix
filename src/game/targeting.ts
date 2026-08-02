@@ -6,7 +6,9 @@ export function targetDistanceInView(
   target: Vec2,
   maxDistance: number,
   minimumAlignment = 0.62,
+  hasSight = true,
 ): number {
+  if (!hasSight) return Number.POSITIVE_INFINITY;
   const dx = target.x - origin.x;
   const dz = target.z - origin.z;
   const distance = Math.hypot(dx, dz);

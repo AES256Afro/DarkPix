@@ -44,6 +44,8 @@ describe("Crypt of the Pale Toll topology", () => {
     expect(dungeonPathExists(outside, DUNGEON.shrine, 0.3, 0.5, true)).toBe(false);
     expect(dungeonLineOfSight(outside, inside, 0.04)).toBe(true);
     expect(dungeonLineOfSight(outside, inside, 0.04, true)).toBe(false);
+    expect(dungeonLineOfSight(outside, passage, 0.03)).toBe(true);
+    expect(dungeonLineOfSight(outside, passage, 0.03, true)).toBe(false);
     expect(dungeonProjectileStoneContact(outside, inside, 0.04, true)).toBeDefined();
     expect(DUNGEON.walls.some((wall) => wall.x === passage.x && wall.z < passage.z)).toBe(true);
     expect(DUNGEON.walls.some((wall) => wall.x === passage.x && wall.z > passage.z)).toBe(true);
@@ -151,6 +153,16 @@ describe("deliberate interaction targeting", () => {
     expect(targetDistanceInView(origin, facing, { x: 0.4, z: -2 }, 2.6)).toBeLessThan(2.6);
     expect(targetDistanceInView(origin, facing, { x: 0, z: 2 }, 2.6)).toBe(Number.POSITIVE_INFINITY);
     expect(targetDistanceInView(origin, facing, { x: 0, z: -3 }, 2.6)).toBe(Number.POSITIVE_INFINITY);
+    expect(targetDistanceInView(origin, facing, { x: 0, z: -2 }, 2.6, 0.62, false)).toBe(Number.POSITIVE_INFINITY);
+    expect(targetDistanceInView(origin, facing, { x: 0, z: -2 }, 2.6, 0.62, true)).toBe(2);
+  });
+
+  it("proves the dungeon cover check can separate close targets across stone", () => {
+    const nearSide = { x: -9, z: 14 };
+    const farSide = { x: -11, z: 14 };
+    expect(Math.hypot(farSide.x - nearSide.x, farSide.z - nearSide.z)).toBeLessThan(2.6);
+    expect(dungeonLineOfSight(nearSide, farSide, 0.03)).toBe(false);
+    expect(targetDistanceInView(nearSide, { x: -1, z: 0 }, farSide, 2.6, 0.62, dungeonLineOfSight(nearSide, farSide, 0.03))).toBe(Number.POSITIVE_INFINITY);
   });
 
   it("resets continuous rest and extraction holds when interrupted", () => {

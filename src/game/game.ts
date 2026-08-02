@@ -1560,8 +1560,8 @@ export class DarkPixGame {
     );
   }
 
-  private hasDungeonSight(start: Vec2, target: Vec2, radius = 0.06): boolean {
-    return dungeonLineOfSight(start, target, radius, !this.falseWallOpened);
+  private hasDungeonSight(start: Vec2, target: Vec2, radius = 0.06, ignoreClosedSecretPassage = false): boolean {
+    return dungeonLineOfSight(start, target, radius, !this.falseWallOpened && !ignoreClosedSecretPassage);
   }
 
   private findDungeonPath(start: Vec2, target: Vec2, radius = 0.3): Vec2[] {
@@ -3048,12 +3048,17 @@ export class DarkPixGame {
     const facing3 = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
     const origin = { x: this.camera.position.x, z: this.camera.position.z };
     const facing = { x: facing3.x, z: facing3.z };
-    const targetDistance = (position: THREE.Vector3, maxDistance = 2.6) => targetDistanceInView(
-      origin,
-      facing,
-      { x: position.x, z: position.z },
-      maxDistance,
-    );
+    const targetDistance = (position: THREE.Vector3, maxDistance = 2.6, secretPassageTarget = false) => {
+      const target = { x: position.x, z: position.z };
+      return targetDistanceInView(
+        origin,
+        facing,
+        target,
+        maxDistance,
+        0.62,
+        this.hasDungeonSight(origin, target, 0.03, secretPassageTarget),
+      );
+    };
 
     for (const pickup of this.pickups) {
       if (pickup.collected) continue;
@@ -3083,7 +3088,7 @@ export class DarkPixGame {
       nearest = shrineDistance;
       interactive = "shrine";
     }
-    const falseWallDistance = this.falseWallOpened ? Number.POSITIVE_INFINITY : targetDistance(this.falseWall.position, 2.35);
+    const falseWallDistance = this.falseWallOpened ? Number.POSITIVE_INFINITY : targetDistance(this.falseWall.position, 2.35, true);
     if (falseWallDistance < nearest) {
       nearest = falseWallDistance;
       interactive = "false_wall";
