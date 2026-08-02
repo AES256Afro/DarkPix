@@ -17,6 +17,9 @@ describe("installable offline shell", () => {
     expect(worker).toContain('event.data?.type === "SKIP_WAITING"');
     expect(worker).toContain("cacheBuildAssets");
     expect(worker).toContain('throw new Error("Release shell is missing from its offline cache")');
+    expect(worker).toContain('throw new Error("Release shell has an invalid content type")');
+    expect(worker).toContain("Refused invalid content type");
+    expect(worker).toContain("responseMatchesCacheKey(cacheKey, response)");
     expect(worker).toContain('throw new Error("Release shell exposed no cacheable build assets")');
     expect(worker).toContain("visited.size < 24");
     expect(worker).toContain('throw new Error("Release asset graph exceeds the offline cache limit")');
@@ -72,6 +75,7 @@ describe("installable offline shell", () => {
     const handlers = new Map<string, (event: { waitUntil(promise: Promise<unknown>): void }) => void>();
     const shell = {
       url: "https://darkpix.test/",
+      headers: { get: (name: string) => name === "content-type" ? "text/html" : null },
       clone: () => ({ text: async () => '<link href="/assets/app.css"><script src="/assets/app.js"></script>' }),
     };
     const assetBodies = new Map([
@@ -114,6 +118,37 @@ describe("installable offline shell", () => {
     expect(put).toHaveBeenCalledTimes(4);
   });
 
+  it("rejects a 200 HTML fallback offered for a release JavaScript asset", async () => {
+    const handlers = new Map<string, (event: { waitUntil(promise: Promise<unknown>): void }) => void>();
+    const shell = {
+      url: "https://darkpix.test/",
+      headers: { get: (name: string) => name === "content-type" ? "text/html" : null },
+      clone: () => ({ text: async () => '<script src="/assets/app.js"></script>' }),
+    };
+    const cache = { addAll: vi.fn(async () => undefined), match: vi.fn(async () => shell), put: vi.fn(async () => undefined) };
+    const deleteCache = vi.fn(async () => true);
+    const workerScope = {
+      location: { href: "https://darkpix.test/sw.js?v=mime-release", origin: "https://darkpix.test" },
+      clients: { claim: vi.fn(async () => undefined) },
+      skipWaiting: vi.fn(async () => undefined),
+      addEventListener: (name: string, handler: (event: { waitUntil(promise: Promise<unknown>): void }) => void) => handlers.set(name, handler),
+    };
+    const cacheStorage = { open: vi.fn(async () => cache), keys: vi.fn(async () => []), delete: deleteCache };
+    const htmlFallback = {
+      ok: true,
+      headers: { get: (name: string) => name === "content-type" ? "text/html" : null },
+      clone: () => htmlFallback,
+      text: async () => "<html>fallback</html>",
+    };
+    new Function("self", "caches", "fetch", worker)(workerScope, cacheStorage, vi.fn(async () => htmlFallback));
+    let installation: Promise<unknown> | undefined;
+    handlers.get("install")?.({ waitUntil: (promise) => { installation = promise; } });
+
+    await expect(installation).rejects.toThrow("Refused invalid content type for https://darkpix.test/assets/app.js");
+    expect(cache.put).not.toHaveBeenCalled();
+    expect(deleteCache).toHaveBeenCalledWith("darkpix-runtime-mime-release");
+  });
+
   it("bounds runtime writes to owned shell and asset paths", async () => {
     const handlers = new Map<string, (event: any) => void>();
     const put = vi.fn(async () => undefined);
@@ -125,7 +160,11 @@ describe("installable offline shell", () => {
       addEventListener: (name: string, handler: (event: any) => void) => handlers.set(name, handler),
     };
     const cacheStorage = { open: vi.fn(async () => cache), keys: vi.fn(async () => []), delete: vi.fn(async () => true) };
-    const networkResponse = { ok: true, clone: () => networkResponse };
+    const networkResponse = {
+      ok: true,
+      headers: { get: (name: string): string | null => name === "content-type" ? "application/javascript" : null },
+      clone: () => networkResponse,
+    };
     const fetchNetwork = vi.fn(async () => networkResponse);
     new Function("self", "caches", "fetch", worker)(workerScope, cacheStorage, fetchNetwork);
     const fetchHandler = handlers.get("fetch");
@@ -144,5 +183,18 @@ describe("installable offline shell", () => {
     });
     await responsePromise;
     expect(put).toHaveBeenCalledWith("/assets/app.js", networkResponse);
+
+    const htmlFallback = {
+      ok: true,
+      headers: { get: (name: string) => name === "content-type" ? "text/html" : null },
+      clone: () => htmlFallback,
+    };
+    fetchNetwork.mockResolvedValueOnce(htmlFallback);
+    fetchHandler?.({
+      request: { method: "GET", mode: "cors", url: "https://darkpix.test/assets/app.js?fallback=1" },
+      respondWith: (promise: Promise<unknown>) => { responsePromise = promise; },
+    });
+    await expect(responsePromise).resolves.toBe(htmlFallback);
+    expect(put).toHaveBeenCalledTimes(1);
   });
 });

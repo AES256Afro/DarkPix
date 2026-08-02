@@ -40,11 +40,26 @@ function runtimeCacheKey(request, url) {
   return undefined;
 }
 
+function responseMatchesCacheKey(cacheKey, response) {
+  const pathname = new URL(cacheKey, self.location.origin).pathname;
+  const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
+  if (pathname === "/") return contentType.includes("text/html");
+  if (pathname === "/manifest.webmanifest") return contentType.includes("json");
+  if (pathname.endsWith(".js")) return contentType.includes("javascript");
+  if (pathname.endsWith(".css")) return contentType.includes("text/css");
+  if (pathname.endsWith(".jpg") || pathname.endsWith(".jpeg")) return contentType.includes("image/jpeg");
+  if (pathname.endsWith(".png")) return contentType.includes("image/png");
+  if (pathname.endsWith(".svg")) return contentType.includes("image/svg+xml");
+  if (pathname.endsWith(".woff") || pathname.endsWith(".woff2")) return contentType.includes("woff");
+  return false;
+}
+
 async function cacheBuildAssets() {
   const cache = await caches.open(CACHE_NAME);
   await cache.addAll(SHELL_URLS);
   const shell = await cache.match("/");
   if (!shell) throw new Error("Release shell is missing from its offline cache");
+  if (!responseMatchesCacheKey("/", shell)) throw new Error("Release shell has an invalid content type");
   const queue = assetReferences(await shell.clone().text(), shell.url);
   if (queue.length === 0) throw new Error("Release shell exposed no cacheable build assets");
   const visited = new Set();
@@ -54,6 +69,7 @@ async function cacheBuildAssets() {
     visited.add(assetUrl);
     const response = await fetch(assetUrl);
     if (!response.ok) throw new Error(`Could not cache ${assetUrl}`);
+    if (!responseMatchesCacheKey(assetUrl, response)) throw new Error(`Refused invalid content type for ${assetUrl}`);
     await cache.put(assetUrl, response.clone());
     const contentType = response.headers.get("content-type") ?? "";
     if (contentType.includes("javascript") || contentType.includes("text/css")) {
@@ -106,7 +122,7 @@ self.addEventListener("fetch", (event) => {
     (async () => {
       try {
         const response = await fetch(request);
-        if (response.ok && cacheKey) {
+        if (response.ok && cacheKey && responseMatchesCacheKey(cacheKey, response)) {
           await updateCurrentCache(cacheKey, response.clone());
           return response;
         }
