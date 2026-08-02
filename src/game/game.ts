@@ -3547,11 +3547,11 @@ export class DarkPixGame {
       torch.light.intensity = reducedFlashes ? 1.55 : 1.55 + Math.sin(this.elapsed * 13 + torch.phase) * 0.28;
       torch.flame.scale.y = reducedMotion ? 1 : 0.92 + Math.sin(this.elapsed * 17 + torch.phase) * 0.17;
     }
-    this.pickups.forEach((pickup) => {
-      if (pickup.collected) return;
+    for (const pickup of this.pickups) {
+      if (pickup.collected) continue;
       if (!reducedMotion) pickup.group.rotation.y += delta * 1.5;
       pickup.group.position.y = reducedMotion ? 0.54 : 0.54 + Math.sin(this.elapsed * 2.5 + pickup.phase) * 0.08;
-    });
+    }
     if (!reducedMotion) {
       this.portal.rotation.z += delta * (this.portalUnlocked ? 0.24 : 0.035);
       this.redDepthRing.rotation.z -= delta * 0.65;

@@ -106,6 +106,7 @@ Status: Complete for the current map
 - Projectile flight keeps first-contact progress in scalars and reuses target and impact records instead of constructing collision-result objects while missiles cross a frame
 - Projectile sweeps, masonry samples, ash-vent range checks, and movement cadence use direct finite-number guards instead of temporary validation arrays
 - Passive enemy awareness and spawn-grace state are derived once per simulation frame, not once per living enemy
+- Loose-loot animation uses a direct loop without constructing a per-frame array callback
 - Threat awareness reuses targeting vectors, and Warden guidance finds the nearest living target in one allocation-free scan instead of filtering and sorting every frame
 - Player and hostile missiles reuse contact vectors, while player shots find the first living impact in one ordered scan instead of allocating and sorting threat arrays every frame
 - Reduced motion suppresses decorative loading, camera, enemy-step, loot, flame, and portal loops while retaining functional combat telegraphs; pause sleeps continuous rendering and cancels queued audio feedback before it can replay in a later raid state

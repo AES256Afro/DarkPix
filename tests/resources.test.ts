@@ -131,4 +131,10 @@ describe("raid resource cleanup", () => {
     expect(updateEnemies.match(/this\.phaseElapsed\(\)/g)).toHaveLength(1);
     expect(updateEnemies.match(/depthRules\(this\.depth\)/g)).toHaveLength(1);
   });
+
+  it("animates loose loot without a per-frame array callback", () => {
+    const animateWorld = gameSource.slice(gameSource.indexOf("private animateWorld"), gameSource.indexOf("private updateHud"));
+    expect(animateWorld).toContain("for (const pickup of this.pickups)");
+    expect(animateWorld).not.toContain("this.pickups.forEach");
+  });
 });
