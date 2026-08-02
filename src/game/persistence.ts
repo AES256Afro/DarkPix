@@ -25,3 +25,16 @@ export function persistBeforeClearingEscrow(persist: () => boolean, clearEscrow:
   if (!persist()) return false;
   return clearEscrow();
 }
+
+export interface JournalRetryState {
+  remaining: number;
+  due: boolean;
+}
+
+export function advanceJournalRetry(secure: boolean, remaining: number, delta: number): JournalRetryState {
+  if (secure) return { remaining: 0, due: false };
+  const safeRemaining = Number.isFinite(remaining) ? Math.max(0, remaining) : 0;
+  const safeDelta = Number.isFinite(delta) ? Math.max(0, delta) : 0;
+  const next = Math.max(0, safeRemaining - safeDelta);
+  return { remaining: next, due: next === 0 };
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { browserStorageWritable, persistBeforeClearingEscrow } from "../src/game/persistence";
+import { advanceJournalRetry, browserStorageWritable, persistBeforeClearingEscrow } from "../src/game/persistence";
 
 function memoryStorage(options: { rejectWrites?: boolean } = {}) {
   const values = new Map<string, string>();
@@ -47,5 +47,15 @@ describe("raid verdict persistence ordering", () => {
 
   it("reports an unsecured verdict when escrow removal cannot be verified", () => {
     expect(persistBeforeClearingEscrow(() => true, () => false)).toBe(false);
+  });
+});
+
+describe("live raid journal retry", () => {
+  it("retries a failed checkpoint on a bounded simulation-time cadence", () => {
+    expect(advanceJournalRetry(true, 3, 1)).toEqual({ remaining: 0, due: false });
+    expect(advanceJournalRetry(false, 3, 1)).toEqual({ remaining: 2, due: false });
+    expect(advanceJournalRetry(false, 0.2, 0.2)).toEqual({ remaining: 0, due: true });
+    expect(advanceJournalRetry(false, Number.NaN, 0.1)).toEqual({ remaining: 0, due: true });
+    expect(advanceJournalRetry(false, 2, -4)).toEqual({ remaining: 2, due: false });
   });
 });

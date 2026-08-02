@@ -21,6 +21,7 @@ import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
 import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
 import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, enemyProjectileTargetsThreat, playerProjectileDuration, playerProjectilePosition, projectileSegmentContact, projectileStoneOutcome, projectileTargetContact, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
+import { advanceJournalRetry } from "./persistence";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
 import { DARKNESS_PULSE_SECONDS, darknessPulseReady, directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "./zone";
 
@@ -251,6 +252,8 @@ export class DarkPixGame {
   private spellLabelHud!: HTMLElement;
   private raidClock!: HTMLElement;
   private journalHud!: HTMLElement;
+  private journalSecure = true;
+  private journalRetryTimer = 0;
   private stealthHud!: HTMLElement;
   private stealthCueHud!: HTMLElement;
   private lootHud!: HTMLElement;
@@ -1231,6 +1234,7 @@ export class DarkPixGame {
         <span><small>TORCH</small><strong>${readiness.torch}</strong></span>
         <span><small>UNSEEN MARKS</small><strong>${Math.min(QUIET_KNIVES_TARGET, this.unseenStrikes)} / ${QUIET_KNIVES_TARGET}</strong></span>
         <span><small>IN FLIGHT</small><strong>${enemyProjectilePauseSummary(this.enemyProjectiles.map((projectile) => projectile.kind))}</strong></span>
+        <span><small>JOURNAL</small><strong>${this.journalSecure ? "SECURE" : "WRITE FAILED · DO NOT REFRESH"}</strong></span>
       </div>
       <div class="pause-ledger-items">
         ${remainingPacked.map((item) => itemRow(item, "PACKED")).join("")}
@@ -1390,6 +1394,7 @@ export class DarkPixGame {
       this.finish("darkness");
       return;
     }
+    this.updateJournalRetry(delta);
     const previousTorchFuel = this.torchFuel;
     this.torchFuel = spendTorchFuel(this.torchFuel, delta, this.torchLit);
     if (this.torchLit && previousTorchFuel > 0 && this.torchFuel <= 0) {
@@ -2155,9 +2160,22 @@ export class DarkPixGame {
   }
 
   private checkpointRaid(): void {
+    const wasSecure = this.journalSecure;
     const saved = this.options.onCheckpoint?.(this.depth, this.kills, { ...this.killsByKind }, this.unseenStrikes) ?? true;
+    this.journalSecure = saved;
+    this.journalRetryTimer = saved ? 0 : 3;
     this.journalHud.textContent = saved ? "journal secure" : "journal write failed · do not refresh";
     this.journalHud.classList.toggle("failed", !saved);
+    if (saved && !wasSecure) {
+      this.feed("JOURNAL RESTORED · raid progress is secure", "system");
+      this.audio.tone(460, 0.12, "sine", 0.055);
+    }
+  }
+
+  private updateJournalRetry(delta: number): void {
+    const retry = advanceJournalRetry(this.journalSecure, this.journalRetryTimer, delta);
+    this.journalRetryTimer = retry.remaining;
+    if (retry.due) this.checkpointRaid();
   }
 
   private recordUnseenStrike(enemy: Enemy): boolean {
