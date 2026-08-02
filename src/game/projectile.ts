@@ -13,6 +13,11 @@ export interface ProjectilePoint {
   z: number;
 }
 
+export interface ProjectileTargetContact {
+  progress: number;
+  headshot: boolean;
+}
+
 export function playerProjectileDuration(distance: number, kind: PlayerProjectileKind): number {
   const safeDistance = Number.isFinite(distance) ? Math.max(0, distance) : 0;
   const speed = kind === "arrow" ? 18 : kind === "throwable" ? 15 : 13;
@@ -111,4 +116,12 @@ export function projectileSegmentContact(start: ProjectilePoint, end: Projectile
     z: start.z + segment.z * progress,
   };
   return Math.hypot(target.x - nearest.x, target.y - nearest.y, target.z - nearest.z) <= radius ? progress : undefined;
+}
+
+export function projectileTargetContact(headContact: number | undefined, bodyContact: number | undefined): ProjectileTargetContact | undefined {
+  const head = Number.isFinite(headContact) && headContact! >= 0 && headContact! <= 1 ? headContact : undefined;
+  const body = Number.isFinite(bodyContact) && bodyContact! >= 0 && bodyContact! <= 1 ? bodyContact : undefined;
+  if (head === undefined && body === undefined) return undefined;
+  if (head !== undefined && (body === undefined || head <= body)) return { progress: head, headshot: true };
+  return { progress: body!, headshot: false };
 }

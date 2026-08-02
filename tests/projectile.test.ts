@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileImpactConnects, projectileSegmentConnects, projectileSegmentContact } from "../src/game/projectile";
+import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileImpactConnects, projectileSegmentConnects, projectileSegmentContact, projectileTargetContact } from "../src/game/projectile";
 
 describe("player projectile travel", () => {
   it("gives arrows and spells bounded nonzero travel time", () => {
@@ -69,5 +69,13 @@ describe("player projectile travel", () => {
     expect(projectileSegmentConnects({ x: 0, y: 1.4, z: 0 }, { x: 0, y: 1.82, z: -1 }, { x: 0, y: 1.82, z: -1 }, 0.3)).toBe(true);
     expect(projectileSegmentContact(start, end, { x: 0, y: 1, z: -0.75 }, 0.2)).toBeCloseTo(0.75);
     expect(projectileSegmentContact(start, end, { x: 1, y: 1, z: -0.5 }, 0.2)).toBeUndefined();
+  });
+
+  it("awards the physically first body or head contact", () => {
+    expect(projectileTargetContact(0.7, 0.3)).toEqual({ progress: 0.3, headshot: false });
+    expect(projectileTargetContact(0.2, 0.6)).toEqual({ progress: 0.2, headshot: true });
+    expect(projectileTargetContact(0.4, 0.4)).toEqual({ progress: 0.4, headshot: true });
+    expect(projectileTargetContact(undefined, 0.5)).toEqual({ progress: 0.5, headshot: false });
+    expect(projectileTargetContact(Number.NaN, undefined)).toBeUndefined();
   });
 });

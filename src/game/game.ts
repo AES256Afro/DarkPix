@@ -20,7 +20,7 @@ import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, poi
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
 import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
-import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileSegmentConnects, projectileSegmentContact, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
+import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileSegmentContact, projectileTargetContact, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
 import { DARKNESS_PULSE_SECONDS, darknessPulseReady, directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "./zone";
 
@@ -1845,16 +1845,15 @@ export class DarkPixGame {
           const headHeight = lowThreat ? 0.72 : candidate.kind === "boss" ? 2.35 : 1.82;
           const body = candidate.group.position.clone().add(new THREE.Vector3(0, bodyHeight, 0));
           const head = candidate.group.position.clone().add(new THREE.Vector3(0, headHeight, 0));
-          const headHit = projectileSegmentConnects(previous, position, head, lowThreat ? 0.2 : candidate.kind === "boss" ? 0.38 : 0.3);
-          const bodyHit = projectileSegmentConnects(previous, position, body, lowThreat ? 0.42 : candidate.kind === "boss" ? 0.78 : 0.54);
-          return { enemy: candidate, distance: previous.distanceToSquared(candidate.group.position), headHit, bodyHit };
+          const headContact = projectileSegmentContact(previous, position, head, lowThreat ? 0.2 : candidate.kind === "boss" ? 0.38 : 0.3);
+          const bodyContact = projectileSegmentContact(previous, position, body, lowThreat ? 0.42 : candidate.kind === "boss" ? 0.78 : 0.54);
+          return { enemy: candidate, contact: projectileTargetContact(headContact, bodyContact) };
         })
-        .filter(({ headHit, bodyHit }) => headHit || bodyHit)
-        .sort((left, right) => left.distance - right.distance)[0];
+        .filter((candidate): candidate is { enemy: Enemy; contact: NonNullable<typeof candidate.contact> } => candidate.contact !== undefined)
+        .sort((left, right) => left.contact.progress - right.contact.progress)[0];
       if (enemy) {
-        const headshot = enemy.headHit;
         this.removePlayerProjectile(index);
-        this.resolvePlayerProjectileHit(projectile, enemy.enemy, headshot);
+        this.resolvePlayerProjectileHit(projectile, enemy.enemy, enemy.contact.headshot);
         continue;
       }
       if (projectile.elapsed >= projectile.duration) {

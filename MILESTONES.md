@@ -59,6 +59,7 @@ Status: Complete for the current map
 - Hostile missile warnings persist with directional shape, text, and release tone through the full dodge window
 - Pausing freezes and itemizes every hostile knife, chain, or dart volley still in flight before cursor rebind
 - Wall-port volleys physically traverse the full telegraphed lane, use swept first-contact ordering, and can be evaded or intercepted after release
+- Player missiles resolve the earliest swept target and the earliest body or head volume instead of array order
 - Overlapping ordinary impacts share one acceptance gate, preventing a rejected wound from silently draining guard stamina
 - Distance-driven footsteps and AI acquisition distinguish stillness, crouch, steady movement, sprint, and packed armor without changing cadence with frame rate
 - Occluded moving threats emit range-attenuated class-specific footsteps and a separate directional accessibility cue without replacing combat markers
