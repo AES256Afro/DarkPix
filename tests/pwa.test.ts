@@ -36,7 +36,7 @@ describe("installable offline shell", () => {
     expect(worker).toContain('throw new Error("Release asset graph exceeds the offline cache limit")');
     expect(worker).toContain("await caches.delete(CACHE_NAME)");
     expect(worker).toContain("event.waitUntil(installCurrentRelease())");
-    expect(worker).toContain("return cached ?? response");
+    expect(worker).toContain("return cached ?? (await matchPriorReleaseAsset(request)) ?? response");
     expect(worker).toContain("await updateCurrentCache(cacheKey, response.clone())");
     expect(worker).toContain("A full or unavailable cache must never replace a valid network response.");
     expect(worker).not.toContain("await caches.match(request)");
@@ -63,7 +63,7 @@ describe("installable offline shell", () => {
     const handlers = new Map<string, (event: { waitUntil(promise: Promise<unknown>): void }) => void>();
     const claim = vi.fn(async () => undefined);
     const deleteCache = vi.fn(async (key: string) => {
-      if (key.endsWith("old-release")) throw new Error("cache storage unavailable");
+      if (key.endsWith("stale-b")) throw new Error("cache storage unavailable");
       return true;
     });
     const workerScope = {
@@ -74,7 +74,7 @@ describe("installable offline shell", () => {
     };
     const cacheStorage = {
       open: vi.fn(),
-      keys: vi.fn(async () => ["darkpix-runtime-old-release", "darkpix-runtime-current-release", "unowned-cache"]),
+      keys: vi.fn(async () => ["darkpix-runtime-stale-a", "darkpix-runtime-stale-b", "darkpix-runtime-prior-a", "darkpix-runtime-prior-b", "darkpix-runtime-current-release", "unowned-cache"]),
       delete: deleteCache,
     };
     new Function("self", "caches", "fetch", worker)(workerScope, cacheStorage, vi.fn());
@@ -82,8 +82,9 @@ describe("installable offline shell", () => {
     handlers.get("activate")?.({ waitUntil: (promise) => { activation = promise; } });
 
     await expect(activation).resolves.toBeUndefined();
-    expect(deleteCache).toHaveBeenCalledTimes(1);
-    expect(deleteCache).toHaveBeenCalledWith("darkpix-runtime-old-release");
+    expect(deleteCache).toHaveBeenCalledTimes(2);
+    expect(deleteCache).toHaveBeenCalledWith("darkpix-runtime-stale-a");
+    expect(deleteCache).toHaveBeenCalledWith("darkpix-runtime-stale-b");
     expect(claim).toHaveBeenCalledOnce();
   });
 
@@ -382,5 +383,43 @@ describe("installable offline shell", () => {
     });
     await expect(responsePromise).resolves.toBe(currentShell);
     expect(put.mock.calls.at(-1)?.[0]).toBe("/");
+  });
+
+  it("recovers a valid old hashed chunk from a bounded prior release cache", async () => {
+    const handlers = new Map<string, (event: any) => void>();
+    const legacyChunk = {
+      headers: { get: (name: string): string | null => name === "content-type" ? "application/javascript" : null },
+    };
+    const invalidLegacyStyle = {
+      headers: { get: (name: string): string | null => name === "content-type" ? "text/html" : null },
+    };
+    const currentCache = { match: vi.fn(async () => undefined) };
+    const priorCache = { match: vi.fn(async (key: string) => key === "/assets/game-old.js" ? legacyChunk : key === "/assets/style-old.css" ? invalidLegacyStyle : undefined) };
+    const cacheStorage = {
+      open: vi.fn(async (key: string) => key === "darkpix-runtime-prior-release" ? priorCache : currentCache),
+      keys: vi.fn(async () => ["darkpix-runtime-prior-release", "darkpix-runtime-current-release"]),
+      delete: vi.fn(async () => true),
+    };
+    const workerScope = {
+      location: { href: "https://darkpix.test/sw.js?v=current-release", origin: "https://darkpix.test" },
+      clients: { claim: vi.fn(async () => undefined) },
+      skipWaiting: vi.fn(async () => undefined),
+      addEventListener: (name: string, handler: (event: any) => void) => handlers.set(name, handler),
+    };
+    const notFound = { ok: false, status: 404, headers: { get: () => "text/html" } };
+    new Function("self", "caches", "fetch", worker)(workerScope, cacheStorage, vi.fn(async () => notFound));
+    let responsePromise: Promise<unknown> | undefined;
+    handlers.get("fetch")?.({
+      request: { method: "GET", mode: "cors", url: "https://darkpix.test/assets/game-old.js" },
+      respondWith: (promise: Promise<unknown>) => { responsePromise = promise; },
+    });
+    await expect(responsePromise).resolves.toBe(legacyChunk);
+    expect(priorCache.match).toHaveBeenCalledWith("/assets/game-old.js");
+
+    handlers.get("fetch")?.({
+      request: { method: "GET", mode: "cors", url: "https://darkpix.test/assets/style-old.css" },
+      respondWith: (promise: Promise<unknown>) => { responsePromise = promise; },
+    });
+    await expect(responsePromise).resolves.toBe(notFound);
   });
 });

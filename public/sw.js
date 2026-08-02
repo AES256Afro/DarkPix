@@ -1,4 +1,5 @@
 const CACHE_PREFIX = "darkpix-runtime-";
+const PRIOR_RELEASE_LIMIT = 2;
 const RELEASE_ID = (new URL(self.location.href).searchParams.get("v") ?? "dev")
   .replace(/[^a-zA-Z0-9._-]/g, "")
   .slice(0, 64) || "dev";
@@ -25,6 +26,22 @@ async function matchCurrentCache(request) {
   } catch {
     return undefined;
   }
+}
+
+async function matchPriorReleaseAsset(request) {
+  const url = new URL(typeof request === "string" ? request : request.url, self.location.origin);
+  if (!url.pathname.startsWith("/assets/")) return undefined;
+  try {
+    const keys = await caches.keys();
+    const priorKeys = keys.filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME).slice(-PRIOR_RELEASE_LIMIT).reverse();
+    for (const key of priorKeys) {
+      const response = await (await caches.open(key)).match(url.pathname);
+      if (response && responseMatchesCacheKey(url.pathname, response)) return response;
+    }
+  } catch {
+    // A missing prior cache must not hide the network response or current fallback.
+  }
+  return undefined;
 }
 
 async function updateCurrentCache(request, response) {
@@ -129,9 +146,9 @@ async function activateCurrentRelease() {
   } catch {
     // An intact current release can still activate when old-cache enumeration is unavailable.
   }
-  await Promise.allSettled(
-    keys.filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME).map((key) => caches.delete(key)),
-  );
+  const priorKeys = keys.filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME);
+  const retained = new Set(priorKeys.slice(-PRIOR_RELEASE_LIMIT));
+  await Promise.allSettled(priorKeys.filter((key) => !retained.has(key)).map((key) => caches.delete(key)));
   await self.clients.claim();
 }
 
@@ -155,7 +172,7 @@ self.addEventListener("fetch", (event) => {
         const response = await fetch(request);
         if (response.ok && cacheKey) {
           if (!responseMatchesCacheKey(cacheKey, response)) {
-            return (await matchCurrentCache(cacheKey)) ?? Response.error();
+            return (await matchCurrentCache(cacheKey)) ?? (await matchPriorReleaseAsset(request)) ?? Response.error();
           }
           if (cacheKey !== "/" || await responseMatchesCurrentReleaseShell(response)) {
             await updateCurrentCache(cacheKey, response.clone());
@@ -163,10 +180,12 @@ self.addEventListener("fetch", (event) => {
           return response;
         }
         const cached = cacheKey ? await matchCurrentCache(cacheKey) : undefined;
-        return cached ?? response;
+        return cached ?? (await matchPriorReleaseAsset(request)) ?? response;
       } catch {
         const cached = cacheKey ? await matchCurrentCache(cacheKey) : undefined;
         if (cached) return cached;
+        const priorAsset = await matchPriorReleaseAsset(request);
+        if (priorAsset) return priorAsset;
         if (request.mode === "navigate") return (await matchCurrentCache("/")) ?? Response.error();
         return Response.error();
       }
