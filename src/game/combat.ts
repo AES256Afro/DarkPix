@@ -102,6 +102,15 @@ export function enemyStrikeFacesTarget(committedFacing: Vec2 | undefined, toTarg
   return alignment >= (ranged ? 0.92 : 0.35);
 }
 
+export type EnemyStrikeMissReason = "out_of_range" | "cover" | "evaded" | undefined;
+
+export function enemyStrikeMissReason(distance: number, maximumRange: number, hasSight: boolean, facingTarget: boolean): EnemyStrikeMissReason {
+  if (!Number.isFinite(distance) || !Number.isFinite(maximumRange) || maximumRange < 0 || distance > maximumRange) return "out_of_range";
+  if (!hasSight) return "cover";
+  if (!facingTarget) return "evaded";
+  return undefined;
+}
+
 export function rivalTactic(distance: number, hasSight: boolean, archetype: RivalArchetype = "skirmisher"): RivalTactic {
   if (!Number.isFinite(distance) || distance < 0 || !hasSight || distance > 6.5) return "approach";
   if (archetype === "marauder") return distance <= 1.9 ? "melee" : "approach";
