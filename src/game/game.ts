@@ -220,6 +220,8 @@ export class DarkPixGame {
   private readonly scratchProjectileBody = new THREE.Vector3();
   private readonly scratchProjectileHead = new THREE.Vector3();
   private readonly scratchDirection: Vec2 = { x: 0, z: 0 };
+  private readonly scratchInteractionFacing: Vec2 = { x: 0, z: 0 };
+  private readonly scratchInteractionTarget: Vec2 = { x: 0, z: 0 };
   private readonly audio: AudioDirector;
   private readonly lifecycleTimers = new LifecycleTimers();
   private readonly keys = new Set<string>();
@@ -3074,24 +3076,15 @@ export class DarkPixGame {
     let targetPickup: Pickup | undefined;
     let targetChest: Chest | undefined;
     let nearest = 2.6;
-    const facing3 = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
-    const origin = { x: this.camera.position.x, z: this.camera.position.z };
-    const facing = { x: facing3.x, z: facing3.z };
-    const targetDistance = (position: THREE.Vector3, maxDistance = 2.6, secretPassageTarget = false) => {
-      const target = { x: position.x, z: position.z };
-      return targetDistanceInView(
-        origin,
-        facing,
-        target,
-        maxDistance,
-        0.62,
-        this.hasDungeonSight(origin, target, 0.03, secretPassageTarget),
-      );
-    };
+    const facing3 = this.scratchForward.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    this.scratchDirection.x = this.camera.position.x;
+    this.scratchDirection.z = this.camera.position.z;
+    this.scratchInteractionFacing.x = facing3.x;
+    this.scratchInteractionFacing.z = facing3.z;
 
     for (const pickup of this.pickups) {
       if (pickup.collected) continue;
-      const distance = targetDistance(pickup.group.position);
+      const distance = this.interactionTargetDistance(pickup.group.position);
       if (distance < nearest) {
         nearest = distance;
         targetPickup = pickup;
@@ -3100,29 +3093,29 @@ export class DarkPixGame {
     }
     for (const chest of this.chests) {
       if (chest.opened) continue;
-      const distance = targetDistance(chest.group.position);
+      const distance = this.interactionTargetDistance(chest.group.position);
       if (distance < nearest) {
         nearest = distance;
         targetChest = chest;
         interactive = "chest";
       }
     }
-    const campfireDistance = targetDistance(this.campfire.position);
+    const campfireDistance = this.interactionTargetDistance(this.campfire.position);
     if (!this.campfireUsed && campfireDistance < nearest) {
       nearest = campfireDistance;
       interactive = "campfire";
     }
-    const shrineDistance = targetDistance(this.shrine.position);
+    const shrineDistance = this.interactionTargetDistance(this.shrine.position);
     if (!this.shrineUsed && shrineDistance < nearest) {
       nearest = shrineDistance;
       interactive = "shrine";
     }
-    const falseWallDistance = this.falseWallOpened ? Number.POSITIVE_INFINITY : targetDistance(this.falseWall.position, 2.35, true);
+    const falseWallDistance = this.falseWallOpened ? Number.POSITIVE_INFINITY : this.interactionTargetDistance(this.falseWall.position, 2.35, true);
     if (falseWallDistance < nearest) {
       nearest = falseWallDistance;
       interactive = "false_wall";
     }
-    const portalDistance = this.portalUnlocked ? targetDistance(this.portal.position, 3.1) : Number.POSITIVE_INFINITY;
+    const portalDistance = this.portalUnlocked ? this.interactionTargetDistance(this.portal.position, 3.1) : Number.POSITIVE_INFINITY;
     if (Number.isFinite(portalDistance) && (interactive === undefined || portalDistance < nearest)) {
       nearest = portalDistance;
       interactive = "portal";
@@ -3226,6 +3219,19 @@ export class DarkPixGame {
         else if (this.interactHeld) this.finish("extracted");
       }
     }
+  }
+
+  private interactionTargetDistance(position: THREE.Vector3, maxDistance = 2.6, secretPassageTarget = false): number {
+    this.scratchInteractionTarget.x = position.x;
+    this.scratchInteractionTarget.z = position.z;
+    return targetDistanceInView(
+      this.scratchDirection,
+      this.scratchInteractionFacing,
+      this.scratchInteractionTarget,
+      maxDistance,
+      0.62,
+      this.hasDungeonSight(this.scratchDirection, this.scratchInteractionTarget, 0.03, secretPassageTarget),
+    );
   }
 
   private resetInteractionChannel(): void {

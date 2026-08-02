@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
 import { disposeSceneResources } from "../src/game/resources";
+import gameSource from "../src/game/game.ts?raw";
 
 describe("raid resource cleanup", () => {
   it("disposes shared GPU resources exactly once", () => {
@@ -18,5 +19,16 @@ describe("raid resource cleanup", () => {
     expect(textureDispose).toHaveBeenCalledOnce();
     expect(materialDispose).toHaveBeenCalledOnce();
     expect(geometryDispose).toHaveBeenCalledOnce();
+  });
+
+  it("keeps interaction targeting allocation-free inside the frame loop", () => {
+    const updateInteraction = gameSource.slice(
+      gameSource.indexOf("private updateInteraction"),
+      gameSource.indexOf("private interactionTargetDistance"),
+    );
+    expect(updateInteraction).toContain("this.scratchForward.set");
+    expect(updateInteraction).toContain("this.interactionTargetDistance");
+    expect(updateInteraction).not.toContain("new THREE.Vector3");
+    expect(updateInteraction).not.toContain("const target = {");
   });
 });
