@@ -15,6 +15,10 @@ command -v docker >/dev/null 2>&1 || {
   echo "Docker is required." >&2
   exit 1
 }
+command -v sha256sum >/dev/null 2>&1 || {
+  echo "sha256sum is required to verify public service-worker bytes." >&2
+  exit 1
+}
 docker compose version >/dev/null
 
 if ! docker network inspect gridless_gridless >/dev/null 2>&1; then
@@ -37,6 +41,17 @@ if [[ -n "${DARKPIX_PUBLIC_URL:-}" ]]; then
   darkpix_public_urls=("$DARKPIX_PUBLIC_URL")
 fi
 export DARKPIX_RELEASE="$darkpix_release"
+
+public_body_sha() {
+  local target_url="$1"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsS --max-time 8 "$target_url" 2>/dev/null | sha256sum | awk '{print $1}'
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q -T 8 -O - "$target_url" 2>/dev/null | sha256sum | awk '{print $1}'
+  else
+    return 1
+  fi
+}
 
 check_darkpix_health() {
   if command -v curl >/dev/null 2>&1; then
@@ -63,9 +78,11 @@ check_container_hardening() {
 previous_container_id="$(docker compose ps -q darkpix 2>/dev/null || true)"
 previous_image_id=""
 previous_release=""
+previous_worker_sha=""
 if [[ -n "$previous_container_id" ]]; then
   previous_image_id="$(docker inspect --format '{{.Image}}' "$previous_container_id" 2>/dev/null || true)"
   previous_release="$(docker compose exec -T darkpix wget -q -O - http://127.0.0.1:8080/version.txt 2>/dev/null || true)"
+  previous_worker_sha="$(docker compose exec -T darkpix sha256sum /usr/share/nginx/html/sw.js 2>/dev/null | awk '{print $1}' || true)"
   if [[ -n "$previous_image_id" ]]; then docker image tag "$previous_image_id" darkpix-web:rollback; fi
 fi
 
@@ -94,6 +111,9 @@ check_restored_public_routes() {
     [[ "$restored_release" == "$previous_release" ]] || return 1
     [[ "$restored_write_method_status" == "405" ]] || return 1
     grep -Fq "<meta name=\"darkpix-release\" content=\"$previous_release\"" <<<"$restored_html" || return 1
+    if [[ -n "$previous_worker_sha" ]]; then
+      [[ "$(public_body_sha "$public_url/sw.js?v=rollback-$previous_release")" == "$previous_worker_sha" ]] || return 1
+    fi
   done
 }
 
@@ -178,6 +198,13 @@ if ! check_container_hardening "$darkpix_container_id"; then
   exit 1
 fi
 echo "DarkPix container hardening and resource limits verified from Docker runtime state."
+
+current_worker_sha="$(docker compose exec -T darkpix sha256sum /usr/share/nginx/html/sw.js | awk '{print $1}')"
+if [[ ! "$current_worker_sha" =~ ^[0-9a-f]{64}$ ]]; then
+  echo "The running container did not expose a valid service-worker checksum." >&2
+  rollback_previous_release || true
+  exit 1
+fi
 
 docker compose ps
 echo "Deployed release: $(docker compose exec -T darkpix wget -q -O - http://127.0.0.1:8080/version.txt)"
@@ -292,6 +319,7 @@ check_public_release() {
   grep -qi 'cache-control:.*no-cache' <<<"$title_headers" || return 1
   grep -qi 'content-type:.*javascript' <<<"$worker_headers" || return 1
   grep -qi 'cache-control:.*no-store' <<<"$worker_headers" || return 1
+  [[ "$(public_body_sha "$public_url/sw.js?v=$darkpix_release")" == "$current_worker_sha" ]] || return 1
   for fixed_headers in "$manifest_headers" "$icon_headers" "$title_headers" "$worker_headers"; do
     if grep -qi 'cf-cache-status: *HIT' <<<"$fixed_headers"; then return 1; fi
   done

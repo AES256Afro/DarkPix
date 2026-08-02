@@ -39,6 +39,14 @@ describe("production asset routing", () => {
     expect(deployScript).toContain('"$public_url/assets/darkpix-title.jpg?v=$darkpix_release"');
   });
 
+  it("requires exact public service-worker bytes for rollout and rollback", () => {
+    expect(deployScript).toContain("current_worker_sha=");
+    expect(deployScript).toContain('public_body_sha "$public_url/sw.js?v=$darkpix_release"');
+    expect(deployScript).toContain("previous_worker_sha=");
+    expect(deployScript).toContain('public_body_sha "$public_url/sw.js?v=rollback-$previous_release"');
+    expect(deployScript).toContain("sha256sum is required to verify public service-worker bytes");
+  });
+
   it("keeps the HTML shell out of Cloudflare edge storage", () => {
     expect(nginx).toContain('~^/(?:index\\.html)?$ "no-store";');
     expect(deployScript).toContain('cf-cache-status: *HIT');
