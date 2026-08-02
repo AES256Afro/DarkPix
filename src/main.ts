@@ -8,7 +8,7 @@ import { itemValueTotal, raidValueSummary } from "./game/economy";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { browserStorageWritable, persistBeforeClearingEscrow } from "./game/persistence";
-import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfile, loadRaidEscrow, normalizeRaidResult, purchaseItem, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
+import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfileState, loadRaidEscrow, normalizeRaidResult, purchaseItem, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
 import { rarityMark } from "./game/rarity";
 import { QUIET_KNIVES_REWARD, QUIET_KNIVES_TARGET } from "./game/stealth";
@@ -21,8 +21,10 @@ const app = foundApp;
 const release = import.meta.env.VITE_DARKPIX_VERSION || "dev";
 const CLASS_RUNES: Record<ClassId, string> = { vanguard: "V", cutpurse: "C", hexbound: "H", reaver: "R", ranger: "A", cleric: "L", shapeshifter: "S", minstrel: "M" };
 const storageWritableAtStart = browserStorageWritable();
+const profileLoad = loadProfileState();
 
-let profile: Profile = loadProfile();
+let profile: Profile = profileLoad.profile;
+const profileRecovery = profileLoad.recovery;
 let preferences: GamePreferences = loadPreferences();
 let selectedClass: ClassId = profile.preferredClass;
 let selectedRaidMode: RaidMode = "standard";
@@ -30,9 +32,11 @@ let equippedIds = new Set<string>();
 let activeGame: DarkPixGame | undefined;
 let merchantNotice = "";
 let pendingSaleId: string | undefined;
-let persistenceWarning = storageWritableAtStart
-  ? ""
-  : "Persistent browser storage is unavailable. Lobby changes may vanish, and no raid will start unless its risk journal can be secured.";
+let persistenceWarning = profileLoad.status === "corrupt"
+  ? "The stored profile was unreadable. Its raw contents were preserved for download in Settings before a starter profile was shown."
+  : storageWritableAtStart
+    ? ""
+    : "Persistent browser storage is unavailable. Lobby changes may vanish, and no raid will start unless its risk journal can be secured.";
 let gameModulePromise: Promise<typeof import("./game/game")> | undefined;
 let updateRegistration: ServiceWorkerRegistration | undefined;
 let reloadForUpdate = false;
@@ -104,6 +108,15 @@ function registerOfflineWorker(): void {
       });
     });
   }).catch((error) => console.warn("DarkPix offline shell could not register", error));
+}
+
+function downloadTextFile(contents: string, filename: string, type: string): void {
+  const url = URL.createObjectURL(new Blob([contents], { type }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 function itemMarkup(item: Item, riskable = false): string {
@@ -374,6 +387,7 @@ function renderLobby(): void {
               <div class="save-actions">
                 <button type="button" data-save-action="export">Export save</button>
                 <button type="button" data-save-action="import">Import save</button>
+                ${profileRecovery !== undefined ? `<button type="button" data-save-action="recovery">Download unreadable recovery</button>` : ""}
                 <input type="file" data-save-file accept="application/json,.json" hidden>
               </div>
             </section>
@@ -507,14 +521,15 @@ function renderLobby(): void {
   });
   app.querySelector<HTMLButtonElement>('[data-save-action="export"]')?.addEventListener("click", () => {
     const backup = createSaveBackup(profile, preferences, release);
-    const url = URL.createObjectURL(new Blob([backup], { type: "application/json" }));
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `darkpix-save-${new Date().toISOString().slice(0, 10)}.json`;
-    anchor.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    downloadTextFile(backup, `darkpix-save-${new Date().toISOString().slice(0, 10)}.json`, "application/json");
     const notice = app.querySelector<HTMLElement>(".merchant-notice");
     if (notice) notice.textContent = "Save exported. Keep the JSON file somewhere safe.";
+  });
+  app.querySelector<HTMLButtonElement>('[data-save-action="recovery"]')?.addEventListener("click", () => {
+    if (profileRecovery === undefined) return;
+    downloadTextFile(profileRecovery, `darkpix-unreadable-recovery-${new Date().toISOString().slice(0, 10)}.txt`, "text/plain");
+    const notice = app.querySelector<HTMLElement>(".merchant-notice");
+    if (notice) notice.textContent = "Unreadable recovery downloaded. Keep it with any earlier DarkPix backups.";
   });
   const saveFileInput = app.querySelector<HTMLInputElement>("[data-save-file]");
   app.querySelector<HTMLButtonElement>('[data-save-action="import"]')?.addEventListener("click", () => saveFileInput?.click());

@@ -8,6 +8,7 @@ import { validRaidVariationSeed } from "./contract";
 import { MAX_UNSEEN_STRIKES, QUIET_KNIVES_REWARD, QUIET_KNIVES_TARGET } from "./stealth";
 
 const PROFILE_KEY = "darkpix-profile-v1";
+const PROFILE_RECOVERY_KEY = "darkpix-profile-recovery-v1";
 const RAID_ESCROW_KEY = "darkpix-active-raid-v1";
 export const MAX_GOLD = 9_999_999;
 export const MAX_ITEM_POWER = 100;
@@ -304,12 +305,55 @@ export function normalizeRaidResult(profile: Profile, value: unknown, currentTim
   };
 }
 
-export function loadProfile(): Profile {
+interface ProfileStorageTarget {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+}
+
+export interface ProfileLoadResult {
+  profile: Profile;
+  status: "loaded" | "missing" | "corrupt" | "unavailable";
+  recovery?: string;
+}
+
+function recognizableStoredProfile(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const candidate = value as Record<string, unknown>;
+  return typeof candidate.version === "number" && Number.isFinite(candidate.version) &&
+    typeof candidate.gold === "number" && Number.isFinite(candidate.gold) &&
+    Boolean(candidate.xp && typeof candidate.xp === "object" && !Array.isArray(candidate.xp)) &&
+    Array.isArray(candidate.stash) &&
+    typeof candidate.preferredClass === "string";
+}
+
+export function loadProfileState(storage?: ProfileStorageTarget): ProfileLoadResult {
+  let target: ProfileStorageTarget;
+  let serialized: string | null;
+  let existingRecovery: string | undefined;
   try {
-    return normalizeProfile(JSON.parse(localStorage.getItem(PROFILE_KEY) ?? "null"));
+    target = storage ?? globalThis.localStorage;
+    serialized = target.getItem(PROFILE_KEY);
+    existingRecovery = target.getItem(PROFILE_RECOVERY_KEY) ?? undefined;
   } catch {
-    return createProfile();
+    return { profile: createProfile(), status: "unavailable" };
   }
+  if (serialized === null) return { profile: createProfile(), status: "missing", ...(existingRecovery !== undefined ? { recovery: existingRecovery } : {}) };
+  try {
+    const parsed = JSON.parse(serialized) as unknown;
+    if (!recognizableStoredProfile(parsed)) throw new Error("unrecognizable DarkPix profile");
+    return { profile: normalizeProfile(parsed), status: "loaded", ...(existingRecovery !== undefined ? { recovery: existingRecovery } : {}) };
+  } catch {
+    try {
+      target.setItem(PROFILE_RECOVERY_KEY, serialized);
+    } catch {
+      // The raw value still remains available to the current page for download.
+    }
+    return { profile: createProfile(), status: "corrupt", recovery: serialized };
+  }
+}
+
+export function loadProfile(): Profile {
+  return loadProfileState().profile;
 }
 
 export function saveProfile(profile: Profile): boolean {

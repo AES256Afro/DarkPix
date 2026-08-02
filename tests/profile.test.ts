@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
-import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, MAX_RAID_LOOT_ITEMS, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, normalizeProfile, normalizeRaidEscrow, normalizeRaidResult, purchaseItem, raidThreatKillLedger, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
+import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, MAX_RAID_LOOT_ITEMS, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, loadProfileState, normalizeProfile, normalizeRaidEscrow, normalizeRaidResult, purchaseItem, raidThreatKillLedger, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, firstRunPreferences, normalizePreferences } from "../src/game/preferences";
 import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat } from "../src/game/combat";
 import type { RaidResult } from "../src/game/types";
@@ -289,6 +289,38 @@ describe("persistent raid consequences", () => {
     expect(result.lastCommissionDay).toBe("");
     expect(result.preferredClass).toBe("vanguard");
     expect(result.raidHistory).toEqual([]);
+  });
+
+  it("quarantines an unreadable stored profile before showing a starter", () => {
+    const values = new Map<string, string>([["darkpix-profile-v1", "{broken-json"]]);
+    const loaded = loadProfileState({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => { values.set(key, value); },
+    });
+    expect(loaded.status).toBe("corrupt");
+    expect(loaded.recovery).toBe("{broken-json");
+    expect(loaded.profile).toEqual(createProfile());
+    expect([...values.values()]).toContain("{broken-json");
+  });
+
+  it("distinguishes a missing profile from unavailable storage", () => {
+    const missing = loadProfileState({ getItem: () => null, setItem: () => undefined });
+    const unavailable = loadProfileState({
+      getItem: () => { throw new Error("storage blocked"); },
+      setItem: () => undefined,
+    });
+    expect(missing.status).toBe("missing");
+    expect(unavailable.status).toBe("unavailable");
+  });
+
+  it("retains even an empty damaged profile as recovery evidence", () => {
+    const values = new Map<string, string>([["darkpix-profile-v1", ""]]);
+    const loaded = loadProfileState({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => { values.set(key, value); },
+    });
+    expect(loaded.status).toBe("corrupt");
+    expect(loaded.recovery).toBe("");
   });
 
   it("migrates pre-Shapeshifter profiles without changing established progression", () => {
