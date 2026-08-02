@@ -43,6 +43,7 @@ Status: Complete for local-first play
 - Each new journal receives a marker beyond the last settled raid even when the system clock repeats a millisecond
 - An exhausted safe-integer settlement marker blocks descent instead of creating a lower journal that could be mistaken for an already-settled raid
 - Active journals without a positive safe-integer start marker are quarantined instead of being repeatedly settled without an idempotency key
+- Journal markers beyond the bounded clock-skew window are quarantined, and a future durable high-water marker blocks descent before it can create an unrecoverable raid
 - Failed live checkpoints retry every three active seconds, expose a storage-only pause action, and announce durable recovery
 - The live HUD exposes checkpoint storage failure instead of silently leaving refresh recovery stale
 - Paid-contract entry is single-flight, snapshots its launch state, retries a rejected renderer download, and reconciles the authoritative before/after gold balance when interrupted between storage writes

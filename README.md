@@ -62,6 +62,8 @@ If that settlement high-water mark is exhausted at JavaScript's maximum safe int
 
 An active journal must also carry a positive safe-integer start marker. Missing, zero, fractional, or overflowing markers enter damaged-journal recovery instead of settling without a durable idempotency key.
 
+Start markers beyond the five-minute clock-skew allowance are treated as damaged recovery evidence. A durable high-water marker beyond that same allowance blocks a new descent before it can create a future-dated journal.
+
 A retained settled journal is reconciled before its old page-owner lease is considered, so stale lease metadata cannot quarantine a lobby after the verdict is already durable.
 
 The final pre-descent journal check applies the same rule. It removes an already-settled journal before writing the next raid, while a removal failure blocks descent rather than overwriting recovery evidence.

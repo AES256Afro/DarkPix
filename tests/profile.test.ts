@@ -192,12 +192,16 @@ describe("persistent raid consequences", () => {
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "high_toll", equippedIds: [], startedAt: 1, goldBeforeEntry: 200, entryFee: 0 })).toMatchObject({ entryFee: 50, goldAfterEntry: 150 });
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], startedAt: Number.NaN })).toBeUndefined();
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], startedAt: Number.MAX_VALUE })).toBeUndefined();
+    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], startedAt: Number.MAX_SAFE_INTEGER })).toBeUndefined();
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], startedAt: 0 })).toBeUndefined();
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [] })).toBeUndefined();
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], startedAt: 1, kills: 2, killsByKind: { skeleton: 99, rival: 99 } })?.killsByKind).toEqual({ skeleton: 2, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 });
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], startedAt: 1, kills: 2 })?.killsByKind).toEqual({ skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 });
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], startedAt: 1, variationSeed: 32 })?.variationSeed).toBeUndefined();
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], startedAt: 1, unseenStrikes: 999 })?.unseenStrikes).toBe(32);
+    const now = 1_700_000_000_000;
+    const futureStart = { version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], startedAt: now + 300_001 };
+    expect(normalizeRaidEscrow(futureStart, now)).toBeUndefined();
   });
 
   it("quarantines malformed active-raid journals instead of silently deleting their risk", () => {
@@ -449,6 +453,7 @@ describe("persistent raid consequences", () => {
     expect(nextRaidStartedAt(Number.NaN, 0)).toBe(1);
     expect(nextRaidStartedAt(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER - 1)).toBe(Number.MAX_SAFE_INTEGER);
     expect(nextRaidStartedAt(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)).toBeUndefined();
+    expect(nextRaidStartedAt(1_700_000_000_000, 1_700_000_300_001)).toBeUndefined();
   });
 
   it("records a bounded newest-first contract journal", () => {

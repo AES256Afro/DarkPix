@@ -432,9 +432,10 @@ export function createRaidEscrow(
   };
 }
 
-export function normalizeRaidEscrow(value: unknown): RaidEscrow | undefined {
+export function normalizeRaidEscrow(value: unknown, currentTimestamp = Date.now()): RaidEscrow | undefined {
   if (!value || typeof value !== "object") return undefined;
   const candidate = value as Partial<RaidEscrow>;
+  const safeCurrentTimestamp = Number.isSafeInteger(currentTimestamp) && currentTimestamp > 0 ? currentTimestamp : Date.now();
   if (
     candidate.version !== 1
     || !validClass(candidate.classId)
@@ -443,6 +444,7 @@ export function normalizeRaidEscrow(value: unknown): RaidEscrow | undefined {
     || typeof candidate.startedAt !== "number"
     || !Number.isSafeInteger(candidate.startedAt)
     || candidate.startedAt <= 0
+    || candidate.startedAt > safeCurrentTimestamp + MAX_RAID_CLOCK_SKEW_MS
   ) return undefined;
   return createRaidEscrow(
     candidate.classId,
@@ -485,7 +487,7 @@ export type RaidEscrowLoadResult =
   | { status: "corrupt"; recovery: string }
   | { status: "missing" | "unavailable" };
 
-export function loadRaidEscrowState(storage?: Pick<ProfileStorageTarget, "getItem">): RaidEscrowLoadResult {
+export function loadRaidEscrowState(storage?: Pick<ProfileStorageTarget, "getItem">, currentTimestamp = Date.now()): RaidEscrowLoadResult {
   let serialized: string | null;
   try {
     serialized = (storage ?? globalThis.localStorage).getItem(RAID_ESCROW_KEY);
@@ -494,7 +496,7 @@ export function loadRaidEscrowState(storage?: Pick<ProfileStorageTarget, "getIte
   }
   if (serialized === null) return { status: "missing" };
   try {
-    const escrow = normalizeRaidEscrow(JSON.parse(serialized));
+    const escrow = normalizeRaidEscrow(JSON.parse(serialized), currentTimestamp);
     return escrow ? { status: "loaded", escrow } : { status: "corrupt", recovery: serialized };
   } catch {
     return { status: "corrupt", recovery: serialized };
@@ -523,7 +525,7 @@ export function raidEscrowAlreadySettled(profile: Pick<Profile, "lastSettledRaid
 export function nextRaidStartedAt(currentTimestamp: number, lastSettledRaidStartedAt: number): number | undefined {
   const current = nonnegativeInteger(currentTimestamp);
   const lastSettled = nonnegativeInteger(lastSettledRaidStartedAt);
-  if (lastSettled >= Number.MAX_SAFE_INTEGER) return undefined;
+  if (lastSettled >= Number.MAX_SAFE_INTEGER || (current > 0 && lastSettled > current + MAX_RAID_CLOCK_SKEW_MS)) return undefined;
   return Math.max(1, current, lastSettled + 1);
 }
 
