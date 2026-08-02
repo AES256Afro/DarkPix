@@ -116,12 +116,14 @@ echo "Cloudflare service target: http://darkpix:8080"
 check_public_release() {
   local public_url="$1"
   local observed_release
+  local release_headers
   local public_headers
   local health_body
   local health_headers
   local missing_asset_status
   if command -v curl >/dev/null 2>&1; then
     observed_release="$(curl -fsS --max-time 8 "$public_url/version.txt" 2>/dev/null)" || return 1
+    release_headers="$(curl -fsSI --max-time 8 "$public_url/version.txt" 2>/dev/null)" || return 1
     public_headers="$(curl -fsSI --max-time 8 "$public_url/" 2>/dev/null)" || return 1
     health_body="$(curl -fsS --max-time 8 "$public_url/healthz" 2>/dev/null)" || return 1
     health_headers="$(curl -fsSI --max-time 8 "$public_url/healthz" 2>/dev/null)" || return 1
@@ -129,6 +131,7 @@ check_public_release() {
     curl -fsSI --max-time 8 "$public_url/sw.js?v=$darkpix_release" 2>/dev/null | grep -qi '^cache-control:.*no-store' || return 1
   elif command -v wget >/dev/null 2>&1; then
     observed_release="$(wget -q -T 8 -O - "$public_url/version.txt" 2>/dev/null)" || return 1
+    release_headers="$(wget -q -T 8 --server-response --spider "$public_url/version.txt" 2>&1)" || return 1
     public_headers="$(wget -q -T 8 --server-response --spider "$public_url/" 2>&1)" || return 1
     health_body="$(wget -q -T 8 -O - "$public_url/healthz" 2>/dev/null)" || return 1
     health_headers="$(wget -q -T 8 --server-response --spider "$public_url/healthz" 2>&1)" || return 1
@@ -147,6 +150,8 @@ check_public_release() {
   grep -qi "content-security-policy:.*default-src 'self'.*frame-ancestors 'none'" <<<"$public_headers" || return 1
   grep -qi 'cross-origin-opener-policy: same-origin' <<<"$public_headers" || return 1
   grep -qi 'cross-origin-resource-policy: same-origin' <<<"$public_headers" || return 1
+  grep -qi 'cache-control:.*no-store' <<<"$release_headers" || return 1
+  if grep -qi 'cf-cache-status: *HIT' <<<"$release_headers"; then return 1; fi
   [[ "$health_body" == "ok" ]] || return 1
   if command -v curl >/dev/null 2>&1; then [[ "$missing_asset_status" == "404" ]] || return 1; fi
   grep -qi 'cache-control:.*no-store' <<<"$health_headers" || return 1

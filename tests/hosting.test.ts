@@ -5,6 +5,7 @@ import deployScript from "../scripts/deploy-bigbox.sh?raw";
 describe("production asset routing", () => {
   it("returns a real 404 for missing hashed assets instead of the HTML shell", () => {
     expect(nginx).toMatch(/location \^~ \/assets\/\s*\{\s*try_files \$uri =404;\s*\}/);
+    expect(nginx).toMatch(/healthz\|version\\\.txt\|sw\\\.js\|manifest\\\.webmanifest/);
   });
 
   it("rejects a public rollout whose missing release chunk does not return 404", () => {
