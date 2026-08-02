@@ -22,6 +22,7 @@ The service also binds to `127.0.0.1:8092` for host-only health checks. BigBox p
 - Read-only container filesystem with a small temporary filesystem
 - All Linux capabilities dropped
 - `no-new-privileges` enabled
+- Process creation limited to 64 PIDs alongside explicit memory and CPU limits
 - Unprivileged Nginx worker on port 8080
 - Build and runtime base images pinned to immutable registry digests
 - Service-local Docker logs rotated at 10 MB with three retained files

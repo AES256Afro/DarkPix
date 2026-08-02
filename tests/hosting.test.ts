@@ -43,4 +43,10 @@ describe("production asset routing", () => {
   it("bounds public access-log growth inside the DarkPix service", () => {
     expect(compose).toMatch(/logging:\s+driver: json-file\s+options:\s+max-size: "10m"\s+max-file: "3"/);
   });
+
+  it("bounds runtime process creation alongside memory and CPU", () => {
+    expect(compose).toMatch(/pids_limit: 64/);
+    expect(compose).toMatch(/mem_limit: 384m/);
+    expect(compose).toMatch(/cpus: 1\.5/);
+  });
 });
