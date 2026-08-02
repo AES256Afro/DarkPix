@@ -180,6 +180,7 @@ check_public_build_assets() {
   else
     return 1
   fi
+  grep -Fq "<meta name=\"darkpix-release\" content=\"$darkpix_release\"" <<<"$public_html" || return 1
   references="$(grep -oE '(src|href)="[^"]+\.(js|css)"' <<<"$public_html" | sed -E 's/^(src|href)="([^"]+)"$/\2/' | sort -u || true)"
   [[ -n "$references" ]] || return 1
   while IFS= read -r asset_path; do

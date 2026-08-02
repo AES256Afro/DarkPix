@@ -111,6 +111,7 @@ Status: Complete
 - CI-enforced compressed JavaScript, CSS, and entry-HTML performance budgets
 - CI rejects high or critical dependency advisories before building the release image
 - Every deploy rejects a dirty source tree, snapshots the prior image, inspects effective runtime hardening, verifies Cloudflare-uncached live health and release identity, real missing-asset 404s, executable MIME types and immutable caching for every HTML-referenced build asset, and the exact commit through both `ne-gro.com` and `www.ne-gro.com`; rollback must prove the restored constraints and both public routes before discarding its snapshot
+- CI and every public rollout require the HTML build marker to equal the image and `/version.txt` release identity before accepting its asset graph
 
 Exit evidence: Docker build and smoke checks in CI plus container, host, apex, and `www` gates during deployment.
 

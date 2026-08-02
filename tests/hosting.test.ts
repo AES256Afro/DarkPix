@@ -35,6 +35,7 @@ describe("production asset routing", () => {
     expect(deployScript).toContain("content-type:.*text/css");
     expect(deployScript).toContain("cache-control:.*max-age=31536000.*immutable");
     expect(deployScript).toContain('[[ "$verified_assets" -ge 2 ]]');
+    expect(deployScript).toContain('<meta name=\\"darkpix-release\\" content=\\"$darkpix_release\\"');
   });
 
   it("restores the prior image when a rollout gate fails", () => {
