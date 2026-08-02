@@ -253,6 +253,14 @@ describe("lobby accessibility contracts", () => {
     expect(gameSource).toContain('setAttributeIfChanged(this.spellBar, "aria-label"');
   });
 
+  it("exposes the current threat name, vigor, and state as one live status", () => {
+    const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
+    expect(gameSource).toContain('class="threat-vitals" role="status" aria-live="polite" aria-atomic="true"');
+    expect(gameSource).toContain('role="progressbar" aria-label="Threat vigor" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0"');
+    expect(gameSource).toContain('setAttributeIfChanged(this.threatHealthBar, "aria-label", `${enemy.name} vigor`)');
+    expect(gameSource).toContain('setAttributeIfChanged(this.threatHealthBar, "aria-valuenow", String(Math.max(0, enemy.hp)))');
+  });
+
   it("keeps occluded movement cues separate from combat impact announcements", () => {
     expect(readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8")).toContain('class="sound-direction" role="status" aria-live="polite"');
     expect(styles).toContain(".raid-shell.high-contrast-hud .damage-direction, .raid-shell.high-contrast-hud .sound-direction");

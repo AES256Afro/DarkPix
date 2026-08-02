@@ -310,6 +310,7 @@ export class DarkPixGame {
   private threatHud!: HTMLElement;
   private threatNameHud!: HTMLElement;
   private threatStateHud!: HTMLElement;
+  private threatHealthBar!: HTMLElement;
   private threatHealthFill!: HTMLElement;
   private directionHud!: HTMLElement;
   private compassHeadingHud!: HTMLElement;
@@ -471,7 +472,7 @@ export class DarkPixGame {
             </section>
           </div>
           <div class="event-feed" role="status" aria-live="polite" aria-atomic="true"></div>
-          <div class="threat-vitals" aria-live="polite"><strong></strong><div><i></i></div><small></small></div>
+          <div class="threat-vitals" role="status" aria-live="polite" aria-atomic="true"><strong></strong><div role="progressbar" aria-label="Threat vigor" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0"><i></i></div><small></small></div>
           <div class="crosshair" aria-hidden="true"><i></i><b></b><em></em><span></span></div>
           <div class="stealth-cue" aria-hidden="true"></div>
           <div class="attack-direction">THRUST</div>
@@ -537,6 +538,7 @@ export class DarkPixGame {
     this.threatHud = this.mount.querySelector<HTMLElement>(".threat-vitals")!;
     this.threatNameHud = this.mount.querySelector<HTMLElement>(".threat-vitals strong")!;
     this.threatStateHud = this.mount.querySelector<HTMLElement>(".threat-vitals small")!;
+    this.threatHealthBar = this.mount.querySelector<HTMLElement>(".threat-vitals > div")!;
     this.threatHealthFill = this.mount.querySelector<HTMLElement>(".threat-vitals i")!;
     this.directionHud = this.mount.querySelector<HTMLElement>(".attack-direction")!;
     this.compassHeadingHud = this.mount.querySelector<HTMLElement>(".compass-heading")!;
@@ -2341,6 +2343,9 @@ export class DarkPixGame {
   private showThreatVitals(enemy: Enemy): void {
     this.threatTimer = enemy.alive ? 3.2 : 2;
     setTextIfChanged(this.threatNameHud, enemy.name.toUpperCase());
+    setAttributeIfChanged(this.threatHealthBar, "aria-label", `${enemy.name} vigor`);
+    setAttributeIfChanged(this.threatHealthBar, "aria-valuemax", String(enemy.maxHp));
+    setAttributeIfChanged(this.threatHealthBar, "aria-valuenow", String(Math.max(0, enemy.hp)));
     setStylePropertyIfChanged(this.threatHealthFill, "width", `${healthPercent(enemy.hp, enemy.maxHp)}%`);
     setTextIfChanged(this.threatStateHud, !enemy.alive
       ? "FELLED"
