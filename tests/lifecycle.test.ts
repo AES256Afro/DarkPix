@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LifecycleTimers, SingleFlightGate, pointerLockRequestAllowed, pointerLockResumesRaid, raidDeadlineReached } from "../src/game/lifecycle";
+import { LifecycleTimers, SingleFlightGate, pointerLockRequestAllowed, pointerLockResumesRaid, raidDeadlineReached, raidFrameLoopActive } from "../src/game/lifecycle";
 
 afterEach(() => vi.useRealTimers());
 
@@ -68,5 +68,12 @@ describe("raid lifecycle", () => {
     expect(raidDeadlineReached(211, 210)).toBe(true);
     expect(raidDeadlineReached(Number.NaN, 210)).toBe(true);
     expect(raidDeadlineReached(1, 0)).toBe(true);
+  });
+
+  it("runs continuous rendering only for an active raid", () => {
+    expect(raidFrameLoopActive(false, false, false)).toBe(true);
+    expect(raidFrameLoopActive(true, false, false)).toBe(false);
+    expect(raidFrameLoopActive(false, true, false)).toBe(false);
+    expect(raidFrameLoopActive(false, false, true)).toBe(false);
   });
 });

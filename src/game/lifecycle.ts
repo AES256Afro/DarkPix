@@ -70,3 +70,7 @@ export function raidDeadlineReached(elapsed: number, duration: number): boolean 
   if (!Number.isFinite(elapsed) || !Number.isFinite(duration) || duration <= 0) return true;
   return elapsed >= duration;
 }
+
+export function raidFrameLoopActive(paused: boolean, ended: boolean, contextLost: boolean): boolean {
+  return !paused && !ended && !contextLost;
+}

@@ -16,7 +16,7 @@ import { RAID_VARIATION_COUNT, raidVariationSeal, validRaidVariationSeed } from 
 import { rarityShape } from "./rarity";
 import { raidReadinessSummary } from "./readiness";
 import { MAX_TORCH_FUEL_SECONDS, addTorchFuel, spendTorchFuel } from "./light";
-import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, raidDeadlineReached } from "./lifecycle";
+import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, raidDeadlineReached, raidFrameLoopActive } from "./lifecycle";
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
 import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
@@ -352,7 +352,7 @@ export class DarkPixGame {
     this.resizeObserver.observe(this.mount);
     this.resize();
     this.feed("Find two warden sigils. The blue passage will answer.", "system");
-    this.animationFrame = requestAnimationFrame(this.frame);
+    this.queueFrame();
   }
 
   private createShell(): void {
@@ -1099,6 +1099,7 @@ export class DarkPixGame {
       this.lockOverlay.classList.add("hidden");
       this.audio.start();
       this.clock.getDelta();
+      this.queueFrame();
       return;
     }
     this.pointerLockAllowed = false;
@@ -1243,6 +1244,7 @@ export class DarkPixGame {
     this.updatePauseLedger();
     this.lockOverlay.classList.remove("hidden");
     this.feed("The torch catches. The crypt is visible again.", "system");
+    this.queueFrame();
   };
 
   private requestPointerLock = (): void => {
@@ -1296,13 +1298,23 @@ export class DarkPixGame {
   }
 
   private frame = (): void => {
-    this.animationFrame = requestAnimationFrame(this.frame);
+    this.animationFrame = 0;
     const delta = Math.min(this.clock.getDelta(), 0.05);
-    if (!this.paused && !this.ended) this.update(delta);
-    this.updateAdaptiveResolution(delta);
-    this.animateWorld(delta);
-    this.renderer.render(this.scene, this.camera);
+    if (raidFrameLoopActive(this.paused, this.ended, this.contextLost)) this.update(delta);
+    if (!this.contextLost) {
+      if (raidFrameLoopActive(this.paused, this.ended, this.contextLost)) {
+        this.updateAdaptiveResolution(delta);
+        this.animateWorld(delta);
+      }
+      this.renderer.render(this.scene, this.camera);
+    }
+    if (raidFrameLoopActive(this.paused, this.ended, this.contextLost)) this.queueFrame();
   };
+
+  private queueFrame(): void {
+    if (this.animationFrame !== 0 || this.ended || this.contextLost) return;
+    this.animationFrame = requestAnimationFrame(this.frame);
+  }
 
   private updateAdaptiveResolution(delta: number): void {
     if (document.hidden || this.contextLost) return;
@@ -3331,6 +3343,7 @@ export class DarkPixGame {
     this.renderer.domElement.style.height = `${height}px`;
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
+    this.queueFrame();
   }
 
   destroy(): void {

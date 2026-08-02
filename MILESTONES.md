@@ -52,7 +52,7 @@ Status: Complete for the current map
 - Contract-critical locations remain reachable in topology tests
 - Facing-locked threat windups with cover, evasion, and range verdicts, directional pre-hit and impact markers, guard cone, pre-action strike stamina cost, readable crouch and sprint noise, crosshair awareness and unique unseen marks, chain telegraphs, safe annulus, darkness bearing, channel interruption reasons, crosshair scaling, rarity rank marks, and loose-loot silhouettes expose actionable state
 - Critical vigor, stamina, spell memory, and torch fuel can redirect the wayfinder to an unused campfire
-- Reduced motion suppresses decorative loading, camera, enemy-step, loot, flame, and portal loops while retaining functional combat telegraphs; pause and teardown cancel queued audio feedback before it can replay in a later raid state
+- Reduced motion suppresses decorative loading, camera, enemy-step, loot, flame, and portal loops while retaining functional combat telegraphs; pause sleeps continuous rendering and cancels queued audio feedback before it can replay in a later raid state
 - High contrast strengthens darkness and checkpoint state, navigation, combat warnings, threat vitals, resources, and interaction panels
 - The Ash Tollkeeper begins its annulus phase at full vigor and uses a tighter second-floor cadence
 
