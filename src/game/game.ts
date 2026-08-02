@@ -425,6 +425,7 @@ export class DarkPixGame {
     this.createWorld();
     this.createViewModel();
     this.bindEvents();
+    this.focusResumeAction();
     this.resizeObserver.observe(this.mount);
     this.resize();
     this.feed("Find two warden sigils. The blue passage will answer.", "system");
@@ -1196,6 +1197,7 @@ export class DarkPixGame {
       this.resetAbandonConfirmation();
       this.setLockOverlayCopy("RETURN TO THE CRYPT", "Bind the cursor when you are ready.");
       this.updatePauseLedger();
+      this.focusResumeAction();
     }
     this.lockOverlay.classList.toggle("hidden", this.ended);
     if (lockMatchesCanvas) void document.exitPointerLock();
@@ -1225,6 +1227,7 @@ export class DarkPixGame {
     this.setLockOverlayCopy("RETURN TO THE CRYPT", "Bind the cursor when you are ready.");
     this.updatePauseLedger();
     this.lockOverlay.classList.remove("hidden");
+    this.focusResumeAction();
     if (document.pointerLockElement === this.renderer.domElement) void document.exitPointerLock();
   }
 
@@ -1239,6 +1242,10 @@ export class DarkPixGame {
     const detailElement = this.lockOverlay.querySelector<HTMLElement>("[data-lock-detail]");
     if (titleElement) titleElement.textContent = title;
     if (detailElement) detailElement.textContent = detail;
+  }
+
+  private focusResumeAction(): void {
+    this.resumeButton.focus({ preventScroll: true });
   }
 
   private updatePauseLedger(): void {
@@ -1320,6 +1327,7 @@ export class DarkPixGame {
     this.setLockOverlayCopy("REKINDLING THE CRYPT", "The renderer was interrupted. Waiting for the torch to return.");
     this.updatePauseLedger();
     this.lockOverlay.classList.remove("hidden");
+    this.focusResumeAction();
     if (document.pointerLockElement === this.renderer.domElement) void document.exitPointerLock();
   };
 
@@ -1331,6 +1339,7 @@ export class DarkPixGame {
     this.setLockOverlayCopy("RETURN TO THE CRYPT", "Renderer restored. Click to bind the cursor again.");
     this.updatePauseLedger();
     this.lockOverlay.classList.remove("hidden");
+    this.focusResumeAction();
     this.feed("The torch catches. The crypt is visible again.", "system");
     this.queueFrame();
   };
@@ -1376,6 +1385,7 @@ export class DarkPixGame {
     this.setLockOverlayCopy("CURSOR UNBOUND", detail);
     this.updatePauseLedger();
     this.lockOverlay.classList.remove("hidden");
+    this.focusResumeAction();
     this.feed("The browser refused pointer lock. The raid remains paused.", "system");
   }
 

@@ -142,6 +142,21 @@ describe("lobby accessibility contracts", () => {
     expect(styles).toContain(".lock-actions .retry-journal.hidden { display: none; }");
   });
 
+  it("keeps keyboard focus on the raid resume action across paused control states", () => {
+    const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
+    expect(gameSource).toContain("private focusResumeAction()");
+    expect(gameSource).toContain("this.resumeButton.focus({ preventScroll: true })");
+    const focusLossPath = gameSource.slice(gameSource.indexOf("private pauseForFocusLoss"), gameSource.indexOf("private onWindowBlur"));
+    const contextLossPath = gameSource.slice(gameSource.indexOf("private onContextLost"), gameSource.indexOf("private onContextRestored"));
+    const contextRestorePath = gameSource.slice(gameSource.indexOf("private onContextRestored"), gameSource.indexOf("private requestPointerLock"));
+    const lockFailurePath = gameSource.slice(gameSource.indexOf("private handlePointerLockFailure"), gameSource.indexOf("private invalidatePointerLockRequest"));
+    expect(focusLossPath).toContain("this.focusResumeAction()");
+    expect(contextLossPath).toContain("this.focusResumeAction()");
+    expect(contextRestorePath).toContain("this.focusResumeAction()");
+    expect(lockFailurePath).toContain("this.focusResumeAction()");
+    expect(gameSource.slice(gameSource.indexOf("private requestPointerLock"), gameSource.indexOf("private handlePointerLockFailure"))).not.toContain("this.focusResumeAction()");
+  });
+
   it("keeps ability discovery visible and suppresses repeated space scrolling", () => {
     const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
     expect(gameSource).toContain("Ctrl crouch · Q ability · 1/2 spells");
