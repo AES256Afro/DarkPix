@@ -9,7 +9,7 @@ import { MAX_UNSEEN_STRIKES, QUIET_KNIVES_REWARD, QUIET_KNIVES_TARGET } from "./
 
 const PROFILE_KEY = "darkpix-profile-v1";
 const PROFILE_RECOVERY_KEY = "darkpix-profile-recovery-v1";
-const RAID_ESCROW_KEY = "darkpix-active-raid-v1";
+export const RAID_ESCROW_KEY = "darkpix-active-raid-v1";
 export const PROFILE_VERSION = 15;
 export const MAX_GOLD = 9_999_999;
 export const MAX_ITEM_POWER = 100;

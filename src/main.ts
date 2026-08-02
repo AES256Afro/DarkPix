@@ -9,7 +9,7 @@ import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEq
 import { SingleFlightGate, lobbyOperationCurrent } from "./game/lifecycle";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { browserStorageWritable, persistBeforeClearingEscrow } from "./game/persistence";
-import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
+import { BONE_BOUNTY_TARGET, RAID_ESCROW_KEY, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
 import { rarityMark } from "./game/rarity";
 import { QUIET_KNIVES_REWARD, QUIET_KNIVES_TARGET } from "./game/stealth";
@@ -96,12 +96,14 @@ function loadGameModule(): Promise<typeof import("./game/game")> {
 }
 
 function persistProfile(): boolean {
+  if (lockForForeignRaidJournal()) return false;
   const persisted = saveProfile(profile);
   if (!persisted) persistenceWarning = "This browser refused local storage. Progress will last only until the page closes.";
   return persisted;
 }
 
 function persistPreferences(): void {
+  if (lockForForeignRaidJournal()) return;
   if (savePreferences(preferences)) return;
   persistenceWarning = "This browser refused local storage. Settings will last only until the page closes.";
   const notice = app.querySelector<HTMLElement>(".merchant-notice");
@@ -254,8 +256,27 @@ function renderDamagedRaidJournalRecovery(): void {
 }
 
 function renderForeignRaidLease(): void {
-  app.innerHTML = `<main class="game-mount" aria-label="DarkPix raid active in another tab"><section class="runtime-error persistence-recovery"><span>⌛</span><h1>ANOTHER TORCH IS BELOW</h1><p role="alert">A live raid in another DarkPix tab owns the active journal. This tab is locked so it cannot settle, overwrite, or clear that raid's gear risk. Finish or close the other raid, wait a few seconds, then check again.</p><button type="button">CHECK RAID JOURNAL AGAIN</button></section></main>`;
+  app.innerHTML = `<main class="game-mount" aria-label="DarkPix raid active in another tab"><section class="runtime-error persistence-recovery"><span>⌛</span><h1>ANOTHER TORCH IS BELOW</h1><p role="alert">A live raid in another DarkPix tab owns the active journal. This tab is locked so it cannot settle, overwrite, clear, or mutate the shared stash behind that raid's gear risk. Finish or close the other raid, wait a few seconds, then check again.</p><button type="button">CHECK RAID JOURNAL AGAIN</button></section></main>`;
   app.querySelector<HTMLButtonElement>("button")?.addEventListener("click", () => location.reload());
+}
+
+function lockForForeignRaidJournal(): boolean {
+  if (foreignRaidLease) return true;
+  if (
+    profileLoad.status === "incompatible"
+    || activeGame
+    || activeRaidStartedAt > 0
+    || raidLaunchGate.busy
+    || interruptedSettlementPending
+    || damagedRaidJournal !== undefined
+  ) return false;
+  const journal = loadRaidEscrowState();
+  if (journal.status !== "loaded" || !journal.escrow || !raidEscrowLeaseHeldByOther(journal.escrow, raidOwnerId, Date.now())) return false;
+  foreignRaidLease = true;
+  merchantNotice = "A raid became active in another DarkPix tab. This tab will not touch its gear, stash, or journal.";
+  lobbyEpoch += 1;
+  renderForeignRaidLease();
+  return true;
 }
 
 function renderLobby(): void {
@@ -691,6 +712,7 @@ function renderLobby(): void {
         renderLobby();
         return;
       }
+      if (lockForForeignRaidJournal()) return;
       const importPersistence = persistSaveImport(imported, saveProfile, savePreferences);
       if (importPersistence === "rejected") {
         persistenceWarning = "The browser refused the imported profile. The existing durable save was left unchanged.";
@@ -975,4 +997,7 @@ function finishRaid(result: RaidResult): void {
 
 if (profileLoad.status === "incompatible") renderIncompatibleProfileRecovery();
 else renderLobby();
+window.addEventListener("storage", (event) => {
+  if (event.key === RAID_ESCROW_KEY) lockForForeignRaidJournal();
+});
 registerOfflineWorker();
