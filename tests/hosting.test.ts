@@ -44,7 +44,7 @@ describe("production asset routing", () => {
     expect(deployScript).toContain('public_body_sha "$public_url/sw.js?v=$darkpix_release"');
     expect(deployScript).toContain("previous_worker_sha=");
     expect(deployScript).toContain('public_body_sha "$public_url/sw.js?v=rollback-$previous_release"');
-    expect(deployScript).toContain("sha256sum is required to verify public service-worker bytes");
+    expect(deployScript).toContain("sha256sum is required to verify public release bytes");
   });
 
   it("keeps the HTML shell out of Cloudflare edge storage", () => {
@@ -68,6 +68,14 @@ describe("production asset routing", () => {
     expect(deployScript).toContain("cache-control:.*max-age=31536000.*immutable");
     expect(deployScript).toContain('[[ "$verified_assets" -ge 2 ]]');
     expect(deployScript).toContain('<meta name=\\"darkpix-release\\" content=\\"$darkpix_release\\"');
+  });
+
+  it("requires every public entry asset to match the running container byte for byte", () => {
+    expect(deployScript).toContain('normalized_asset_path="${normalized_asset_path#/}"');
+    expect(deployScript).toContain('^assets/[A-Za-z0-9._-]+\\.(js|css)$');
+    expect(deployScript).toContain('sha256sum "/usr/share/nginx/html/$normalized_asset_path"');
+    expect(deployScript).toContain('public_body_sha "$asset_url"');
+    expect(deployScript).toContain('[[ "$public_asset_sha" == "$container_asset_sha" ]]');
   });
 
   it("restores the prior image when a rollout gate fails", () => {

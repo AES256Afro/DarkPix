@@ -16,7 +16,7 @@ command -v docker >/dev/null 2>&1 || {
   exit 1
 }
 command -v sha256sum >/dev/null 2>&1 || {
-  echo "sha256sum is required to verify public service-worker bytes." >&2
+  echo "sha256sum is required to verify public release bytes." >&2
   exit 1
 }
 docker compose version >/dev/null
@@ -217,6 +217,9 @@ check_public_build_assets() {
   local asset_path
   local asset_url
   local asset_headers
+  local normalized_asset_path
+  local container_asset_sha
+  local public_asset_sha
   local verified_assets=0
   if command -v curl >/dev/null 2>&1; then
     public_html="$(curl -fsS --max-time 8 "$public_url/" 2>/dev/null)" || return 1
@@ -235,6 +238,9 @@ check_public_build_assets() {
     else
       asset_url="${public_url}/${asset_path#./}"
     fi
+    normalized_asset_path="${asset_path#./}"
+    normalized_asset_path="${normalized_asset_path#/}"
+    [[ "$normalized_asset_path" =~ ^assets/[A-Za-z0-9._-]+\.(js|css)$ ]] || return 1
     if command -v curl >/dev/null 2>&1; then
       asset_headers="$(curl -fsSI --max-time 8 "$asset_url" 2>/dev/null)" || return 1
     else
@@ -246,6 +252,10 @@ check_public_build_assets() {
       *.css) grep -qi 'content-type:.*text/css' <<<"$asset_headers" || return 1 ;;
       *) return 1 ;;
     esac
+    container_asset_sha="$(docker compose exec -T darkpix sha256sum "/usr/share/nginx/html/$normalized_asset_path" 2>/dev/null | awk '{print $1}')" || return 1
+    public_asset_sha="$(public_body_sha "$asset_url")" || return 1
+    [[ "$container_asset_sha" =~ ^[0-9a-f]{64}$ ]] || return 1
+    [[ "$public_asset_sha" == "$container_asset_sha" ]] || return 1
     verified_assets=$((verified_assets + 1))
   done <<<"$references"
   [[ "$verified_assets" -ge 2 ]]
