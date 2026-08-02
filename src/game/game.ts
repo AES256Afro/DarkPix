@@ -19,7 +19,7 @@ import { MAX_TORCH_FUEL_SECONDS, addTorchFuel, spendTorchFuel } from "./light";
 import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, pointerLockTimeoutOutcome, raidDeadlineReached, raidFrameLoopActive, simulationFrameDelta } from "./lifecycle";
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
-import { channelCommitmentLabel, channelInterruptionReason, continuousHold, heldInteractionTargetMatches, targetDistanceInView, type ChannelInterruptionReason, type HeldInteractionTarget } from "./targeting";
+import { channelCommitmentLabel, channelInterruptionReason, continuousHold, heldInteractionTargetMatches, retainedHeldInteractionTarget, targetDistanceInView, type ChannelInterruptionReason, type HeldInteractionTarget } from "./targeting";
 import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, enemyProjectileTargetsThreat, playerProjectileDuration, playerProjectilePosition, projectileContactPoint, projectileContactPrecedes, projectileSegmentContact, projectileStoneOutcome, projectileTargetContact, type EnemyProjectileKind, type PlayerProjectileKind, type ProjectileTargetContact } from "./projectile";
 import { advanceJournalRetry } from "./persistence";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
@@ -3228,6 +3228,18 @@ export class DarkPixGame {
     if (Number.isFinite(portalDistance) && (interactive === undefined || portalDistance < nearest)) {
       nearest = portalDistance;
       interactive = "portal";
+    }
+    const retainedTarget = this.interactionInput ? retainedHeldInteractionTarget(
+      this.interactionTarget,
+      interactive === "pickup" || interactive === "chest",
+      Number.isFinite(portalDistance),
+      !this.campfireUsed && Number.isFinite(campfireDistance),
+      !this.falseWallOpened && Number.isFinite(falseWallDistance),
+    ) : undefined;
+    if (retainedTarget) {
+      interactive = retainedTarget;
+      targetPickup = undefined;
+      targetChest = undefined;
     }
 
     if (interactive === "pickup" && targetPickup) prompt = canAddToHaul(this.raidLoot, targetPickup.item)

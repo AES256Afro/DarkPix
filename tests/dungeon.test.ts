@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DUNGEON, dartTrapTargetDistance, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists, dungeonProjectilePathClear, dungeonProjectileStoneContact, encounterPosition, safeDroppedLootPosition, selectRaidVariation } from "../src/game/dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES } from "../src/game/depth";
-import { channelCommitmentLabel, channelInterruptionReason, continuousHold, heldInteractionTargetMatches, targetDistanceInView } from "../src/game/targeting";
+import { channelCommitmentLabel, channelInterruptionReason, continuousHold, heldInteractionTargetMatches, retainedHeldInteractionTarget, targetDistanceInView } from "../src/game/targeting";
 import { cardinalDirection, circlesOverlap, directionalCue, movementOffset, movementSubstepCount, passiveAwarenessRange, recoveryNeed, relativeDirectionToSource } from "../src/game/navigation";
 import { DARKNESS_PULSE_SECONDS, darknessPulseReady, directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "../src/game/zone";
 import type { Vec2 } from "../src/game/types";
@@ -194,6 +194,17 @@ describe("deliberate interaction targeting", () => {
     expect(heldInteractionTargetMatches("false_wall", "portal")).toBe(false);
     expect(heldInteractionTargetMatches("portal", undefined)).toBe(false);
     expect(heldInteractionTargetMatches(undefined, undefined)).toBe(false);
+  });
+
+  it("keeps an available held ritual ahead of newly nearer interactions", () => {
+    expect(retainedHeldInteractionTarget("portal", true, true, true, true)).toBe("portal");
+    expect(retainedHeldInteractionTarget("campfire", true, true, true, true)).toBe("campfire");
+    expect(retainedHeldInteractionTarget("false_wall", true, true, true, true)).toBe("false_wall");
+    expect(retainedHeldInteractionTarget("portal", true, false, true, true)).toBeUndefined();
+    expect(retainedHeldInteractionTarget("campfire", true, true, false, true)).toBeUndefined();
+    expect(retainedHeldInteractionTarget("false_wall", true, true, true, false)).toBeUndefined();
+    expect(retainedHeldInteractionTarget(undefined, true, true, true, true)).toBeUndefined();
+    expect(retainedHeldInteractionTarget("portal", false, true, true, true)).toBeUndefined();
   });
 
   it("names the irreversible destination throughout a held passage channel", () => {

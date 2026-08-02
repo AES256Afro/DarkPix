@@ -83,6 +83,7 @@ Status: Complete for the current map
 - Discarded haul and relics recovered from defeated rivals search backward from their desired landing points and stay on the delver's side of walls, pillars, and the sealed false stone
 - Held passage channels expose semantic progress and keep their blue return, Ashen return, or red floor-2 destination explicit until completion
 - Held progress stays bound to the portal, campfire, or false stone that began it; looking onto another ritual target breaks the channel instead of transferring progress
+- Loose loot and coffers cannot steal focus from an available held portal, campfire, or false-stone ritual; the committed target retains priority until it is genuinely lost or interrupted
 - Released rival knives and Tollkeeper chains use swept travel-time collision, stop at stone, and resolve guard or parry only at physical impact
 - Hostile missile warnings persist with directional shape, text, and release tone through the full dodge window
 - Pausing freezes and itemizes every hostile knife, chain, or dart volley still in flight before cursor rebind

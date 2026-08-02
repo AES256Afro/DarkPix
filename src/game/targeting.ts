@@ -34,6 +34,20 @@ export function heldInteractionTargetMatches(committed: HeldInteractionTarget, c
   return committed !== undefined && committed === current;
 }
 
+export function retainedHeldInteractionTarget(
+  committed: HeldInteractionTarget,
+  incidentalTargetSelected: boolean,
+  portalAvailable: boolean,
+  campfireAvailable: boolean,
+  falseWallAvailable: boolean,
+): HeldInteractionTarget {
+  if (!incidentalTargetSelected) return undefined;
+  if (committed === "portal" && portalAvailable) return committed;
+  if (committed === "campfire" && campfireAvailable) return committed;
+  if (committed === "false_wall" && falseWallAvailable) return committed;
+  return undefined;
+}
+
 export function channelCommitmentLabel(target: HeldInteractionTarget, descending: boolean, depth: 1 | 2): string {
   if (target === "portal" && descending && depth === 1) return "DESCENDING RED · FLOOR 2";
   if (target === "portal" && depth === 2) return "EXTRACTING ASHEN · RETURN TO STASH";
