@@ -184,6 +184,11 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain("const { DarkPixGame: GameRuntime } = await loadGameModule()");
   });
 
+  it("moves focus to the safe return action after renderer initialization fails", () => {
+    expect(mainSource).toContain('const returnButton = mount.querySelector<HTMLButtonElement>("button")');
+    expect(mainSource).toContain("returnButton?.focus({ preventScroll: true })");
+  });
+
   it("contains unexpected save-import failures inside the originating idle lobby", () => {
     expect(mainSource).toContain('console.error("DarkPix could not import the selected save", error)');
     expect(mainSource).toContain('merchantNotice = "The selected save could not be read. The current profile remains active."');

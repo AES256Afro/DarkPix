@@ -168,6 +168,7 @@ Status: Complete for the current map
 - Forward and reverse Tab navigation wrap among the paused raid modal's visible enabled actions, including its conditional journal retry
 - The paused risk ledger reports the exact floor clock and whether the delver is inside safety, under the warding veil, or needs a compass route back from darkness
 - Incompatible-profile, unsecured-verdict, damaged-journal, and foreign-raid locks move focus to their first safe recovery action without selecting a destructive choice
+- A failed WebGL descent also moves focus to its safe return action after the loading lobby has been replaced
 - The persistent raid control strip names the class ability binding, and held Space cannot leak repeated scroll input while sidestep remains single-fire
 - The Ash Tollkeeper begins its annulus phase at full vigor and uses a tighter second-floor cadence
 

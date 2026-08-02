@@ -1026,7 +1026,9 @@ async function startRaid(): Promise<void> {
     if (!refunded) persistenceWarning = "The failed raid entry could not be refunded yet. Its escrow remains for recovery.";
     if (mount?.isConnected) {
       mount.innerHTML = `<section class="runtime-error"><span aria-hidden="true">†</span><h1>THE PASSAGE FAILED</h1><p>The 3D renderer could not start. Update the browser, enable WebGL, or try the raid again.</p><button type="button">RETURN TO THE LAST LANTERN</button></section>`;
-      mount.querySelector<HTMLButtonElement>("button")?.addEventListener("click", refunded ? renderLobby : () => location.reload());
+      const returnButton = mount.querySelector<HTMLButtonElement>("button");
+      returnButton?.addEventListener("click", refunded ? renderLobby : () => location.reload());
+      returnButton?.focus({ preventScroll: true });
     }
   } finally {
     raidLaunchGate.finish(launchTicket);
