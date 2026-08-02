@@ -28,7 +28,7 @@ describe("adaptive raid resolution", () => {
   it("keeps frame-hot darkness updates on cached HUD nodes", () => {
     const updateZone = gameSource.slice(gameSource.indexOf("private updateZone"), gameSource.indexOf("private updateInteraction"));
     expect(updateZone).toContain("setTextIfChanged(this.zoneHud");
-    expect(updateZone).toContain('this.raidShell.style.setProperty("--darkness"');
+    expect(updateZone).toContain('setStylePropertyIfChanged(this.raidShell, "--darkness"');
     expect(updateZone).not.toContain("querySelector");
   });
 
@@ -49,6 +49,8 @@ describe("adaptive raid resolution", () => {
     expect(stealthCue).toContain("this.scratchToTarget.copy");
     expect(stealthCue).not.toContain("new THREE.Vector3");
     expect(wayfinder).toContain("for (const enemy of this.enemies)");
+    expect(wayfinder).toContain("for (const pickup of this.pickups)");
+    expect(wayfinder).not.toContain(".find(");
     expect(wayfinder).not.toContain(".filter(");
     expect(wayfinder).not.toContain(".sort(");
   });

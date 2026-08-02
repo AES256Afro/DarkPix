@@ -3188,7 +3188,7 @@ export class DarkPixGame {
         this.hurt(5, "the dark", false, undefined, true);
       }
     } else this.darknessPulseTimer = 0;
-    this.raidShell.style.setProperty("--darkness", String(Math.max(this.vignette, distance > zone.radius ? 0.85 : zone.progress * 0.26)));
+    setStylePropertyIfChanged(this.raidShell, "--darkness", String(Math.max(this.vignette, distance > zone.radius ? 0.85 : zone.progress * 0.26)));
   }
 
   private updateInteraction(delta: number): void {
@@ -3775,7 +3775,12 @@ export class DarkPixGame {
 
     let target: THREE.Vector3 | undefined;
     let label = "WARDEN";
-    const looseSigil = this.pickups.find((pickup) => !pickup.collected && pickup.item.kind === "sigil");
+    let looseSigil: Pickup | undefined;
+    for (const pickup of this.pickups) {
+      if (pickup.collected || pickup.item.kind !== "sigil") continue;
+      looseSigil = pickup;
+      break;
+    }
     const recovery = recoveryNeed(
       this.health,
       this.maxHealth,
