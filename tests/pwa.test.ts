@@ -67,4 +67,50 @@ describe("installable offline shell", () => {
     await expect(installation).rejects.toThrow("Release shell is missing from its offline cache");
     expect(deleteCache).toHaveBeenCalledWith("darkpix-runtime-broken-release");
   });
+
+  it("walks quoted build imports and unquoted CSS asset URLs", async () => {
+    const handlers = new Map<string, (event: { waitUntil(promise: Promise<unknown>): void }) => void>();
+    const shell = {
+      url: "https://darkpix.test/",
+      clone: () => ({ text: async () => '<link href="/assets/app.css"><script src="/assets/app.js"></script>' }),
+    };
+    const assetBodies = new Map([
+      ["https://darkpix.test/assets/app.css", { type: "text/css", body: ".title{background:url(/assets/title.jpg)}" }],
+      ["https://darkpix.test/assets/app.js", { type: "application/javascript", body: 'import("./chunk.js")' }],
+      ["https://darkpix.test/assets/title.jpg", { type: "image/jpeg", body: "pixels" }],
+      ["https://darkpix.test/assets/chunk.js", { type: "application/javascript", body: "export{}" }],
+    ]);
+    const put = vi.fn(async () => undefined);
+    const cache = { addAll: vi.fn(async () => undefined), match: vi.fn(async () => shell), put };
+    const workerScope = {
+      location: { href: "https://darkpix.test/sw.js?v=complete-release", origin: "https://darkpix.test" },
+      clients: { claim: vi.fn(async () => undefined) },
+      skipWaiting: vi.fn(async () => undefined),
+      addEventListener: (name: string, handler: (event: { waitUntil(promise: Promise<unknown>): void }) => void) => handlers.set(name, handler),
+    };
+    const cacheStorage = { open: vi.fn(async () => cache), keys: vi.fn(async () => []), delete: vi.fn(async () => true) };
+    const fetchAsset = vi.fn(async (url: string) => {
+      const asset = assetBodies.get(url);
+      if (!asset) throw new Error(`Unexpected asset ${url}`);
+      const response = {
+        ok: true,
+        headers: { get: (name: string) => name === "content-type" ? asset.type : null },
+        clone: () => response,
+        text: async () => asset.body,
+      };
+      return response;
+    });
+    new Function("self", "caches", "fetch", worker)(workerScope, cacheStorage, fetchAsset);
+    let installation: Promise<unknown> | undefined;
+    handlers.get("install")?.({ waitUntil: (promise) => { installation = promise; } });
+
+    await expect(installation).resolves.toBeUndefined();
+    expect(fetchAsset.mock.calls.map(([url]) => url)).toEqual([
+      "https://darkpix.test/assets/app.css",
+      "https://darkpix.test/assets/app.js",
+      "https://darkpix.test/assets/title.jpg",
+      "https://darkpix.test/assets/chunk.js",
+    ]);
+    expect(put).toHaveBeenCalledTimes(4);
+  });
 });
