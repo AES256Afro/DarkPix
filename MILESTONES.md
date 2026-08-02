@@ -77,6 +77,7 @@ Status: Complete for the current map
 - Occluded moving threats emit range-attenuated class-specific footsteps and a separate directional accessibility cue without replacing combat markers
 - Critical vigor, stamina, spell memory, and torch fuel can redirect the wayfinder to an unused campfire
 - Ordinary movement and class-specific dodges derive capped collision substeps from their actual travel distance instead of relying on a fixed sample count
+- Frame-hot darkness rendering uses cached shell and HUD nodes instead of repeating DOM selector walks throughout a raid
 - Reduced motion suppresses decorative loading, camera, enemy-step, loot, flame, and portal loops while retaining functional combat telegraphs; pause sleeps continuous rendering and cancels queued audio feedback before it can replay in a later raid state
 - High contrast strengthens darkness and checkpoint state, navigation, combat warnings, threat vitals, resources, and interaction panels; lobby selection semantics, keyboard focus, and forced-color outlines do not rely on hover or color alone
 - The Ash Tollkeeper begins its annulus phase at full vigor and uses a tighter second-floor cadence

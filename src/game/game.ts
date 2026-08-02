@@ -250,7 +250,9 @@ export class DarkPixGame {
   private staminaFill!: HTMLElement;
   private spellFill!: HTMLElement;
   private spellLabelHud!: HTMLElement;
+  private raidShell!: HTMLElement;
   private raidClock!: HTMLElement;
+  private zoneHud!: HTMLElement;
   private journalHud!: HTMLElement;
   private journalSecure = true;
   private journalRetryTimer = 0;
@@ -472,7 +474,9 @@ export class DarkPixGame {
     this.staminaFill = this.mount.querySelector<HTMLElement>(".stamina i")!;
     this.spellFill = this.mount.querySelector<HTMLElement>(".spells i")!;
     this.spellLabelHud = this.mount.querySelector<HTMLElement>(".spells span")!;
+    this.raidShell = this.mount.querySelector<HTMLElement>(".raid-shell")!;
     this.raidClock = this.mount.querySelector<HTMLElement>(".raid-clock")!;
+    this.zoneHud = this.mount.querySelector<HTMLElement>(".zone-copy")!;
     this.journalHud = this.mount.querySelector<HTMLElement>(".journal-copy")!;
     this.stealthHud = this.mount.querySelector<HTMLElement>(".stealth-copy")!;
     this.stealthCueHud = this.mount.querySelector<HTMLElement>(".stealth-cue")!;
@@ -3023,17 +3027,14 @@ export class DarkPixGame {
     const zone = zoneState(floorElapsed, floorRules.duration, this.portalSite);
     const distance = distanceFromZoneCenter({ x: this.camera.position.x, z: this.camera.position.z }, zone);
     const outsideDistance = distanceOutsideZone({ x: this.camera.position.x, z: this.camera.position.z }, zone);
-    const zoneCopy = this.mount.querySelector<HTMLElement>(".zone-copy");
-    if (zoneCopy) {
-      zoneCopy.textContent = outsideDistance > 0
-        ? `DARK · ${Math.ceil(outsideDistance)}m out · ${cardinalDirection(directionToZoneCenter(this.camera.position, zone))} to safety`
-        : floorElapsed < floorRules.spawnGrace
-        ? `warding veil ${Math.ceil(floorRules.spawnGrace - floorElapsed)}s`
-        : zone.progress === 0
-          ? "darkness dormant"
-          : `safe reach ${Math.round(zone.radius)}m`;
-      zoneCopy.classList.toggle("outside", outsideDistance > 0);
-    }
+    this.zoneHud.textContent = outsideDistance > 0
+      ? `DARK · ${Math.ceil(outsideDistance)}m out · ${cardinalDirection(directionToZoneCenter(this.camera.position, zone))} to safety`
+      : floorElapsed < floorRules.spawnGrace
+      ? `warding veil ${Math.ceil(floorRules.spawnGrace - floorElapsed)}s`
+      : zone.progress === 0
+        ? "darkness dormant"
+        : `safe reach ${Math.round(zone.radius)}m`;
+    this.zoneHud.classList.toggle("outside", outsideDistance > 0);
     if (!this.spawnGraceAnnounced && floorElapsed >= floorRules.spawnGrace) {
       this.spawnGraceAnnounced = true;
       this.feed("The warding veil gutters. The crypt can hear you now.", "danger");
@@ -3045,8 +3046,7 @@ export class DarkPixGame {
         this.hurt(5, "the dark", false, undefined, true);
       }
     } else this.darknessPulseTimer = 0;
-    const shell = this.mount.querySelector<HTMLElement>(".raid-shell");
-    shell?.style.setProperty("--darkness", String(Math.max(this.vignette, distance > zone.radius ? 0.85 : zone.progress * 0.26)));
+    this.raidShell.style.setProperty("--darkness", String(Math.max(this.vignette, distance > zone.radius ? 0.85 : zone.progress * 0.26)));
   }
 
   private updateInteraction(delta: number): void {
