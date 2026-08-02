@@ -81,6 +81,13 @@ export function raidDepartureNeedsWarning(activeRaidStartedAt: number): boolean 
   return Number.isFinite(activeRaidStartedAt) && activeRaidStartedAt > 0;
 }
 
+export type RaidJournalContinuity = "loaded" | "missing" | "corrupt" | "unavailable";
+
+export function raidJournalContinuityLost(activeRaidStartedAt: number, status: RaidJournalContinuity, owned: boolean): boolean {
+  if (!raidDepartureNeedsWarning(activeRaidStartedAt) || status === "unavailable") return false;
+  return status !== "loaded" || !owned;
+}
+
 export function raidDeadlineReached(elapsed: number, duration: number): boolean {
   if (!Number.isFinite(elapsed) || !Number.isFinite(duration) || duration <= 0) return true;
   return elapsed >= duration;

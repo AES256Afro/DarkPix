@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LifecycleTimers, SingleFlightGate, lobbyOperationCurrent, pointerLockRequestAllowed, pointerLockResumesRaid, pointerLockTimeoutOutcome, raidDeadlineReached, raidDepartureNeedsWarning, raidFrameLoopActive, simulationFrameDelta } from "../src/game/lifecycle";
+import { LifecycleTimers, SingleFlightGate, lobbyOperationCurrent, pointerLockRequestAllowed, pointerLockResumesRaid, pointerLockTimeoutOutcome, raidDeadlineReached, raidDepartureNeedsWarning, raidFrameLoopActive, raidJournalContinuityLost, simulationFrameDelta } from "../src/game/lifecycle";
 
 afterEach(() => vi.useRealTimers());
 
@@ -90,6 +90,15 @@ describe("raid lifecycle", () => {
     expect(raidDepartureNeedsWarning(0)).toBe(false);
     expect(raidDepartureNeedsWarning(-1)).toBe(false);
     expect(raidDepartureNeedsWarning(Number.NaN)).toBe(false);
+  });
+
+  it("fails closed when an active journal is replaced, removed, or damaged", () => {
+    expect(raidJournalContinuityLost(10, "loaded", true)).toBe(false);
+    expect(raidJournalContinuityLost(10, "loaded", false)).toBe(true);
+    expect(raidJournalContinuityLost(10, "missing", false)).toBe(true);
+    expect(raidJournalContinuityLost(10, "corrupt", false)).toBe(true);
+    expect(raidJournalContinuityLost(10, "unavailable", false)).toBe(false);
+    expect(raidJournalContinuityLost(0, "missing", false)).toBe(false);
   });
 
   it("ends the terminal frame at the exact floor deadline", () => {

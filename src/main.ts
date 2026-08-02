@@ -6,7 +6,7 @@ import { RAID_VARIATION_COUNT, raidVariationSeal, validRaidVariationSeed } from 
 import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MAX_CLASS_LEVEL, MERCHANT_OFFERS, RARITY_COLOR, createItemId, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses } from "./game/data";
 import { itemValueTotal, raidValueSummary } from "./game/economy";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
-import { SingleFlightGate, lobbyOperationCurrent, raidDepartureNeedsWarning } from "./game/lifecycle";
+import { SingleFlightGate, lobbyOperationCurrent, raidDepartureNeedsWarning, raidJournalContinuityLost } from "./game/lifecycle";
 import { PREFERENCES_KEY, loadPreferences, savePreferences } from "./game/preferences";
 import { browserStorageWritable, persistBeforeClearingEscrow } from "./game/persistence";
 import { BONE_BOUNTY_TARGET, PROFILE_KEY, RAID_ESCROW_KEY, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearOwnedRaidEscrow, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidEscrowOwnedBy, raidThreatKillLedger, raidXpBreakdown, renewRaidEscrow, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
@@ -116,7 +116,11 @@ function activeRaidJournalOwned(): boolean {
 function activeRaidJournalOwnershipLost(): boolean {
   if (activeRaidStartedAt <= 0) return false;
   const journal = loadRaidEscrowState();
-  return journal.status === "loaded" && !raidEscrowOwnedBy(journal.escrow, raidOwnerId, activeRaidStartedAt);
+  return raidJournalContinuityLost(
+    activeRaidStartedAt,
+    journal.status,
+    journal.status === "loaded" && raidEscrowOwnedBy(journal.escrow, raidOwnerId, activeRaidStartedAt),
+  );
 }
 
 function renewActiveRaidEscrow(escrow: ReturnType<typeof createRaidEscrow>): boolean {
@@ -305,7 +309,7 @@ function renderDamagedRaidJournalRecovery(): void {
 }
 
 function renderForeignRaidLease(): void {
-  app.innerHTML = `<main class="game-mount" aria-label="DarkPix raid active in another tab"><section class="runtime-error persistence-recovery"><span>⌛</span><h1>ANOTHER TORCH IS BELOW</h1><p role="alert">A live raid in another DarkPix tab owns the active journal. This tab is locked so it cannot settle, overwrite, clear, or mutate the shared stash behind that raid's gear risk. Finish or close the other raid, wait a few seconds, then check again.</p><button type="button">CHECK RAID JOURNAL AGAIN</button></section></main>`;
+  app.innerHTML = `<main class="game-mount" aria-label="DarkPix raid journal conflict"><section class="runtime-error persistence-recovery"><span>⌛</span><h1>THE RAID JOURNAL CHANGED</h1><p role="alert">Another tab replaced, damaged, or removed the active raid journal. This tab stopped immediately so it cannot settle, overwrite, clear, or mutate the shared stash behind that gear risk. Close the other raid, then reload to reconcile the remaining evidence.</p><button type="button">CHECK RAID JOURNAL AGAIN</button></section></main>`;
   app.querySelector<HTMLButtonElement>("button")?.addEventListener("click", () => location.reload());
   focusFirstRecoveryAction();
 }

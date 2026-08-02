@@ -78,7 +78,7 @@ describe("lobby accessibility contracts", () => {
 
   it("locks a foreign live raid journal without offering a destructive action", () => {
     expect(mainSource).toContain("renderForeignRaidLease");
-    expect(mainSource).toContain("This tab is locked so it cannot settle, overwrite, clear, or mutate the shared stash");
+    expect(mainSource).toContain("This tab stopped immediately so it cannot settle, overwrite, clear, or mutate the shared stash");
     expect(mainSource).toContain("CHECK RAID JOURNAL AGAIN");
     expect(mainSource).toContain('window.addEventListener("storage"');
     expect(mainSource).toContain("event.key === RAID_ESCROW_KEY");
