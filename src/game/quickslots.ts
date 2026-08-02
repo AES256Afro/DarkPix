@@ -1,5 +1,36 @@
 import type { Item } from "./types";
 
+export interface QuickslotSummary {
+  count: number;
+  selected?: Item;
+}
+
+export function summarizeQuickslot(
+  recovered: readonly Item[],
+  packed: readonly Item[],
+  kind: "consumable" | "throwable",
+  selectedId: string | undefined,
+  target: QuickslotSummary = { count: 0 },
+): QuickslotSummary {
+  target.count = 0;
+  target.selected = undefined;
+  let first: Item | undefined;
+  for (const item of recovered) {
+    if (item.kind !== kind) continue;
+    target.count += 1;
+    first ??= item;
+    if (item.id === selectedId) target.selected = item;
+  }
+  for (const item of packed) {
+    if (item.kind !== kind) continue;
+    target.count += 1;
+    first ??= item;
+    if (item.id === selectedId) target.selected = item;
+  }
+  target.selected ??= first;
+  return target;
+}
+
 export function consumablesInUseOrder(recovered: readonly Item[], packed: readonly Item[]): Item[] {
   return [...recovered, ...packed].filter((item) => item.kind === "consumable");
 }

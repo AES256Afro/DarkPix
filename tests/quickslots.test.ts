@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { consumablesInUseOrder, nextConsumableId, nextThrowableId, resolveConsumableId, resolveThrowableId, throwablesInUseOrder } from "../src/game/quickslots";
+import { consumablesInUseOrder, nextConsumableId, nextThrowableId, resolveConsumableId, resolveThrowableId, summarizeQuickslot, throwablesInUseOrder } from "../src/game/quickslots";
 import type { Item } from "../src/game/types";
 
 const recovered: Item[] = [
@@ -32,6 +32,13 @@ describe("raid consumable quick slot", () => {
     expect(nextConsumableId(items, "ember")).toBe("root");
     expect(nextConsumableId([], "root")).toBeUndefined();
   });
+
+  it("summarizes a selected remedy into caller-owned HUD state", () => {
+    const target = { count: 99 };
+    expect(summarizeQuickslot(recovered, packed, "consumable", "ember", target)).toBe(target);
+    expect(target).toEqual({ count: 2, selected: packed[0] });
+    expect(summarizeQuickslot(recovered, packed, "consumable", "spent", target)).toEqual({ count: 2, selected: recovered[0] });
+  });
 });
 
 describe("raid throwable quick slot", () => {
@@ -51,5 +58,11 @@ describe("raid throwable quick slot", () => {
     expect(nextThrowableId(items, "dart")).toBe("glass");
     expect(nextThrowableId(items, "glass")).toBe("dart");
     expect(nextThrowableId([], "dart")).toBeUndefined();
+  });
+
+  it("summarizes recovered and packed throwables without building an ordered array", () => {
+    const target = { count: 0 };
+    expect(summarizeQuickslot([recoveredKnife], [packedKnife], "throwable", "glass", target)).toEqual({ count: 2, selected: packedKnife });
+    expect(summarizeQuickslot(recovered, packed, "throwable", undefined, target)).toEqual({ count: 0, selected: undefined });
   });
 });

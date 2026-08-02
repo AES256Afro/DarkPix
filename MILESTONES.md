@@ -92,6 +92,7 @@ Status: Complete for the current map
 - Frame-hot clock, objective, inventory, ritual, stealth, direction, and wayfinder copy skips unchanged text and ritual prompts commit only one final message per frame
 - Digital movement normalization writes into the raid's shared direction scratch record instead of constructing a Three.js vector every simulation frame
 - Interaction sight and facing scans reuse raid-owned vectors and coordinate records rather than allocating a vector, closure, origin, facing, and target records every active frame
+- Remedy and throwing-weapon HUD summaries scan recovered and packed items into caller-owned records instead of rebuilding and filtering quick-slot arrays every frame
 - Threat awareness reuses targeting vectors, and Warden guidance finds the nearest living target in one allocation-free scan instead of filtering and sorting every frame
 - Player and hostile missiles reuse contact vectors, while player shots find the first living impact in one ordered scan instead of allocating and sorting threat arrays every frame
 - Reduced motion suppresses decorative loading, camera, enemy-step, loot, flame, and portal loops while retaining functional combat telegraphs; pause sleeps continuous rendering and cancels queued audio feedback before it can replay in a later raid state

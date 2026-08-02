@@ -9,7 +9,7 @@ import { HAUL_CAPACITY, RIVAL_EXTRACTION_SECONDS, advanceRivalExtraction, canAdd
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, pickupDecision, type LoadoutStats } from "./loadout";
 import { cardinalDirection, circlesOverlap, directionalCue, movementOffset, movementSubstepCount, passiveAwarenessRange, recoveryNeed } from "./navigation";
 import { raidRules, type RaidRules } from "./raid";
-import { consumablesInUseOrder, nextConsumableId, nextThrowableId, resolveConsumableId, resolveThrowableId, throwablesInUseOrder } from "./quickslots";
+import { consumablesInUseOrder, nextConsumableId, nextThrowableId, resolveConsumableId, resolveThrowableId, summarizeQuickslot, throwablesInUseOrder, type QuickslotSummary } from "./quickslots";
 import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./resolution";
 import { disposeSceneResources } from "./resources";
 import { RAID_VARIATION_COUNT, raidVariationSeal, validRaidVariationSeed } from "./contract";
@@ -235,6 +235,8 @@ export class DarkPixGame {
   private readonly raidLoot: Item[] = [];
   private readonly carriedConsumables: Item[];
   private readonly carriedThrowables: Item[];
+  private readonly consumableSummary: QuickslotSummary = { count: 0 };
+  private readonly throwableSummary: QuickslotSummary = { count: 0 };
   private readonly weapon = new THREE.Group();
   private readonly shield = new THREE.Group();
   private readonly delverTorch = new THREE.SpotLight(0xffb267, 5.2, 18, Math.PI / 3.8, 0.7, 1.25);
@@ -3553,19 +3555,19 @@ export class DarkPixGame {
         : this.wildshapeTimer > 0
           ? `${ability.name} · ${Math.ceil(this.wildshapeTimer)}s CHANGED`
       : this.abilityCooldown > 0 ? `${ability.name} · ${Math.ceil(this.abilityCooldown)}s` : ability.name);
-    const consumables = this.availableConsumables();
-    this.selectedConsumableId = resolveConsumableId(consumables, this.selectedConsumableId);
-    const selectedConsumable = consumables.find((item) => item.id === this.selectedConsumableId);
+    const consumables = summarizeQuickslot(this.raidLoot, this.carriedConsumables, "consumable", this.selectedConsumableId, this.consumableSummary);
+    const selectedConsumable = consumables.selected;
+    this.selectedConsumableId = selectedConsumable?.id;
     setTextIfChanged(this.consumableHud, this.remedyItemId
       ? `Treating ${this.remedyName} · ${this.remedyTimer.toFixed(1)}s`
       : selectedConsumable
-      ? `${selectedConsumable.name} · ${consumables.length} left · C cycle`
+      ? `${selectedConsumable.name} · ${consumables.count} left · C cycle`
       : "No remedy · C cycle");
-    const throwables = this.availableThrowables();
-    this.selectedThrowableId = resolveThrowableId(throwables, this.selectedThrowableId);
-    const selectedThrowable = throwables.find((item) => item.id === this.selectedThrowableId);
+    const throwables = summarizeQuickslot(this.raidLoot, this.carriedThrowables, "throwable", this.selectedThrowableId, this.throwableSummary);
+    const selectedThrowable = throwables.selected;
+    this.selectedThrowableId = selectedThrowable?.id;
     setTextIfChanged(this.throwableHud, selectedThrowable
-      ? `${selectedThrowable.name} · ${throwableDamage(selectedThrowable)} dmg · ${throwables.length} left · B cycle`
+      ? `${selectedThrowable.name} · ${throwableDamage(selectedThrowable)} dmg · ${throwables.count} left · B cycle`
       : "No throwing weapon · B cycle");
     setTextIfChanged(this.torchHud, `${this.torchLit ? "Hood" : "Unhood"} torch · ${Math.ceil(this.torchFuel)}s`);
     this.updateStealthProgress();
