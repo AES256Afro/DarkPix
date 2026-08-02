@@ -402,7 +402,7 @@ export function createRaidEscrow(
     classId,
     raidMode,
     equippedIds: boundedItemIds(equippedIds),
-    startedAt: Number.isFinite(startedAt) ? Math.max(0, Math.floor(startedAt)) : 0,
+    startedAt: nonnegativeInteger(startedAt),
     depthReached: depthReached === 2 ? 2 : 1,
     kills: Math.min(1_000, nonnegativeInteger(kills)),
     killsByKind: boundedThreatKills(kills, killsByKind),
@@ -467,6 +467,13 @@ export function clearRaidEscrow(): boolean {
 
 export function raidEscrowAlreadySettled(profile: Pick<Profile, "lastSettledRaidStartedAt">, escrow: RaidEscrow): boolean {
   return escrow.startedAt > 0 && profile.lastSettledRaidStartedAt === escrow.startedAt;
+}
+
+export function nextRaidStartedAt(currentTimestamp: number, lastSettledRaidStartedAt: number): number {
+  const current = nonnegativeInteger(currentTimestamp);
+  const lastSettled = nonnegativeInteger(lastSettledRaidStartedAt);
+  if (lastSettled >= Number.MAX_SAFE_INTEGER) return current > 0 && current !== lastSettled ? current : Number.MAX_SAFE_INTEGER - 1;
+  return Math.max(1, current, lastSettled + 1);
 }
 
 export function settleInterruptedRaid(profile: Profile, escrow: RaidEscrow): RaidSettlement {

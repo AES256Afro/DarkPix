@@ -9,7 +9,7 @@ import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEq
 import { SingleFlightGate, lobbyOperationCurrent } from "./game/lifecycle";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { browserStorageWritable, persistBeforeClearingEscrow } from "./game/persistence";
-import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfileState, loadRaidEscrow, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
+import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfileState, loadRaidEscrow, nextRaidStartedAt, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
 import { rarityMark } from "./game/rarity";
 import { QUIET_KNIVES_REWARD, QUIET_KNIVES_TARGET } from "./game/stealth";
@@ -693,7 +693,8 @@ async function startRaid(): Promise<void> {
     const goldBeforeEntry = profile.gold;
     securedGoldBeforeEntry = goldBeforeEntry;
     const variationSeed = Math.floor(Math.random() * RAID_VARIATION_COUNT);
-    let escrow = createRaidEscrow(classId, raidMode, equipped.map((item) => item.id), Date.now(), 1, 0, goldBeforeEntry, {}, variationSeed);
+    const startedAt = nextRaidStartedAt(Date.now(), profile.lastSettledRaidStartedAt);
+    let escrow = createRaidEscrow(classId, raidMode, equipped.map((item) => item.id), startedAt, 1, 0, goldBeforeEntry, {}, variationSeed);
     if (!beginRaidEscrow(escrow)) {
       persistenceWarning = "The browser could not secure a raid escrow. No fee was charged and the raid did not start.";
       renderLobby();
