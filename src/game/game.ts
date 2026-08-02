@@ -16,6 +16,7 @@ import { RAID_VARIATION_COUNT, raidVariationSeal, validRaidVariationSeed } from 
 import { rarityShape } from "./rarity";
 import { raidReadinessSummary } from "./readiness";
 import { MAX_TORCH_FUEL_SECONDS, addTorchFuel, spendTorchFuel } from "./light";
+import { pointerLockRequestAllowed, pointerLockResumesRaid } from "./lifecycle";
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
 import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
@@ -272,6 +273,9 @@ export class DarkPixGame {
   private ended = false;
   private paused = true;
   private contextLost = false;
+  private pointerLockAllowed = false;
+  private pointerLockPending = false;
+  private pointerLockEpoch = 0;
   private blocking = false;
   private crouching = false;
   private sprinting = false;
@@ -1079,26 +1083,35 @@ export class DarkPixGame {
   private onContextMenu = (event: MouseEvent): void => event.preventDefault();
 
   private onPointerLockChange = (): void => {
-    if (this.contextLost) {
-      this.paused = true;
-      this.lockOverlay.classList.remove("hidden");
-      return;
-    }
-    this.paused = document.pointerLockElement !== this.renderer.domElement;
-    if (this.paused) {
-      this.clearHeldInputs();
-      this.audio.pause();
-      if (!this.ended) {
-        this.resetAbandonConfirmation();
-        this.setLockOverlayCopy("RETURN TO THE CRYPT", "Bind the cursor when you are ready.");
-        this.updatePauseLedger();
-      }
-    }
-    this.lockOverlay.classList.toggle("hidden", !this.paused || this.ended);
-    if (!this.paused) {
+    const lockMatchesCanvas = document.pointerLockElement === this.renderer.domElement;
+    const resumesRaid = pointerLockResumesRaid({
+      lockMatchesCanvas,
+      requestAllowed: this.pointerLockAllowed,
+      contextLost: this.contextLost,
+      documentHidden: document.hidden,
+      ended: this.ended,
+    });
+    this.pointerLockPending = false;
+    this.resumeButton.disabled = false;
+    if (resumesRaid) {
+      this.paused = false;
+      this.lockOverlay.classList.add("hidden");
       this.audio.start();
       this.clock.getDelta();
+      return;
     }
+    this.pointerLockAllowed = false;
+    this.pointerLockEpoch += 1;
+    this.paused = true;
+    this.clearHeldInputs();
+    this.audio.pause();
+    if (!this.ended && !this.contextLost) {
+      this.resetAbandonConfirmation();
+      this.setLockOverlayCopy("RETURN TO THE CRYPT", "Bind the cursor when you are ready.");
+      this.updatePauseLedger();
+    }
+    this.lockOverlay.classList.toggle("hidden", this.ended);
+    if (lockMatchesCanvas) void document.exitPointerLock();
   };
 
   private clearHeldInputs(): void {
@@ -1116,6 +1129,7 @@ export class DarkPixGame {
 
   private pauseForFocusLoss(): void {
     if (this.ended) return;
+    this.invalidatePointerLockRequest();
     this.paused = true;
     this.clearHeldInputs();
     this.audio.pause();
@@ -1207,6 +1221,7 @@ export class DarkPixGame {
   private onContextLost = (event: Event): void => {
     event.preventDefault();
     if (this.ended) return;
+    this.invalidatePointerLockRequest();
     this.contextLost = true;
     this.paused = true;
     this.clearHeldInputs();
@@ -1230,37 +1245,53 @@ export class DarkPixGame {
   };
 
   private requestPointerLock = (): void => {
-    if (this.ended || this.contextLost) return;
+    if (!pointerLockRequestAllowed({
+      alreadyLocked: document.pointerLockElement === this.renderer.domElement,
+      requestPending: this.pointerLockPending,
+      contextLost: this.contextLost,
+      ended: this.ended,
+    })) return;
     this.resetAbandonConfirmation();
     if (typeof this.renderer.domElement.requestPointerLock !== "function") {
-      this.paused = true;
-      this.clearHeldInputs();
-      this.audio.pause();
-      this.setLockOverlayCopy("CURSOR RITUAL FAILED", "This browser cannot bind a first-person cursor. Return to the lobby and use a desktop browser.");
-      this.updatePauseLedger();
-      this.lockOverlay.classList.remove("hidden");
+      this.handlePointerLockFailure(this.pointerLockEpoch, "This browser cannot bind a first-person cursor. Return to the lobby and use a desktop browser.");
       return;
     }
-    this.paused = false;
-    this.lockOverlay.classList.add("hidden");
-    this.audio.start();
-    this.clock.getDelta();
-    try {
-      const pointerLockRequest = this.renderer.domElement.requestPointerLock();
-      void pointerLockRequest.catch(() => this.handlePointerLockFailure());
-    } catch {
-      this.handlePointerLockFailure();
-    }
-  };
-
-  private handlePointerLockFailure(): void {
+    const epoch = ++this.pointerLockEpoch;
+    this.pointerLockAllowed = true;
+    this.pointerLockPending = true;
     this.paused = true;
     this.clearHeldInputs();
     this.audio.pause();
-    this.setLockOverlayCopy("CURSOR UNBOUND", "Click to try again. If the browser keeps refusing, allow pointer lock for this site.");
+    this.resumeButton.disabled = true;
+    this.setLockOverlayCopy("BINDING THE CURSOR", "The raid remains paused until the browser confirms first-person control.");
+    this.updatePauseLedger();
+    this.lockOverlay.classList.remove("hidden");
+    try {
+      const pointerLockRequest = this.renderer.domElement.requestPointerLock();
+      void Promise.resolve(pointerLockRequest).catch(() => this.handlePointerLockFailure(epoch));
+    } catch {
+      this.handlePointerLockFailure(epoch);
+    }
+  };
+
+  private handlePointerLockFailure(epoch: number, detail = "Click to try again. If the browser keeps refusing, allow pointer lock for this site."): void {
+    if (this.ended || this.contextLost || epoch !== this.pointerLockEpoch) return;
+    if (document.pointerLockElement === this.renderer.domElement) return;
+    this.invalidatePointerLockRequest();
+    this.paused = true;
+    this.clearHeldInputs();
+    this.audio.pause();
+    this.setLockOverlayCopy("CURSOR UNBOUND", detail);
     this.updatePauseLedger();
     this.lockOverlay.classList.remove("hidden");
     this.feed("The browser refused pointer lock. The raid remains paused.", "system");
+  }
+
+  private invalidatePointerLockRequest(): void {
+    this.pointerLockAllowed = false;
+    this.pointerLockPending = false;
+    this.pointerLockEpoch += 1;
+    this.resumeButton.disabled = false;
   }
 
   private frame = (): void => {
@@ -3242,6 +3273,7 @@ export class DarkPixGame {
   private finish(reason: RaidEndReason): void {
     if (this.ended) return;
     this.ended = true;
+    this.invalidatePointerLockRequest();
     this.paused = true;
     this.audio.pause();
     if (document.pointerLockElement === this.renderer.domElement) void document.exitPointerLock();
@@ -3279,6 +3311,7 @@ export class DarkPixGame {
 
   destroy(): void {
     this.ended = true;
+    this.invalidatePointerLockRequest();
     cancelAnimationFrame(this.animationFrame);
     this.resizeObserver.disconnect();
     document.removeEventListener("keydown", this.onKeyDown);
