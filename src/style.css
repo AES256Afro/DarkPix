@@ -18,7 +18,7 @@ html { background: #080707; scroll-behavior: smooth; }
 body { margin: 0; min-width: 320px; min-height: 100vh; background: #080707; }
 button, a { font: inherit; }
 button { color: inherit; }
-button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
 
 .eyebrow {
   color: #918a7e;
@@ -151,7 +151,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .stash-toolbar .panel-intro { flex: 1; margin: 0; }
 .stash-sort { display: flex; flex-direction: column; gap: 4px; color: #746c61; font: 700 7px ui-monospace, monospace; letter-spacing: .14em; }
 .stash-sort select { min-width: 92px; padding: 7px 25px 7px 8px; border: 1px solid #3a3329; border-radius: 0; background: #171410; color: #b3a794; font: 700 8px ui-monospace, monospace; text-transform: uppercase; cursor: pointer; }
-.stash-sort select:focus-visible { outline: 1px solid #b97847; outline-offset: 2px; }
+.stash-sort select:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
 .stash-list { display: grid; gap: 5px; max-height: 360px; padding-right: 4px; overflow: auto; }
 .stash-item { display: grid; grid-template-columns: 10px minmax(0, 1fr) 48px auto auto; align-items: center; gap: 11px; min-height: 54px; padding: 8px 10px; border: 1px solid #28251f; background: #141210; }
 .stash-item.selected { border-color: color-mix(in srgb, var(--rarity), #8d5738 45%); background: #1b1611; }
@@ -407,6 +407,11 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .result-next { display: flex; margin: 22px 0 0; padding: 13px 15px; align-items: center; gap: 13px; border-left: 2px solid #6d5137; background: #11100e; text-align: left; }
 .result-next span { color: #8b8175; font: 12px/1.45 Georgia, serif; }
 .return-button { width: 100%; margin-top: 26px; padding: 16px; border: 1px solid #794a30; background: #382117; color: #dbc4a6; font: 800 10px ui-monospace, monospace; letter-spacing: .15em; cursor: pointer; }.return-button:hover { filter: brightness(1.2); }
+
+@media (forced-colors: active) {
+  .class-card.selected, .raid-mode-picker button.selected, .stash-item.selected { outline: 2px solid Highlight; outline-offset: -4px; }
+  .item-gem, .merchant-offer > i, .result-item > i { border: 1px solid CanvasText; }
+}
 
 @media (max-width: 1200px) and (min-width: 901px) {
   .class-grid { grid-template-columns: repeat(2, 1fr); }

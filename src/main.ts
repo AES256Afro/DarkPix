@@ -139,7 +139,7 @@ function itemMarkup(item: Item, riskable = false): string {
       <span class="item-gem" data-mark="${rarityMark(item.rarity)}" aria-hidden="true"></span>
       <span class="item-copy"><strong>${itemName}</strong><small>${item.rarity} ${item.kind}${itemModifier}</small></span>
       <span class="item-value">${item.value}g</span>
-      ${riskable && item.kind !== "treasure" ? `<button class="risk-item" type="button">${selected ? "Packed" : "Pack"}</button>` : ""}
+      ${riskable && item.kind !== "treasure" ? `<button class="risk-item" type="button" aria-pressed="${selected}" aria-label="${selected ? "Unpack" : "Pack"} ${itemName}">${selected ? "Packed" : "Pack"}</button>` : ""}
       <button class="sell-item ${confirmingSale ? "confirming" : ""}" type="button" aria-label="${confirmingSale ? "Confirm sale of" : "Sell"} ${itemName}">${confirmingSale ? "Confirm" : "Sell"}</button>
     </article>`;
 }
@@ -182,7 +182,7 @@ function renderLobby(): void {
       <header class="lobby-header">
         <a class="brand" href="#" aria-label="DarkPix home"><span>DP</span><strong>DARKPIX</strong></a>
         <nav class="lobby-nav" aria-label="Game sections">
-          <button class="active" type="button">Delve</button>
+          <button class="active" type="button" aria-current="page">Delve</button>
           <button type="button" data-jump="stash">Stash <b>${profile.stash.length}</b></button>
           <button type="button" data-jump="contracts">Contracts</button>
         </nav>
@@ -201,9 +201,9 @@ function renderLobby(): void {
           <p class="hero-decree">Descend empty-handed. Return legend-laden.</p>
           <div class="rule-line"><i></i><strong>DEATH TAKES WHAT YOU CARRY</strong><i></i></div>
           <div class="raid-mode-picker" role="group" aria-label="Raid contract">
-            <button class="${selectedRaidMode === "standard" ? "selected" : ""}" data-raid-mode="standard" type="button"><small>NO ENTRY FEE</small><strong>PALE TOLL</strong></button>
-            <button class="high-toll ${selectedRaidMode === "high_toll" ? "selected" : ""}" data-raid-mode="high_toll" type="button" ${highTollStatus === "ready" ? "" : "disabled"}><small>${highTollStatus === "extract_required" ? "ESCAPE ONCE TO UNLOCK" : highTollStatus === "insufficient_gold" ? "50G REQUIRED" : "50G ENTRY FEE"}</small><strong>HIGH TOLL</strong></button>
-            <button class="iron-soul ${selectedRaidMode === "iron_soul" ? "selected" : ""}" data-raid-mode="iron_soul" type="button" ${ironSoulStatus === "ready" ? "" : "disabled"}><small>${ironSoulStatus === "ashen_extract_required" ? "ASHEN RETURN REQUIRED" : ironSoulStatus === "insufficient_gold" ? "100G REQUIRED" : "100G · XP AT RISK"}</small><strong>IRON SOUL</strong></button>
+            <button class="${selectedRaidMode === "standard" ? "selected" : ""}" data-raid-mode="standard" type="button" aria-pressed="${selectedRaidMode === "standard"}"><small>NO ENTRY FEE</small><strong>PALE TOLL</strong></button>
+            <button class="high-toll ${selectedRaidMode === "high_toll" ? "selected" : ""}" data-raid-mode="high_toll" type="button" aria-pressed="${selectedRaidMode === "high_toll"}" ${highTollStatus === "ready" ? "" : "disabled"}><small>${highTollStatus === "extract_required" ? "ESCAPE ONCE TO UNLOCK" : highTollStatus === "insufficient_gold" ? "50G REQUIRED" : "50G ENTRY FEE"}</small><strong>HIGH TOLL</strong></button>
+            <button class="iron-soul ${selectedRaidMode === "iron_soul" ? "selected" : ""}" data-raid-mode="iron_soul" type="button" aria-pressed="${selectedRaidMode === "iron_soul"}" ${ironSoulStatus === "ready" ? "" : "disabled"}><small>${ironSoulStatus === "ashen_extract_required" ? "ASHEN RETURN REQUIRED" : ironSoulStatus === "insufficient_gold" ? "100G REQUIRED" : "100G · XP AT RISK"}</small><strong>IRON SOUL</strong></button>
           </div>
           <button class="descend-button" type="button">
             <span>DESCEND INTO THE ${selectedRaidRules.name.toUpperCase()}</span>
@@ -225,7 +225,7 @@ function renderLobby(): void {
         </div>
         <div class="class-grid">
           ${(Object.values(CLASSES) as typeof chosen[]).map((entry) => `
-            <button class="class-card ${entry.id === selectedClass ? "selected" : ""}" data-class-id="${entry.id}" type="button" style="--class-accent:${entry.accent}">
+            <button class="class-card ${entry.id === selectedClass ? "selected" : ""}" data-class-id="${entry.id}" type="button" aria-pressed="${entry.id === selectedClass}" style="--class-accent:${entry.accent}">
               <span class="class-rune">${CLASS_RUNES[entry.id]}</span>
               <span class="class-copy">
                 <small>${entry.title}</small>
