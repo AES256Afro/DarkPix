@@ -2949,14 +2949,16 @@ export class DarkPixGame {
     this.concealmentTimer = 0;
     this.audio.attack();
 
-    const cameraPosition = this.camera.position.clone();
-    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).normalize();
+    const cameraPosition = this.camera.position;
+    const forward = this.scratchForward.set(0, 0, -1).applyQuaternion(this.camera.quaternion).normalize();
     let best: Enemy | undefined;
     let bestDistance = 10;
     for (const enemy of this.enemies) {
       if (!enemy.alive) continue;
       const targetHeight = enemy.kind === "crawler" || enemy.kind === "mimic" ? 0.72 : enemy.kind === "boss" ? 1.55 : 1.12;
-      const toEnemy = enemy.group.position.clone().add(new THREE.Vector3(0, targetHeight, 0)).sub(cameraPosition);
+      const toEnemy = this.scratchToTarget.copy(enemy.group.position);
+      toEnemy.y += targetHeight;
+      toEnemy.sub(cameraPosition);
       const distance = toEnemy.length();
       const visible = this.hasDungeonSightBetween(
         cameraPosition.x,
@@ -2971,13 +2973,17 @@ export class DarkPixGame {
       }
     }
     const thrownHeadHeight = best?.kind === "crawler" || best?.kind === "mimic" ? 0.72 : best?.kind === "boss" ? 2.35 : 1.82;
-    const thrownHeadshot = best
-      ? best.group.position.clone().add(new THREE.Vector3(0, thrownHeadHeight, 0)).sub(cameraPosition).normalize().dot(forward) > 0.991
-      : false;
-    const endpoint = best
-      ? best.group.position.clone().add(new THREE.Vector3(0, thrownHeadshot ? thrownHeadHeight : best.kind === "crawler" || best.kind === "mimic" ? 0.38 : best.kind === "boss" ? 1.55 : 1.1, 0))
-      : cameraPosition.clone().add(forward.multiplyScalar(bestDistance));
-    this.launchThrowableProjectile(thrown, cameraPosition, endpoint);
+    let thrownHeadshot = false;
+    if (best) {
+      this.scratchToTarget.copy(best.group.position);
+      this.scratchToTarget.y += thrownHeadHeight;
+      thrownHeadshot = this.scratchToTarget.sub(cameraPosition).normalize().dot(forward) > 0.991;
+      this.scratchToTarget.copy(best.group.position);
+      this.scratchToTarget.y += thrownHeadshot ? thrownHeadHeight : best.kind === "crawler" || best.kind === "mimic" ? 0.38 : best.kind === "boss" ? 1.55 : 1.1;
+    } else {
+      this.scratchToTarget.copy(cameraPosition).addScaledVector(forward, bestDistance);
+    }
+    this.launchThrowableProjectile(thrown, cameraPosition, this.scratchToTarget);
   }
 
   private availableThrowables(): Item[] {
