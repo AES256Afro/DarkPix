@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { escapeHtml } from "../html";
 import { AudioDirector, footstepCadenceCrossed } from "./audio";
-import { FLOOR_TRAP_WINDUP_SECONDS, RIPOSTE_DURATION_SECONDS, advanceFloorTrapWindup, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, damageImpactAccepted, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, safeDamageAmount, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat, trapTargetPrecedes, type AttackDirection, type RivalArchetype } from "./combat";
+import { FLOOR_TRAP_WINDUP_SECONDS, RIPOSTE_DURATION_SECONDS, advanceFloorTrapWindup, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, damageImpactAccepted, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, floorTrapWarningAudible, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, safeDamageAmount, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat, trapTargetPrecedes, type AttackDirection, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, dungeonProjectileStoneContact, encounterPosition, safeDroppedLootPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
@@ -1744,6 +1744,13 @@ export class DarkPixGame {
         this.feed("FLOOR PLATE SINKS · clear the spikes", "danger");
         this.showDirectionalCue(trap.group.position, "FLOOR SPIKES", FLOOR_TRAP_WINDUP_SECONDS + 0.12, "warning");
         this.audio.tone(118, 0.12, "square", 0.07);
+      } else {
+        const cueOffsetX = trap.group.position.x - this.camera.position.x;
+        const cueOffsetZ = trap.group.position.z - this.camera.position.z;
+        if (!floorTrapWarningAudible(cueOffsetX * cueOffsetX + cueOffsetZ * cueOffsetZ)) continue;
+        this.feed("DISTANT PLATE SINKS · something crossed it", "combat");
+        this.showDirectionalCue(trap.group.position, "FLOOR SPIKES", FLOOR_TRAP_WINDUP_SECONDS + 0.12, "warning");
+        this.audio.tone(92, 0.12, "square", 0.045);
       }
     }
   }

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MAX_CLASS_LEVEL, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createItemId, createLoot, createSigil, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
 import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, MAX_RAID_LOOT_ITEMS, RAID_ESCROW_KEY, RAID_ESCROW_LEASE_MS, RAID_HISTORY_LIMIT, applyRaidResult, beginRaidEscrow, clearOwnedRaidEscrow, contractRecordSummary, craftItem, createProfile, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeProfile, normalizeRaidEscrow, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidEscrowOwnedBy, raidThreatKillLedger, raidXpBreakdown, renewRaidEscrow, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, firstRunPreferences, normalizePreferences, savePreferences } from "../src/game/preferences";
-import { FLOOR_TRAP_WINDUP_SECONDS, RIPOSTE_DURATION_SECONDS, advanceFloorTrapWindup, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, damageImpactAccepted, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, safeDamageAmount, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat, trapTargetPrecedes } from "../src/game/combat";
+import { FLOOR_TRAP_WARNING_RANGE, FLOOR_TRAP_WINDUP_SECONDS, RIPOSTE_DURATION_SECONDS, advanceFloorTrapWindup, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, damageImpactAccepted, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, floorTrapWarningAudible, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, safeDamageAmount, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat, trapTargetPrecedes } from "../src/game/combat";
 import type { RaidResult } from "../src/game/types";
 
 describe("loot generation", () => {
@@ -1283,6 +1283,14 @@ describe("directional combat damage", () => {
     expect(advanceFloorTrapWindup(0.1, 0.1)).toEqual({ remaining: 0, fires: true });
     expect(advanceFloorTrapWindup(0, 0.1)).toEqual({ remaining: 0, fires: false });
     expect(advanceFloorTrapWindup(Number.NaN, Number.NaN)).toEqual({ remaining: 0, fires: false });
+  });
+
+  it("reports monster-triggered floor plates only within a bounded hearing range", () => {
+    expect(floorTrapWarningAudible(0)).toBe(true);
+    expect(floorTrapWarningAudible(FLOOR_TRAP_WARNING_RANGE ** 2)).toBe(true);
+    expect(floorTrapWarningAudible(FLOOR_TRAP_WARNING_RANGE ** 2 + 0.01)).toBe(false);
+    expect(floorTrapWarningAudible(-1)).toBe(false);
+    expect(floorTrapWarningAudible(Number.NaN)).toBe(false);
   });
 
   it("lets Sanctuary sear crypt threats without harming the living rival", () => {
