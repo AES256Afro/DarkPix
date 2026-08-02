@@ -84,6 +84,7 @@ Status: Complete
 
 - Unprivileged, read-only Nginx container on the private tunnel network with digest-pinned build and runtime images
 - Loopback-only host health endpoint
+- Bounded service-local access logs that cannot grow without rotation under public traffic
 - No inbound router ports or public origin address
 - Content security, framing, MIME, referrer, permissions, opener, resource, and transport headers
 - Immutable hashed assets with non-cacheable release identity and service worker
