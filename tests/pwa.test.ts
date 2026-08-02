@@ -1,12 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import manifestSource from "../public/manifest.webmanifest?raw";
 import worker from "../public/sw.js?raw";
+import indexSource from "../index.html?raw";
 
 describe("installable offline shell", () => {
   it("publishes a scoped standalone game manifest", () => {
     const manifest = JSON.parse(manifestSource) as Record<string, unknown>;
     expect(manifest).toMatchObject({ short_name: "DarkPix", start_url: "/", scope: "/", display: "standalone", orientation: "landscape" });
     expect(Array.isArray(manifest.icons)).toBe(true);
+    expect(JSON.stringify(manifest.icons)).toContain("/darkpix-icon.svg?v=app");
+    expect(indexSource).toContain("/manifest.webmanifest?v=%VITE_DARKPIX_VERSION%");
+    expect(indexSource).toContain("/darkpix-icon.svg?v=%VITE_DARKPIX_VERSION%");
   });
 
   it("keeps release identity online while caching the playable shell", () => {
@@ -16,6 +20,7 @@ describe("installable offline shell", () => {
     expect(worker).toContain('request.mode === "navigate"');
     expect(worker).toContain('event.data?.type === "SKIP_WAITING"');
     expect(worker).toContain("cacheBuildAssets");
+    expect(worker).toContain("encodeURIComponent(RELEASE_ID)");
     expect(worker).toContain('throw new Error("Release shell is missing from its offline cache")');
     expect(worker).toContain('throw new Error("Release shell has an invalid content type")');
     expect(worker).toContain("Release shell asset is missing:");
@@ -93,7 +98,7 @@ describe("installable offline shell", () => {
       ["/darkpix-icon.svg", { headers: { get: () => "image/svg+xml" } }],
       ["/assets/darkpix-title.jpg", { headers: { get: () => "image/jpeg" } }],
     ]);
-    const cache = { addAll: vi.fn(async () => undefined), match: vi.fn(async (key: string) => fixedAssets.get(key)), put };
+    const cache = { addAll: vi.fn(async () => undefined), match: vi.fn(async (key: string) => fixedAssets.get(new URL(key, "https://darkpix.test").pathname)), put };
     const workerScope = {
       location: { href: "https://darkpix.test/sw.js?v=complete-release", origin: "https://darkpix.test" },
       clients: { claim: vi.fn(async () => undefined) },
@@ -139,7 +144,7 @@ describe("installable offline shell", () => {
       ["/darkpix-icon.svg", { headers: { get: () => "image/svg+xml" } }],
       ["/assets/darkpix-title.jpg", { headers: { get: () => "image/jpeg" } }],
     ]);
-    const cache = { addAll: vi.fn(async () => undefined), match: vi.fn(async (key: string) => fixedAssets.get(key)), put: vi.fn(async () => undefined) };
+    const cache = { addAll: vi.fn(async () => undefined), match: vi.fn(async (key: string) => fixedAssets.get(new URL(key, "https://darkpix.test").pathname)), put: vi.fn(async () => undefined) };
     const deleteCache = vi.fn(async () => true);
     const workerScope = {
       location: { href: "https://darkpix.test/sw.js?v=mime-release", origin: "https://darkpix.test" },
@@ -178,7 +183,7 @@ describe("installable offline shell", () => {
     ]);
     const cache = {
       addAll: vi.fn(async () => undefined),
-      match: vi.fn(async (key: string) => fixedAssets.get(key)),
+      match: vi.fn(async (key: string) => fixedAssets.get(new URL(key, "https://darkpix.test").pathname)),
       put: vi.fn(async () => undefined),
     };
     const deleteCache = vi.fn(async () => true);
@@ -193,7 +198,7 @@ describe("installable offline shell", () => {
     let installation: Promise<unknown> | undefined;
     handlers.get("install")?.({ waitUntil: (promise) => { installation = promise; } });
 
-    await expect(installation).rejects.toThrow("Release shell asset has an invalid content type: /manifest.webmanifest");
+    await expect(installation).rejects.toThrow("Release shell asset has an invalid content type: /manifest.webmanifest?v=fixed-mime-release");
     expect(cache.put).not.toHaveBeenCalled();
     expect(deleteCache).toHaveBeenCalledWith("darkpix-runtime-fixed-mime-release");
   });

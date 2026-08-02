@@ -17,9 +17,9 @@ describe("production asset routing", () => {
     expect(deployScript).toContain('content-type:.*json');
     expect(deployScript).toContain('content-type:.*image/svg+xml');
     expect(deployScript).toContain('content-type:.*image/jpeg');
-    expect(deployScript).toContain('"$public_url/manifest.webmanifest"');
-    expect(deployScript).toContain('"$public_url/darkpix-icon.svg"');
-    expect(deployScript).toContain('"$public_url/assets/darkpix-title.jpg"');
+    expect(deployScript).toContain('"$public_url/manifest.webmanifest?v=$darkpix_release"');
+    expect(deployScript).toContain('"$public_url/darkpix-icon.svg?v=$darkpix_release"');
+    expect(deployScript).toContain('"$public_url/assets/darkpix-title.jpg?v=$darkpix_release"');
   });
 
   it("rejects a public rollout whose missing release chunk does not return 404", () => {

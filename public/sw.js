@@ -3,8 +3,9 @@ const RELEASE_ID = (new URL(self.location.href).searchParams.get("v") ?? "dev")
   .replace(/[^a-zA-Z0-9._-]/g, "")
   .slice(0, 64) || "dev";
 const CACHE_NAME = `${CACHE_PREFIX}${RELEASE_ID}`;
-const SHELL_URLS = ["/", "/manifest.webmanifest", "/darkpix-icon.svg", "/assets/darkpix-title.jpg"];
-const SHELL_PATHS = new Set(SHELL_URLS);
+const RELEASE_ASSET_PATHS = ["/manifest.webmanifest", "/darkpix-icon.svg", "/assets/darkpix-title.jpg"];
+const SHELL_URLS = ["/", ...RELEASE_ASSET_PATHS.map((path) => `${path}?v=${encodeURIComponent(RELEASE_ID)}`)];
+const SHELL_PATHS = new Set(["/", ...RELEASE_ASSET_PATHS]);
 const QUOTED_ASSET_REFERENCE = /["']((?:\/assets\/|\.\/)[^"'\s)]+\.(?:js|css|jpg|png|svg|woff2?))["']/g;
 const CSS_ASSET_REFERENCE = /url\(\s*["']?((?:\/assets\/|\.\/)[^"'\s)]+\.(?:jpg|png|svg|woff2?))["']?\s*\)/g;
 
@@ -36,7 +37,8 @@ async function updateCurrentCache(request, response) {
 
 function runtimeCacheKey(request, url) {
   if (request.mode === "navigate") return "/";
-  if (SHELL_PATHS.has(url.pathname) || url.pathname.startsWith("/assets/")) return url.pathname;
+  if (SHELL_PATHS.has(url.pathname)) return url.pathname === "/" ? "/" : `${url.pathname}${url.search}`;
+  if (url.pathname.startsWith("/assets/")) return url.pathname;
   return undefined;
 }
 

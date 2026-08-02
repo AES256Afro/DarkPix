@@ -223,9 +223,9 @@ check_public_release() {
     public_headers="$(curl -fsSI --max-time 8 "$public_url/" 2>/dev/null)" || return 1
     health_body="$(curl -fsS --max-time 8 "$public_url/healthz" 2>/dev/null)" || return 1
     health_headers="$(curl -fsSI --max-time 8 "$public_url/healthz" 2>/dev/null)" || return 1
-    manifest_headers="$(curl -fsSI --max-time 8 "$public_url/manifest.webmanifest" 2>/dev/null)" || return 1
-    icon_headers="$(curl -fsSI --max-time 8 "$public_url/darkpix-icon.svg" 2>/dev/null)" || return 1
-    title_headers="$(curl -fsSI --max-time 8 "$public_url/assets/darkpix-title.jpg" 2>/dev/null)" || return 1
+    manifest_headers="$(curl -fsSI --max-time 8 "$public_url/manifest.webmanifest?v=$darkpix_release" 2>/dev/null)" || return 1
+    icon_headers="$(curl -fsSI --max-time 8 "$public_url/darkpix-icon.svg?v=$darkpix_release" 2>/dev/null)" || return 1
+    title_headers="$(curl -fsSI --max-time 8 "$public_url/assets/darkpix-title.jpg?v=$darkpix_release" 2>/dev/null)" || return 1
     worker_headers="$(curl -fsSI --max-time 8 "$public_url/sw.js?v=$darkpix_release" 2>/dev/null)" || return 1
     missing_asset_status="$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' "$public_url/assets/missing-$darkpix_release.js" 2>/dev/null)" || return 1
   elif command -v wget >/dev/null 2>&1; then
@@ -234,9 +234,9 @@ check_public_release() {
     public_headers="$(wget -q -T 8 --server-response --spider "$public_url/" 2>&1)" || return 1
     health_body="$(wget -q -T 8 -O - "$public_url/healthz" 2>/dev/null)" || return 1
     health_headers="$(wget -q -T 8 --server-response --spider "$public_url/healthz" 2>&1)" || return 1
-    manifest_headers="$(wget -q -T 8 --server-response --spider "$public_url/manifest.webmanifest" 2>&1)" || return 1
-    icon_headers="$(wget -q -T 8 --server-response --spider "$public_url/darkpix-icon.svg" 2>&1)" || return 1
-    title_headers="$(wget -q -T 8 --server-response --spider "$public_url/assets/darkpix-title.jpg" 2>&1)" || return 1
+    manifest_headers="$(wget -q -T 8 --server-response --spider "$public_url/manifest.webmanifest?v=$darkpix_release" 2>&1)" || return 1
+    icon_headers="$(wget -q -T 8 --server-response --spider "$public_url/darkpix-icon.svg?v=$darkpix_release" 2>&1)" || return 1
+    title_headers="$(wget -q -T 8 --server-response --spider "$public_url/assets/darkpix-title.jpg?v=$darkpix_release" 2>&1)" || return 1
     worker_headers="$(wget -q -T 8 --server-response --spider "$public_url/sw.js?v=$darkpix_release" 2>&1)" || return 1
     missing_asset_status="$(wget -T 8 --server-response --spider "$public_url/assets/missing-$darkpix_release.js" 2>&1 || true)"
     grep -Eq 'HTTP/[0-9.]+ 404' <<<"$missing_asset_status" || return 1

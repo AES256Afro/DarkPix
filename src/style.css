@@ -10,7 +10,7 @@
   --ink: #090908;
   --panel: #12110f;
   --line: #343029;
-  --title-art: url("/assets/darkpix-title.jpg");
+  --title-art: url("/assets/darkpix-title.jpg?v=app");
 }
 
 * { box-sizing: border-box; }

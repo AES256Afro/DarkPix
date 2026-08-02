@@ -12,7 +12,7 @@
   "categories": ["games"],
   "icons": [
     {
-      "src": "/darkpix-icon.svg",
+      "src": "/darkpix-icon.svg?v=app",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
