@@ -2252,8 +2252,11 @@ export class DarkPixGame {
     if (enemy.kind === "rival" && enemy.carriedLoot.length) {
       enemy.carriedLoot.forEach((item, index) => {
         const angle = (index / enemy.carriedLoot.length) * Math.PI * 2;
-        const position = enemy.group.position.clone().add(new THREE.Vector3(Math.cos(angle) * 0.5, 0, Math.sin(angle) * 0.5));
-        this.spawnPickup(item, position);
+        this.scratchDirection.x = Math.cos(angle);
+        this.scratchDirection.z = Math.sin(angle);
+        const position = safeDroppedLootPosition(enemy.group.position, this.scratchDirection, 0.5, 0.18, !this.falseWallOpened, this.scratchInteractionTarget);
+        this.scratchToTarget.set(position.x, 0.55, position.z);
+        this.spawnPickup(item, this.scratchToTarget);
       });
       if (announce) this.feed(`RIVAL FELLED · ${enemy.carriedLoot.length} stolen relic${enemy.carriedLoot.length === 1 ? "" : "s"} recovered`, "rival");
       enemy.carriedLoot = [];
@@ -2263,7 +2266,7 @@ export class DarkPixGame {
       : enemy.kind === "boss"
         ? createBossLoot(Math.random, this.raidRules.lootDepthBonus + depthRules(this.depth).lootDepthBonus)
         : createLoot(Math.random, (enemy.kind === "rival" ? 0.12 : enemy.kind === "mimic" ? 0.18 : 0.03) + this.raidRules.lootDepthBonus + depthRules(this.depth).lootDepthBonus);
-    this.spawnPickup(drop, enemy.group.position.clone());
+    this.spawnPickup(drop, enemy.group.position);
     if (announce) this.showThreatVitals(enemy);
     if (announce && enemy.kind === "boss" && this.depth === 1) {
       this.feed("RED BREACH AWAKENED · extract with E or descend with R", "danger");

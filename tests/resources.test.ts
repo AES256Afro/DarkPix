@@ -179,6 +179,14 @@ describe("raid resource cleanup", () => {
     expect(dropHaul).not.toContain("new THREE.Vector3");
   });
 
+  it("returns a defeated rival's stolen loot through caller-owned safe positions", () => {
+    const damageEnemy = gameSource.slice(gameSource.indexOf("private damageEnemy"), gameSource.indexOf("private showThreatVitals"));
+    expect(damageEnemy).toContain("safeDroppedLootPosition(enemy.group.position, this.scratchDirection");
+    expect(damageEnemy).toContain("this.scratchInteractionTarget");
+    expect(damageEnemy).not.toContain("new THREE.Vector3");
+    expect(damageEnemy).not.toContain("enemy.group.position.clone()");
+  });
+
   it("applies area abilities in one allocation-free threat scan", () => {
     const abilities = gameSource.slice(gameSource.indexOf("private useClassAbility"), gameSource.indexOf("private updateZone"));
     expect(abilities).toContain("distanceToSquared");
