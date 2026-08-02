@@ -77,6 +77,7 @@ Status: Complete for the current map
 - Non-finite or negative damage components fail closed before combat math, and zero or malformed impacts cannot poison a threat's vigor state
 - Hostile missile animation rejects malformed elapsed time or duration before the knife arc can introduce a non-finite world coordinate
 - Distance-driven footsteps and AI acquisition distinguish stillness, crouch, steady movement, sprint, and packed armor without changing cadence with frame rate
+- Enemy footstep tracking mutates its stored coordinates in place and selects the nearest audible cadence with scalars instead of replacing per-threat objects every frame
 - Occluded moving threats emit range-attenuated class-specific footsteps and a separate directional accessibility cue without replacing combat markers
 - Critical vigor, stamina, spell memory, and torch fuel can redirect the wayfinder to an unused campfire
 - Ordinary movement and class-specific dodges derive capped collision substeps from their actual travel distance instead of relying on a fixed sample count

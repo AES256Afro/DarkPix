@@ -2658,37 +2658,44 @@ export class DarkPixGame {
   }
 
   private updateEnemyFootsteps(): void {
-    let nearest: { enemy: Enemy; distance: number } | undefined;
+    let nearestEnemy: Enemy | undefined;
+    let nearestDistance = Number.POSITIVE_INFINITY;
     for (const enemy of this.enemies) {
-      const current = { x: enemy.group.position.x, z: enemy.group.position.z };
-      const moved = Math.hypot(current.x - enemy.footstepPosition.x, current.z - enemy.footstepPosition.z);
-      enemy.footstepPosition = current;
+      const currentX = enemy.group.position.x;
+      const currentZ = enemy.group.position.z;
+      const moved = Math.hypot(currentX - enemy.footstepPosition.x, currentZ - enemy.footstepPosition.z);
+      enemy.footstepPosition.x = currentX;
+      enemy.footstepPosition.z = currentZ;
       if (!enemy.alive || moved <= 0.001) continue;
       const previousDistance = enemy.footstepDistance;
       enemy.footstepDistance += moved;
       const stride = enemy.kind === "crawler" ? 0.9 : enemy.kind === "boss" ? 2.1 : 1.55;
       if (!footstepCadenceCrossed(previousDistance, enemy.footstepDistance, stride)) continue;
-      const distance = Math.hypot(current.x - this.camera.position.x, current.z - this.camera.position.z);
-      if (distance > 13 || this.hasDungeonSight(current, { x: this.camera.position.x, z: this.camera.position.z }, 0.12)) continue;
-      if (!nearest || distance < nearest.distance) nearest = { enemy, distance };
+      const distance = Math.hypot(currentX - this.camera.position.x, currentZ - this.camera.position.z);
+      this.scratchDirection.x = this.camera.position.x;
+      this.scratchDirection.z = this.camera.position.z;
+      if (distance > 13 || this.hasDungeonSight(enemy.footstepPosition, this.scratchDirection, 0.12)) continue;
+      if (distance >= nearestDistance) continue;
+      nearestEnemy = enemy;
+      nearestDistance = distance;
     }
-    if (!nearest || this.enemyFootstepCooldown > 0) return;
+    if (!nearestEnemy || this.enemyFootstepCooldown > 0) return;
     this.enemyFootstepCooldown = 0.34;
-    this.audio.threatFootstep(nearest.enemy.kind, nearest.distance);
-    const label = nearest.enemy.kind === "boss"
+    this.audio.threatFootstep(nearestEnemy.kind, nearestDistance);
+    const label = nearestEnemy.kind === "boss"
       ? "KEEPER STEPS"
-      : nearest.enemy.kind === "rival"
+      : nearestEnemy.kind === "rival"
         ? "RIVAL FOOTFALL"
-        : nearest.enemy.kind === "crawler"
+        : nearestEnemy.kind === "crawler"
           ? "SCRAPING"
           : "FOOTSTEPS";
     const cue = directionalCue(
       this.yaw,
       { x: this.camera.position.x, z: this.camera.position.z },
-      { x: nearest.enemy.group.position.x, z: nearest.enemy.group.position.z },
+      { x: nearestEnemy.group.position.x, z: nearestEnemy.group.position.z },
       label,
     );
-    this.soundDirectionHud.textContent = `${cue.text} · ${Math.round(nearest.distance)}m`;
+    this.soundDirectionHud.textContent = `${cue.text} · ${Math.round(nearestDistance)}m`;
     this.soundDirectionHud.dataset.direction = cue.direction.toLowerCase();
     this.soundDirectionHud.classList.add("visible");
     this.soundDirectionTimer = 0.8;

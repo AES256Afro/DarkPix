@@ -66,4 +66,13 @@ describe("adaptive raid resolution", () => {
     expect(enemyProjectiles).toContain("this.scratchProjectileBody.copy");
     expect(enemyProjectiles).not.toContain("new THREE.Vector3");
   });
+
+  it("tracks enemy footsteps without replacing a position object every frame", () => {
+    const footstepsStart = gameSource.indexOf("private updateEnemyFootsteps");
+    const footsteps = gameSource.slice(footstepsStart, gameSource.indexOf("private hurt(", footstepsStart));
+    expect(footsteps).toContain("enemy.footstepPosition.x = currentX");
+    expect(footsteps).toContain("let nearestDistance = Number.POSITIVE_INFINITY");
+    expect(footsteps).not.toContain("enemy.footstepPosition =");
+    expect(footsteps).not.toContain("let nearest:");
+  });
 });
