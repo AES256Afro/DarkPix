@@ -60,6 +60,13 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain("DOWNLOAD RAW SAVE");
   });
 
+  it("attaches recovery downloads before invoking the browser save action", () => {
+    expect(mainSource).toContain("document.body.append(anchor)");
+    expect(mainSource).toContain("anchor.click()");
+    expect(mainSource).toContain("anchor.remove()");
+    expect(mainSource).toContain("URL.revokeObjectURL(url)");
+  });
+
   it("moves keyboard focus to the first safe action on every locked recovery screen", () => {
     expect(mainSource).toContain("function focusFirstRecoveryAction()");
     expect(mainSource).toContain('querySelector<HTMLButtonElement>(".persistence-recovery button")?.focus({ preventScroll: true })');
