@@ -42,6 +42,24 @@ if [[ -n "$previous_container_id" ]]; then
   if [[ -n "$previous_image_id" ]]; then docker image tag "$previous_image_id" darkpix-web:rollback; fi
 fi
 
+check_restored_public_routes() {
+  [[ -n "$previous_release" ]] || return 0
+  local public_url
+  local restored_release
+  for public_url in "${darkpix_public_urls[@]}"; do
+    if command -v curl >/dev/null 2>&1; then
+      restored_release="$(curl -fsS --max-time 8 "$public_url/version.txt?rollback=$previous_release" 2>/dev/null)" || return 1
+      curl -fsS --max-time 8 "$public_url/healthz?rollback=$previous_release" >/dev/null 2>&1 || return 1
+    elif command -v wget >/dev/null 2>&1; then
+      restored_release="$(wget -q -T 8 -O - "$public_url/version.txt?rollback=$previous_release" 2>/dev/null)" || return 1
+      wget -q -T 8 -O /dev/null "$public_url/healthz?rollback=$previous_release" 2>/dev/null || return 1
+    else
+      return 1
+    fi
+    [[ "$restored_release" == "$previous_release" ]] || return 1
+  done
+}
+
 rollback_previous_release() {
   if [[ -z "$previous_image_id" ]]; then
     echo "No previous DarkPix image was available for automatic rollback." >&2
@@ -62,9 +80,16 @@ rollback_previous_release() {
         echo "Rollback health passed but release identity was $restored_release instead of $previous_release." >&2
         return 1
       fi
-      echo "Automatic rollback restored loopback release $restored_release." >&2
-      docker image rm darkpix-web:rollback >/dev/null 2>&1 || true
-      return 0
+      for public_attempt in {1..20}; do
+        if check_restored_public_routes; then
+          echo "Automatic rollback restored loopback and public release $restored_release." >&2
+          docker image rm darkpix-web:rollback >/dev/null 2>&1 || true
+          return 0
+        fi
+        sleep 1
+      done
+      echo "Rollback restored loopback release $restored_release but public route recovery was not verified." >&2
+      return 1
     fi
     sleep 1
   done

@@ -20,5 +20,9 @@ describe("production asset routing", () => {
     expect(deployScript).toContain("docker compose up -d --no-build --force-recreate darkpix");
     expect(deployScript.match(/docker image rm darkpix-web:rollback/g)?.length).toBe(2);
     expect(deployScript.match(/rollback_previous_release \|\| true/g)?.length).toBeGreaterThanOrEqual(4);
+    expect(deployScript).toContain("check_restored_public_routes()");
+    expect(deployScript).toContain('"$public_url/version.txt?rollback=$previous_release"');
+    expect(deployScript).toContain("Automatic rollback restored loopback and public release");
+    expect(deployScript).toContain("public route recovery was not verified");
   });
 });
