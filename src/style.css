@@ -21,7 +21,7 @@ html.reduced-motion .lobby button, html.reduced-motion .lobby a, html.reduced-mo
 body { margin: 0; min-width: 320px; min-height: 100vh; background: #080707; }
 button, a { font: inherit; }
 button { color: inherit; }
-button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, [tabindex="-1"]:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
 
 .eyebrow {
   color: #918a7e;

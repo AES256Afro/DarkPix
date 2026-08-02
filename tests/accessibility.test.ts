@@ -40,6 +40,14 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain('"data-class-id", "data-raid-mode", "data-jump", "data-merchant-sku", "data-recipe-id", "data-preference", "data-save-action"');
   });
 
+  it("moves header-jump focus into named Stash and Contracts destinations", () => {
+    expect(mainSource).toContain('id="stash" tabindex="-1" aria-label="Stash and loadout"');
+    expect(mainSource).toContain('id="contracts" tabindex="-1" aria-label="Contracts"');
+    expect(mainSource).toContain("document.getElementById(button.dataset.jump ?? \"\")");
+    expect(mainSource).toContain("target.focus({ preventScroll: true })");
+    expect(styles).toContain('[tabindex="-1"]:focus-visible');
+  });
+
   it("keeps an unsecured raid verdict visible and blocks lobby return until retry succeeds", () => {
     expect(mainSource).toContain('class="result-persistence" role="alert"');
     expect(mainSource).toContain('if (!verdictSecured) {');

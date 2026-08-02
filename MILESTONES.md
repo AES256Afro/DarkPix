@@ -157,6 +157,7 @@ Status: Complete for the current map
 - Lobby rebuilds restore the logical keyboard control across class, contract, stash, merchant, crafting, settings, and idle cross-tab refreshes without forcing the viewport to jump
 - The current Delve navigation marker is non-interactive text, so keyboard users no longer encounter a focusable header button with no action
 - The focusable DarkPix brand is a real in-page home link to the lobby top instead of a canceled anchor with no result
+- Stash and Contracts header jumps move both viewport and focus into named destinations, with a visible focus target and reduced-motion-aware scrolling
 - Decorative recovery, contract-seal, verdict, and pause glyphs are excluded from reading order so adjacent headings carry the meaning without duplicate symbol noise
 - Terminal raid verdicts move focus to their labeled outcome heading, and a secured return places keyboard focus on the next-descent control
 - Refreshing or closing an active raid, including an unsecured terminal verdict, requests the browser's native leave confirmation because the journal will settle the departure as an abandonment

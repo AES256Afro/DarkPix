@@ -508,7 +508,7 @@ function renderLobby(): void {
         </div>
 
         <div class="lower-grid">
-          <section class="loadout-panel" id="stash">
+          <section class="loadout-panel" id="stash" tabindex="-1" aria-label="Stash and loadout">
             <div class="panel-heading"><span><small>RISK LOADOUT</small><strong>Stash</strong></span><b>${profile.stash.length} / 24</b></div>
             <div class="stash-toolbar">
               <p class="panel-intro">Pack up to two pieces, with one weapon and one armor slot. Consumables use any open slot. Death removes packed items from your stash.</p>
@@ -571,7 +571,7 @@ function renderLobby(): void {
               </div>
               <div class="risk-total"><span>TOTAL CONTRACT RISK</span><strong>${contractRiskValue}G · ${equippedIds.size} / 2 ITEMS${classXpAtRisk ? ` · ${classXpAtRisk} XP` : ""}</strong></div>
             </section>
-            <section class="contract-card" id="contracts">
+            <section class="contract-card" id="contracts" tabindex="-1" aria-label="Contracts">
               <span class="wax-seal" aria-hidden="true">I</span>
               <div><small>THE TAVERNER'S FIRST DEBT</small><strong>${profile.extracts > 0 ? "Debt honored" : "Escape the Pale Toll"}</strong><p>${profile.extracts > 0 ? "The 100g bounty was paid. The tavern remembers your name." : "Return alive once with anything worth keeping. Reward: 100g."}</p></div>
               <b>${profile.extracts > 0 ? "PAID" : "0 / 1"}</b>
@@ -694,7 +694,12 @@ function renderLobby(): void {
     });
   });
   app.querySelectorAll<HTMLElement>("[data-jump]").forEach((button) => {
-    button.addEventListener("click", () => document.querySelector(`#${button.dataset.jump}`)?.scrollIntoView({ behavior: preferences.reducedMotion ? "auto" : "smooth" }));
+    button.addEventListener("click", () => {
+      const target = document.getElementById(button.dataset.jump ?? "");
+      if (!target) return;
+      target.scrollIntoView({ behavior: preferences.reducedMotion ? "auto" : "smooth" });
+      target.focus({ preventScroll: true });
+    });
   });
   app.querySelectorAll<HTMLButtonElement>(".risk-item").forEach((button) => {
     button.addEventListener("click", () => {
