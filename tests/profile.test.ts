@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createItemId, createLoot, createSigil, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
-import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, MAX_RAID_LOOT_ITEMS, RAID_ESCROW_KEY, RAID_ESCROW_LEASE_MS, RAID_HISTORY_LIMIT, applyRaidResult, beginRaidEscrow, clearOwnedRaidEscrow, contractRecordSummary, craftItem, createProfile, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeProfile, normalizeRaidEscrow, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidEscrowOwnedBy, raidThreatKillLedger, raidXpBreakdown, renewRaidEscrow, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
-import { DEFAULT_PREFERENCES, firstRunPreferences, normalizePreferences } from "../src/game/preferences";
+import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, MAX_RAID_LOOT_ITEMS, RAID_ESCROW_KEY, RAID_ESCROW_LEASE_MS, RAID_HISTORY_LIMIT, applyRaidResult, beginRaidEscrow, clearOwnedRaidEscrow, contractRecordSummary, craftItem, createProfile, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeProfile, normalizeRaidEscrow, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidEscrowOwnedBy, raidThreatKillLedger, raidXpBreakdown, renewRaidEscrow, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
+import { DEFAULT_PREFERENCES, firstRunPreferences, normalizePreferences, savePreferences } from "../src/game/preferences";
 import { FLOOR_TRAP_WINDUP_SECONDS, RIPOSTE_DURATION_SECONDS, advanceFloorTrapWindup, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, damageImpactAccepted, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, safeDamageAmount, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat, trapTargetPrecedes } from "../src/game/combat";
 import type { RaidResult } from "../src/game/types";
 
@@ -363,6 +363,24 @@ describe("persistent raid consequences", () => {
     });
     expect(missing.status).toBe("missing");
     expect(unavailable.status).toBe("unavailable");
+  });
+
+  it("accepts profile and preference writes only after exact read-back", () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+    };
+    const profile = createProfile();
+    profile.gold = 321;
+    expect(saveProfile(profile, storage)).toBe(true);
+    expect(JSON.parse(values.get("darkpix-profile-v1") ?? "{}").gold).toBe(321);
+    expect(savePreferences({ ...DEFAULT_PREFERENCES, volume: 0.35 }, storage)).toBe(true);
+    expect(JSON.parse(values.get("darkpix-preferences-v1") ?? "{}").volume).toBe(0.35);
+
+    const silentRefusal = { getItem: () => "unchanged", setItem: () => undefined };
+    expect(saveProfile(profile, silentRefusal)).toBe(false);
+    expect(savePreferences(DEFAULT_PREFERENCES, silentRefusal)).toBe(false);
   });
 
   it("retains even an empty damaged profile as recovery evidence", () => {

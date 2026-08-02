@@ -18,6 +18,11 @@ export const DEFAULT_PREFERENCES: GamePreferences = {
 
 const STASH_SORTS = new Set<StashSort>(["recent", "rarity", "value", "kind"]);
 
+interface PreferencesStorageTarget {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+}
+
 export interface SystemPreferenceSignals {
   reducedMotion: boolean;
   highContrast: boolean;
@@ -81,10 +86,12 @@ export function loadPreferences(): GamePreferences {
   }
 }
 
-export function savePreferences(preferences: GamePreferences): boolean {
+export function savePreferences(preferences: GamePreferences, storage?: PreferencesStorageTarget): boolean {
   try {
-    localStorage.setItem(PREFERENCES_KEY, JSON.stringify(normalizePreferences(preferences)));
-    return true;
+    const target = storage ?? globalThis.localStorage;
+    const serialized = JSON.stringify(normalizePreferences(preferences));
+    target.setItem(PREFERENCES_KEY, serialized);
+    return target.getItem(PREFERENCES_KEY) === serialized;
   } catch {
     return false;
   }

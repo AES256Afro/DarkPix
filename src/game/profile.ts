@@ -372,10 +372,12 @@ export function loadProfile(): Profile {
   return loadProfileState().profile;
 }
 
-export function saveProfile(profile: Profile): boolean {
+export function saveProfile(profile: Profile, storage?: ProfileStorageTarget): boolean {
   try {
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(normalizeProfile(profile)));
-    return true;
+    const target = storage ?? globalThis.localStorage;
+    const serialized = JSON.stringify(normalizeProfile(profile));
+    target.setItem(PROFILE_KEY, serialized);
+    return target.getItem(PROFILE_KEY) === serialized;
   } catch {
     return false;
   }
