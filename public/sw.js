@@ -153,7 +153,10 @@ self.addEventListener("fetch", (event) => {
     (async () => {
       try {
         const response = await fetch(request);
-        if (response.ok && cacheKey && responseMatchesCacheKey(cacheKey, response)) {
+        if (response.ok && cacheKey) {
+          if (!responseMatchesCacheKey(cacheKey, response)) {
+            return (await matchCurrentCache(cacheKey)) ?? Response.error();
+          }
           if (cacheKey !== "/" || await responseMatchesCurrentReleaseShell(response)) {
             await updateCurrentCache(cacheKey, response.clone());
           }

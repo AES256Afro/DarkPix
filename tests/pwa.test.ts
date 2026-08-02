@@ -328,7 +328,9 @@ describe("installable offline shell", () => {
       request: { method: "GET", mode: "cors", url: "https://darkpix.test/assets/app.js?fallback=1" },
       respondWith: (promise: Promise<unknown>) => { responsePromise = promise; },
     });
-    await expect(responsePromise).resolves.toBe(htmlFallback);
+    const rejectedRuntimeAsset = await responsePromise as Response;
+    expect(rejectedRuntimeAsset.type).toBe("error");
+    expect(rejectedRuntimeAsset.status).toBe(0);
     expect(put).toHaveBeenCalledTimes(1);
 
     const iconResponse = {
