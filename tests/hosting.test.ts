@@ -46,6 +46,8 @@ describe("production asset routing", () => {
     expect(deployScript.match(/rollback_previous_release \|\| true/g)?.length).toBeGreaterThanOrEqual(4);
     expect(deployScript).toContain("check_restored_public_routes()");
     expect(deployScript).toContain('"$public_url/version.txt?rollback=$previous_release"');
+    expect(deployScript).toContain('"$public_url/?rollback=$previous_release"');
+    expect(deployScript).toContain('<meta name=\\"darkpix-release\\" content=\\"$previous_release\\"');
     expect(deployScript).toContain("Automatic rollback restored loopback and public release");
     expect(deployScript).toContain("public route recovery was not verified");
   });

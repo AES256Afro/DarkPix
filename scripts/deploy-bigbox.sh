@@ -64,18 +64,22 @@ fi
 check_restored_public_routes() {
   [[ -n "$previous_release" ]] || return 0
   local public_url
+  local restored_html
   local restored_release
   for public_url in "${darkpix_public_urls[@]}"; do
     if command -v curl >/dev/null 2>&1; then
       restored_release="$(curl -fsS --max-time 8 "$public_url/version.txt?rollback=$previous_release" 2>/dev/null)" || return 1
       curl -fsS --max-time 8 "$public_url/healthz?rollback=$previous_release" >/dev/null 2>&1 || return 1
+      restored_html="$(curl -fsS --max-time 8 "$public_url/?rollback=$previous_release" 2>/dev/null)" || return 1
     elif command -v wget >/dev/null 2>&1; then
       restored_release="$(wget -q -T 8 -O - "$public_url/version.txt?rollback=$previous_release" 2>/dev/null)" || return 1
       wget -q -T 8 -O /dev/null "$public_url/healthz?rollback=$previous_release" 2>/dev/null || return 1
+      restored_html="$(wget -q -T 8 -O - "$public_url/?rollback=$previous_release" 2>/dev/null)" || return 1
     else
       return 1
     fi
     [[ "$restored_release" == "$previous_release" ]] || return 1
+    grep -Fq "<meta name=\"darkpix-release\" content=\"$previous_release\"" <<<"$restored_html" || return 1
   done
 }
 
