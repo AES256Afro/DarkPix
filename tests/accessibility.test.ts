@@ -18,6 +18,14 @@ describe("lobby accessibility contracts", () => {
     expect(styles).toContain(".class-card.selected, .raid-mode-picker button.selected, .stash-item.selected");
   });
 
+  it("restores the logical keyboard control after a lobby render", () => {
+    expect(mainSource).toContain("function focusedLobbySelector()");
+    expect(mainSource).toContain("const focusSelector = focusedLobbySelector()");
+    expect(mainSource).toContain("focus({ preventScroll: true })");
+    expect(mainSource).toContain('active.closest<HTMLElement>("[data-item-id]")');
+    expect(mainSource).toContain('"data-class-id", "data-raid-mode", "data-jump", "data-merchant-sku", "data-recipe-id", "data-preference", "data-save-action"');
+  });
+
   it("keeps an unsecured raid verdict visible and blocks lobby return until retry succeeds", () => {
     expect(mainSource).toContain('class="result-persistence" role="alert"');
     expect(mainSource).toContain('if (!verdictSecured) {');

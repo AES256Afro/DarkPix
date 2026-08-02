@@ -333,6 +333,23 @@ function refreshIdlePreferencesFromStorage(): void {
   renderLobby();
 }
 
+function focusedLobbySelector(): string | undefined {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement) || !app.contains(active)) return undefined;
+  const itemId = active.closest<HTMLElement>("[data-item-id]")?.dataset.itemId;
+  if (itemId && (active.classList.contains("risk-item") || active.classList.contains("sell-item"))) {
+    return `[data-item-id="${CSS.escape(itemId)}"] .${active.classList.contains("risk-item") ? "risk-item" : "sell-item"}`;
+  }
+  for (const attribute of ["data-class-id", "data-raid-mode", "data-jump", "data-merchant-sku", "data-recipe-id", "data-preference", "data-save-action"] as const) {
+    const value = active.getAttribute(attribute);
+    if (value !== null) return `[${attribute}="${CSS.escape(value)}"]`;
+  }
+  if (active.matches("[data-stash-sort]")) return "[data-stash-sort]";
+  if (active.matches(".descend-button")) return ".descend-button";
+  if (active.matches(".brand")) return ".brand";
+  return undefined;
+}
+
 function renderLobby(): void {
   if (foreignRaidLease) {
     renderForeignRaidLease();
@@ -348,6 +365,7 @@ function renderLobby(): void {
   }
   activeGame?.destroy();
   activeGame = undefined;
+  const focusSelector = focusedLobbySelector();
   lobbyEpoch += 1;
   const renderedLobbyEpoch = lobbyEpoch;
   if (raidEntryStatus(selectedRaidMode, profile.extracts, profile.gold, profile.ashenExtracts) !== "ready") selectedRaidMode = "standard";
@@ -792,6 +810,7 @@ function renderLobby(): void {
   descendButton?.addEventListener("focus", () => void loadGameModule());
   descendButton?.addEventListener("click", () => void startRaid());
   app.querySelector<HTMLAnchorElement>(".brand")?.addEventListener("click", (event) => event.preventDefault());
+  if (focusSelector) app.querySelector<HTMLElement>(focusSelector)?.focus({ preventScroll: true });
 }
 
 function refundFailedRaidStart(goldBeforeEntry: number): boolean {
