@@ -136,6 +136,7 @@ Status: Complete for the current map
 - Pause, teardown, and failed audio-context resume also stop and disconnect every active transient tone, preventing suspended combat audio from replaying after a later cursor rebind
 - Audio startup contains a disappearing context factory and explicitly stops and disconnects every partially created persistent node before closing a failed graph
 - High contrast strengthens darkness and checkpoint state, navigation, combat warnings, threat vitals, resources, and interaction panels; lobby selection semantics, keyboard focus, and forced-color outlines do not rely on hover or color alone
+- Vigor, stamina, and Hexbound memory expose bounded semantic progress values; non-casters do not encounter the inactive memory decoration, and transient event text is explicitly polite and atomic
 - Lobby rebuilds restore the logical keyboard control across class, contract, stash, merchant, crafting, settings, and idle cross-tab refreshes without forcing the viewport to jump
 - Terminal raid verdicts move focus to their labeled outcome heading, and a secured return places keyboard focus on the next-descent control
 - Initial entry, voluntary unlock, cursor rejection, focus loss, and renderer recovery keep keyboard focus on the visible Resume action while simulation remains paused

@@ -222,6 +222,17 @@ describe("lobby accessibility contracts", () => {
     expect(styles).toContain("var(--spell-fill, linear-gradient");
   });
 
+  it("exposes bounded raid resources as semantic progress while hiding unused spell memory", () => {
+    const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
+    expect(gameSource).toContain('class="bar health" role="progressbar" aria-label="Vigor"');
+    expect(gameSource).toContain('class="bar stamina" role="progressbar" aria-label="Stamina"');
+    expect(gameSource).toContain(`: 'aria-hidden="true"'`);
+    expect(gameSource).toContain('setAttributeIfChanged(this.healthBar, "aria-valuenow"');
+    expect(gameSource).toContain('setAttributeIfChanged(this.staminaBar, "aria-valuenow"');
+    expect(gameSource).toContain('setAttributeIfChanged(this.spellBar, "aria-valuenow"');
+    expect(gameSource).toContain('setAttributeIfChanged(this.spellBar, "aria-label"');
+  });
+
   it("keeps occluded movement cues separate from combat impact announcements", () => {
     expect(readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8")).toContain('class="sound-direction" role="status" aria-live="polite"');
     expect(styles).toContain(".raid-shell.high-contrast-hud .damage-direction, .raid-shell.high-contrast-hud .sound-direction");

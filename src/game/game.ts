@@ -288,6 +288,9 @@ export class DarkPixGame {
   private healthFill!: HTMLElement;
   private staminaFill!: HTMLElement;
   private spellFill!: HTMLElement;
+  private healthBar!: HTMLElement;
+  private staminaBar!: HTMLElement;
+  private spellBar!: HTMLElement;
   private spellLabelHud!: HTMLElement;
   private raidShell!: HTMLElement;
   private raidClock!: HTMLElement;
@@ -464,7 +467,7 @@ export class DarkPixGame {
               <span class="stealth-copy">unseen marks 0 / ${QUIET_KNIVES_TARGET} · steady</span>
             </section>
           </div>
-          <div class="event-feed" role="status"></div>
+          <div class="event-feed" role="status" aria-live="polite" aria-atomic="true"></div>
           <div class="threat-vitals" aria-live="polite"><strong></strong><div><i></i></div><small></small></div>
           <div class="crosshair" aria-hidden="true"><i></i><b></b><em></em><span></span></div>
           <div class="stealth-cue" aria-hidden="true"></div>
@@ -475,9 +478,9 @@ export class DarkPixGame {
             <section class="vitals">
               <div class="portrait-rune">${this.options.classId === "vanguard" ? "V" : this.options.classId === "cutpurse" ? "C" : this.options.classId === "hexbound" ? "H" : this.options.classId === "reaver" ? "R" : this.options.classId === "ranger" ? "A" : this.options.classId === "cleric" ? "L" : this.options.classId === "shapeshifter" ? "S" : "M"}</div>
               <div class="bars">
-                <div class="bar health"><i></i><span>VIGOR</span></div>
-                <div class="bar stamina"><i></i><span>STAMINA</span></div>
-                <div class="bar spells"><i></i><span>MEMORY${this.options.classId === "hexbound" ? " · ASH BOLT" : ""}</span></div>
+                <div class="bar health" role="progressbar" aria-label="Vigor" aria-valuemin="0" aria-valuemax="${this.maxHealth}" aria-valuenow="${this.maxHealth}"><i></i><span>VIGOR</span></div>
+                <div class="bar stamina" role="progressbar" aria-label="Stamina" aria-valuemin="0" aria-valuemax="${this.definition.maxStamina}" aria-valuenow="${this.definition.maxStamina}"><i></i><span>STAMINA</span></div>
+                <div class="bar spells" ${this.options.classId === "hexbound" ? `role="progressbar" aria-label="Ash Bolt spell memory" aria-valuemin="0" aria-valuemax="${this.maxSpellCharges}" aria-valuenow="${this.maxSpellCharges}"` : 'aria-hidden="true"'}><i></i><span>MEMORY${this.options.classId === "hexbound" ? " · ASH BOLT" : ""}</span></div>
               </div>
             </section>
             <section class="quick-slots">
@@ -514,6 +517,9 @@ export class DarkPixGame {
     this.healthFill = this.mount.querySelector<HTMLElement>(".health i")!;
     this.staminaFill = this.mount.querySelector<HTMLElement>(".stamina i")!;
     this.spellFill = this.mount.querySelector<HTMLElement>(".spells i")!;
+    this.healthBar = this.healthFill.parentElement!;
+    this.staminaBar = this.staminaFill.parentElement!;
+    this.spellBar = this.spellFill.parentElement!;
     this.spellLabelHud = this.mount.querySelector<HTMLElement>(".spells span")!;
     this.raidShell = this.mount.querySelector<HTMLElement>(".raid-shell")!;
     this.raidClock = this.mount.querySelector<HTMLElement>(".raid-clock")!;
@@ -3670,12 +3676,18 @@ export class DarkPixGame {
   private updateHud(): void {
     setStylePropertyIfChanged(this.healthFill, "width", `${Math.max(0, (this.health / this.maxHealth) * 100)}%`);
     setStylePropertyIfChanged(this.staminaFill, "width", `${(this.stamina / this.definition.maxStamina) * 100}%`);
-    this.staminaFill.parentElement?.classList.toggle("broken", this.guardBreakTimer > 0);
+    this.staminaBar.classList.toggle("broken", this.guardBreakTimer > 0);
     setStylePropertyIfChanged(this.spellFill, "width", `${this.options.classId === "hexbound" ? (this.spellCharges / this.maxSpellCharges) * 100 : 100}%`);
-    this.spellFill.parentElement?.classList.toggle("inactive", this.options.classId !== "hexbound");
+    this.spellBar.classList.toggle("inactive", this.options.classId !== "hexbound");
+    setAttributeIfChanged(this.healthBar, "aria-valuenow", String(Math.ceil(Math.max(0, Math.min(this.maxHealth, this.health)))));
+    setAttributeIfChanged(this.staminaBar, "aria-valuenow", String(Math.ceil(Math.max(0, Math.min(this.definition.maxStamina, this.stamina)))));
+    if (this.options.classId === "hexbound") {
+      setAttributeIfChanged(this.spellBar, "aria-valuenow", String(Math.ceil(Math.max(0, Math.min(this.maxSpellCharges, this.spellCharges)))));
+    }
     if (this.options.classId === "hexbound") {
       const spell = HEX_SPELLS[this.selectedSpell];
       setTextIfChanged(this.spellLabelHud, `MEMORY · ${spell.name.toUpperCase()}`);
+      setAttributeIfChanged(this.spellBar, "aria-label", `${spell.name} spell memory`);
       setStylePropertyIfChanged(this.spellFill, "--spell-fill", `#${spell.color.toString(16).padStart(6, "0")}`);
     }
     const floorRules = depthRules(this.depth);
