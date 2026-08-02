@@ -23,7 +23,7 @@ describe("installable offline shell", () => {
     expect(worker).toContain("await caches.delete(CACHE_NAME)");
     expect(worker).toContain("event.waitUntil(installCurrentRelease())");
     expect(worker).toContain("return cached ?? response");
-    expect(worker).toContain("await updateCurrentCache(request, response.clone())");
+    expect(worker).toContain("await updateCurrentCache(cacheKey, response.clone())");
     expect(worker).toContain("A full or unavailable cache must never replace a valid network response.");
     expect(worker).not.toContain("await caches.match(request)");
     const installHandler = worker.slice(worker.indexOf('addEventListener("install"'), worker.indexOf('addEventListener("activate"'));
@@ -112,5 +112,37 @@ describe("installable offline shell", () => {
       "https://darkpix.test/assets/chunk.js",
     ]);
     expect(put).toHaveBeenCalledTimes(4);
+  });
+
+  it("bounds runtime writes to owned shell and asset paths", async () => {
+    const handlers = new Map<string, (event: any) => void>();
+    const put = vi.fn(async () => undefined);
+    const cache = { match: vi.fn(async () => undefined), put };
+    const workerScope = {
+      location: { href: "https://darkpix.test/sw.js?v=bounded-release", origin: "https://darkpix.test" },
+      clients: { claim: vi.fn(async () => undefined) },
+      skipWaiting: vi.fn(async () => undefined),
+      addEventListener: (name: string, handler: (event: any) => void) => handlers.set(name, handler),
+    };
+    const cacheStorage = { open: vi.fn(async () => cache), keys: vi.fn(async () => []), delete: vi.fn(async () => true) };
+    const networkResponse = { ok: true, clone: () => networkResponse };
+    const fetchNetwork = vi.fn(async () => networkResponse);
+    new Function("self", "caches", "fetch", worker)(workerScope, cacheStorage, fetchNetwork);
+    const fetchHandler = handlers.get("fetch");
+    let responsePromise: Promise<unknown> | undefined;
+
+    fetchHandler?.({
+      request: { method: "GET", mode: "cors", url: "https://darkpix.test/api/unowned?variant=1" },
+      respondWith: (promise: Promise<unknown>) => { responsePromise = promise; },
+    });
+    await responsePromise;
+    expect(put).not.toHaveBeenCalled();
+
+    fetchHandler?.({
+      request: { method: "GET", mode: "cors", url: "https://darkpix.test/assets/app.js?variant=1" },
+      respondWith: (promise: Promise<unknown>) => { responsePromise = promise; },
+    });
+    await responsePromise;
+    expect(put).toHaveBeenCalledWith("/assets/app.js", networkResponse);
   });
 });

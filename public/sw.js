@@ -4,6 +4,7 @@ const RELEASE_ID = (new URL(self.location.href).searchParams.get("v") ?? "dev")
   .slice(0, 64) || "dev";
 const CACHE_NAME = `${CACHE_PREFIX}${RELEASE_ID}`;
 const SHELL_URLS = ["/", "/manifest.webmanifest", "/darkpix-icon.svg", "/assets/darkpix-title.jpg"];
+const SHELL_PATHS = new Set(SHELL_URLS);
 const QUOTED_ASSET_REFERENCE = /["']((?:\/assets\/|\.\/)[^"'\s)]+\.(?:js|css|jpg|png|svg|woff2?))["']/g;
 const CSS_ASSET_REFERENCE = /url\(\s*["']?((?:\/assets\/|\.\/)[^"'\s)]+\.(?:jpg|png|svg|woff2?))["']?\s*\)/g;
 
@@ -31,6 +32,12 @@ async function updateCurrentCache(request, response) {
   } catch {
     // A full or unavailable cache must never replace a valid network response.
   }
+}
+
+function runtimeCacheKey(request, url) {
+  if (request.mode === "navigate") return "/";
+  if (SHELL_PATHS.has(url.pathname) || url.pathname.startsWith("/assets/")) return url.pathname;
+  return undefined;
 }
 
 async function cacheBuildAssets() {
@@ -94,18 +101,19 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin || url.pathname === "/sw.js" || url.pathname === "/version.txt" || url.pathname === "/healthz") return;
+  const cacheKey = runtimeCacheKey(request, url);
   event.respondWith(
     (async () => {
       try {
         const response = await fetch(request);
-        if (response.ok) {
-          await updateCurrentCache(request, response.clone());
+        if (response.ok && cacheKey) {
+          await updateCurrentCache(cacheKey, response.clone());
           return response;
         }
-        const cached = await matchCurrentCache(request);
+        const cached = cacheKey ? await matchCurrentCache(cacheKey) : undefined;
         return cached ?? response;
       } catch {
-        const cached = await matchCurrentCache(request);
+        const cached = cacheKey ? await matchCurrentCache(cacheKey) : undefined;
         if (cached) return cached;
         if (request.mode === "navigate") return (await matchCurrentCache("/")) ?? Response.error();
         return Response.error();
