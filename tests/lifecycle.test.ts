@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LifecycleTimers, SingleFlightGate, lobbyOperationCurrent, pointerLockRequestAllowed, pointerLockResumesRaid, pointerLockTimeoutOutcome, raidDeadlineReached, raidFrameLoopActive, simulationFrameDelta } from "../src/game/lifecycle";
+import { LifecycleTimers, SingleFlightGate, lobbyOperationCurrent, pointerLockRequestAllowed, pointerLockResumesRaid, pointerLockTimeoutOutcome, raidDeadlineReached, raidDepartureNeedsWarning, raidFrameLoopActive, simulationFrameDelta } from "../src/game/lifecycle";
 
 afterEach(() => vi.useRealTimers());
 
@@ -82,6 +82,14 @@ describe("raid lifecycle", () => {
     expect(lobbyOperationCurrent(4, 4, true, false)).toBe(false);
     expect(lobbyOperationCurrent(4, 4, false, true)).toBe(false);
     expect(lobbyOperationCurrent(Number.NaN, Number.NaN, false, false)).toBe(false);
+  });
+
+  it("requests a native departure warning only while a risk journal is active", () => {
+    expect(raidDepartureNeedsWarning(1)).toBe(true);
+    expect(raidDepartureNeedsWarning(Date.now())).toBe(true);
+    expect(raidDepartureNeedsWarning(0)).toBe(false);
+    expect(raidDepartureNeedsWarning(-1)).toBe(false);
+    expect(raidDepartureNeedsWarning(Number.NaN)).toBe(false);
   });
 
   it("ends the terminal frame at the exact floor deadline", () => {

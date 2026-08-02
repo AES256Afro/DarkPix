@@ -41,6 +41,12 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain('"RETRY SECURING VERDICT"');
   });
 
+  it("requests the browser leave warning while an active raid journal remains at risk", () => {
+    expect(mainSource).toContain('window.addEventListener("beforeunload"');
+    expect(mainSource).toContain("raidDepartureNeedsWarning(activeRaidStartedAt)");
+    expect(mainSource).toContain('event.returnValue = ""');
+  });
+
   it("announces terminal verdicts and restores a useful lobby focus target", () => {
     expect(mainSource).toContain('aria-labelledby="raid-verdict-heading"');
     expect(mainSource).toContain('id="raid-verdict-heading" tabindex="-1"');

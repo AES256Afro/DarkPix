@@ -77,6 +77,10 @@ export function lobbyOperationCurrent(startedEpoch: number, currentEpoch: number
     && !raidActive;
 }
 
+export function raidDepartureNeedsWarning(activeRaidStartedAt: number): boolean {
+  return Number.isFinite(activeRaidStartedAt) && activeRaidStartedAt > 0;
+}
+
 export function raidDeadlineReached(elapsed: number, duration: number): boolean {
   if (!Number.isFinite(elapsed) || !Number.isFinite(duration) || duration <= 0) return true;
   return elapsed >= duration;

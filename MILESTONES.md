@@ -149,6 +149,7 @@ Status: Complete for the current map
 - Invalid or non-finite time and class-level inputs fail closed to a level-one, zero-time presentation instead of leaking `NaN` into raid statistics or combat bonuses
 - Lobby rebuilds restore the logical keyboard control across class, contract, stash, merchant, crafting, settings, and idle cross-tab refreshes without forcing the viewport to jump
 - Terminal raid verdicts move focus to their labeled outcome heading, and a secured return places keyboard focus on the next-descent control
+- Refreshing or closing an active raid, including an unsecured terminal verdict, requests the browser's native leave confirmation because the journal will settle the departure as an abandonment
 - Initial entry, voluntary unlock, cursor rejection, focus loss, and renderer recovery keep keyboard focus on the visible Resume action while simulation remains paused
 - Settled and superseded cursor-binding requests cancel their owned deadline immediately instead of retaining stale lifecycle callbacks
 - The full-screen raid pause is exposed as a labeled modal, and cursor-binding work shares one semantic busy state with the disabled Resume action

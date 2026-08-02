@@ -6,7 +6,7 @@ import { RAID_VARIATION_COUNT, raidVariationSeal, validRaidVariationSeed } from 
 import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MAX_CLASS_LEVEL, MERCHANT_OFFERS, RARITY_COLOR, createItemId, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses } from "./game/data";
 import { itemValueTotal, raidValueSummary } from "./game/economy";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
-import { SingleFlightGate, lobbyOperationCurrent } from "./game/lifecycle";
+import { SingleFlightGate, lobbyOperationCurrent, raidDepartureNeedsWarning } from "./game/lifecycle";
 import { PREFERENCES_KEY, loadPreferences, savePreferences } from "./game/preferences";
 import { browserStorageWritable, persistBeforeClearingEscrow } from "./game/persistence";
 import { BONE_BOUNTY_TARGET, PROFILE_KEY, RAID_ESCROW_KEY, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearOwnedRaidEscrow, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidEscrowOwnedBy, raidThreatKillLedger, raidXpBreakdown, renewRaidEscrow, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
@@ -1169,5 +1169,10 @@ window.addEventListener("storage", (event) => {
   }
   if (event.key === PROFILE_KEY) refreshIdleProfileFromStorage();
   if (event.key === PREFERENCES_KEY) refreshIdlePreferencesFromStorage();
+});
+window.addEventListener("beforeunload", (event) => {
+  if (!raidDepartureNeedsWarning(activeRaidStartedAt)) return;
+  event.preventDefault();
+  event.returnValue = "";
 });
 registerOfflineWorker();
