@@ -551,7 +551,7 @@ function renderLobby(): void {
                   </article>`;
                 }).join("")}
               </div>
-              <p class="merchant-notice" role="status">${escapeHtml(merchantNotice || "The ironmonger does not offer refunds.")}</p>
+              <p class="merchant-notice" role="status" aria-live="polite" aria-atomic="true">${escapeHtml(merchantNotice || "The ironmonger does not offer refunds.")}</p>
             </div>
           </section>
 

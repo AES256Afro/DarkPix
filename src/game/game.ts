@@ -462,7 +462,7 @@ export class DarkPixGame {
               <span class="eyebrow">${this.raidRules.name.toUpperCase()} CONTRACT · ${raidVariationSeal(this.variationSeed)}</span>
               <strong class="raid-clock" role="timer" aria-label="Floor time remaining">3:30</strong>
               <span class="zone-copy">darkness dormant</span>
-              <span class="journal-copy" role="status" aria-live="polite">journal secure</span>
+              <span class="journal-copy" role="status" aria-live="polite" aria-atomic="true">journal secure</span>
             </section>
             <div class="compass"><span class="compass-heading">N</span><strong class="wayfinder">WARDEN · SEEK</strong><span>⌖</span></div>
             <section class="objective-panel" aria-label="Raid objective">

@@ -171,6 +171,7 @@ Status: Complete for the current map
 - Incompatible-profile, unsecured-verdict, damaged-journal, and foreign-raid locks move focus to their first safe recovery action without selecting a destructive choice
 - A failed WebGL descent also moves focus to its safe return action after the loading lobby has been replaced
 - The persistent raid control strip names the class ability binding, and held Space cannot leak repeated scroll input while sidestep remains single-fire
+- Changing merchant, persistence, and raid-journal status messages are polite atomic announcements instead of partial text updates
 - The Ash Tollkeeper begins its annulus phase at full vigor and uses a tighter second-floor cadence
 
 Exit evidence: topology, collision, sightline, pathfinding, variation, combat-rule, and depth tests.

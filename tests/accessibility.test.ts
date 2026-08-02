@@ -26,6 +26,10 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain('`${classXp} XP · MAX`');
   });
 
+  it("announces the complete lobby merchant and persistence notice when it changes", () => {
+    expect(mainSource).toContain('class="merchant-notice" role="status" aria-live="polite" aria-atomic="true"');
+  });
+
   it("keeps every native control visibly focused and preserves selection in forced colors", () => {
     expect(styles).toContain("button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible");
     expect(styles).toContain("@media (forced-colors: active)");
@@ -318,6 +322,11 @@ describe("lobby accessibility contracts", () => {
     expect(gameSource).toContain('role="progressbar" aria-label="Threat vigor" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0"');
     expect(gameSource).toContain('setAttributeIfChanged(this.threatHealthBar, "aria-label", `${enemy.name} vigor`)');
     expect(gameSource).toContain('setAttributeIfChanged(this.threatHealthBar, "aria-valuenow", String(Math.max(0, enemy.hp)))');
+  });
+
+  it("announces the complete raid journal state when it changes", () => {
+    const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
+    expect(gameSource).toContain('class="journal-copy" role="status" aria-live="polite" aria-atomic="true"');
   });
 
   it("keeps occluded movement cues separate from combat impact announcements", () => {
