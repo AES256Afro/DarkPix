@@ -415,12 +415,14 @@ describe("persistent raid consequences", () => {
     expect(migrated.quietKnivesPaid).toBe(false);
   });
 
-  it("recognizes only the exact durable raid escrow settlement marker", () => {
+  it("recognizes every raid journal at or below the durable settlement high-water mark", () => {
     const profile = createProfile();
     const escrow = createRaidEscrow("vanguard", "standard", [], 1_700_000_000_000);
     expect(raidEscrowAlreadySettled(profile, escrow)).toBe(false);
     profile.lastSettledRaidStartedAt = escrow.startedAt;
     expect(raidEscrowAlreadySettled(profile, escrow)).toBe(true);
+    expect(raidEscrowAlreadySettled(profile, { ...escrow, startedAt: escrow.startedAt - 1 })).toBe(true);
+    expect(raidEscrowAlreadySettled(profile, { ...escrow, startedAt: escrow.startedAt + 1 })).toBe(false);
     expect(raidEscrowAlreadySettled(profile, { ...escrow, startedAt: 0 })).toBe(false);
   });
 
@@ -434,6 +436,8 @@ describe("persistent raid consequences", () => {
     expect(raidEscrowLeaseHeldByOther(escrow, "page-b", now + RAID_ESCROW_LEASE_MS)).toBe(false);
     expect(raidEscrowLeaseHeldByOther({ ownerId: undefined, heartbeatAt: undefined }, "page-b", now)).toBe(false);
     expect(raidEscrowLeaseHeldByOther({ ownerId: "page-a", heartbeatAt: now + 1_000 }, "page-b", now)).toBe(true);
+    expect(raidEscrowLeaseHeldByOther({ ownerId: "page-a", heartbeatAt: now + RAID_ESCROW_LEASE_MS }, "page-b", now)).toBe(false);
+    expect(raidEscrowLeaseHeldByOther({ ownerId: "page-a", heartbeatAt: now + 86_400_000 }, "page-b", now)).toBe(false);
   });
 
   it("allocates a raid marker distinct from the last settled journal in the same millisecond", () => {

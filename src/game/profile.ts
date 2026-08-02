@@ -459,8 +459,8 @@ export function raidEscrowLeaseHeldByOther(
 ): boolean {
   if (!escrow.ownerId || escrow.ownerId === ownerId || !Number.isFinite(escrow.heartbeatAt)) return false;
   if (!Number.isFinite(currentTimestamp) || currentTimestamp <= 0 || Number(escrow.heartbeatAt) <= 0) return false;
-  const age = Math.max(0, Number(currentTimestamp) - Number(escrow.heartbeatAt));
-  return age < RAID_ESCROW_LEASE_MS;
+  const age = Number(currentTimestamp) - Number(escrow.heartbeatAt);
+  return age > -RAID_ESCROW_LEASE_MS && age < RAID_ESCROW_LEASE_MS;
 }
 
 export function beginRaidEscrow(escrow: RaidEscrow): boolean {
@@ -509,7 +509,7 @@ export function clearRaidEscrow(): boolean {
 }
 
 export function raidEscrowAlreadySettled(profile: Pick<Profile, "lastSettledRaidStartedAt">, escrow: RaidEscrow): boolean {
-  return escrow.startedAt > 0 && profile.lastSettledRaidStartedAt === escrow.startedAt;
+  return escrow.startedAt > 0 && profile.lastSettledRaidStartedAt >= escrow.startedAt;
 }
 
 export function nextRaidStartedAt(currentTimestamp: number, lastSettledRaidStartedAt: number): number {

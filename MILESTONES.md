@@ -34,7 +34,8 @@ Status: Complete for local-first play
 - Already-open idle tabs observe the shared journal, invalidate pending lobby imports, and enter the same non-destructive lock as soon as another tab begins a leased raid
 - Idle tabs adopt durable profile writes from one another, discard stale sale intent, and keep only packed selections that still exist in the refreshed stash
 - Durable preferences also refresh across tabs only while the lobby is visible, leaving active raids, verdicts, and recovery screens undisturbed
-- An unsecured live or recovered verdict locks mutable lobby state behind a storage retry, while an exact settled-journal marker prevents a retained escrow from being applied twice
+- An unsecured live or recovered verdict locks mutable lobby state behind a storage retry, while the settled-journal high-water mark prevents an exact or older retained escrow from being applied twice
+- A future-dated heartbeat is trusted only within one 12-second lease window, preventing malformed or clock-shifted journals from indefinitely locking other tabs
 - Each new journal receives a marker beyond the last settled raid even when the system clock repeats a millisecond
 - Failed live checkpoints retry every three active seconds, expose a storage-only pause action, and announce durable recovery
 - The live HUD exposes checkpoint storage failure instead of silently leaving refresh recovery stale
