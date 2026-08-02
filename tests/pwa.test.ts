@@ -52,6 +52,34 @@ describe("installable offline shell", () => {
     expect(worker).not.toContain('const CACHE_NAME = "darkpix-runtime-v1"');
   });
 
+  it("claims a complete release even when obsolete cache cleanup fails", async () => {
+    const handlers = new Map<string, (event: { waitUntil(promise: Promise<unknown>): void }) => void>();
+    const claim = vi.fn(async () => undefined);
+    const deleteCache = vi.fn(async (key: string) => {
+      if (key.endsWith("old-release")) throw new Error("cache storage unavailable");
+      return true;
+    });
+    const workerScope = {
+      location: { href: "https://darkpix.test/sw.js?v=current-release", origin: "https://darkpix.test" },
+      clients: { claim },
+      skipWaiting: vi.fn(async () => undefined),
+      addEventListener: (name: string, handler: (event: { waitUntil(promise: Promise<unknown>): void }) => void) => handlers.set(name, handler),
+    };
+    const cacheStorage = {
+      open: vi.fn(),
+      keys: vi.fn(async () => ["darkpix-runtime-old-release", "darkpix-runtime-current-release", "unowned-cache"]),
+      delete: deleteCache,
+    };
+    new Function("self", "caches", "fetch", worker)(workerScope, cacheStorage, vi.fn());
+    let activation: Promise<unknown> | undefined;
+    handlers.get("activate")?.({ waitUntil: (promise) => { activation = promise; } });
+
+    await expect(activation).resolves.toBeUndefined();
+    expect(deleteCache).toHaveBeenCalledTimes(1);
+    expect(deleteCache).toHaveBeenCalledWith("darkpix-runtime-old-release");
+    expect(claim).toHaveBeenCalledOnce();
+  });
+
   it("rejects and cleans an incomplete release cache before activation", () => {
     const installFunction = worker.slice(worker.indexOf("async function installCurrentRelease"), worker.indexOf('self.addEventListener("install"'));
     expect(installFunction).toContain("await cacheBuildAssets()");

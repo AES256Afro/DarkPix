@@ -112,6 +112,7 @@ Status: Complete
 - Content security, framing, MIME, referrer, permissions, opener, resource, and transport headers
 - Immutable hashed assets with non-cacheable release identity and service worker
 - Release-isolated worker caches recover old hashed chunks from real asset 404s instead of accepting the HTML shell
+- A complete current worker still claims clients when obsolete-cache enumeration or deletion is unavailable; cleanup failure cannot invalidate its staged shell
 - Install and runtime cache writes reject response types that do not match their navigation, script, style, image, font, or manifest key, including every fixed shell entry staged by `addAll`
 - The public manifest is served as JSON, while the unversioned app icon and title image revalidate instead of inheriting a stale edge or one-year immutable response
 - CI-enforced compressed JavaScript, CSS, and entry-HTML performance budgets

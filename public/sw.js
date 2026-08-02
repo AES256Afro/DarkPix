@@ -120,12 +120,21 @@ self.addEventListener("install", (event) => {
   event.waitUntil(installCurrentRelease());
 });
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME).map((key) => caches.delete(key))))
-      .then(() => self.clients.claim()),
+async function activateCurrentRelease() {
+  let keys = [];
+  try {
+    keys = await caches.keys();
+  } catch {
+    // An intact current release can still activate when old-cache enumeration is unavailable.
+  }
+  await Promise.allSettled(
+    keys.filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME).map((key) => caches.delete(key)),
   );
+  await self.clients.claim();
+}
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(activateCurrentRelease());
 });
 
 self.addEventListener("message", (event) => {
