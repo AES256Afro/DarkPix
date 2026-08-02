@@ -117,6 +117,7 @@ The repository includes a hardened Docker and Nginx deployment for BigBox. It bi
 - Lazy-loaded, separately cached 3D runtime so the lobby arrives before the dungeon engine
 - Bounded adaptive internal resolution that responds gradually to sustained GPU frame pressure
 - Allocation-free wall and pillar scans for repeated sightline and projectile-path samples
+- Raid-owned coordinate scratch records for frame-hot awareness, rival, and stealth sight checks
 - Year-long immutable caching for every content-hashed production asset
 - Canvas-generated nearest-neighbor dungeon textures
 - Web Audio synthesis for the dungeon drone and action feedback

@@ -61,4 +61,11 @@ describe("raid resource cleanup", () => {
     expect(lineOfSight).toContain("dungeonCoordinatesCollide(x, z");
     expect(lineOfSight).not.toContain("dungeonCollides({");
   });
+
+  it("reuses coordinate records for repeated raid sight checks", () => {
+    expect(gameSource).toContain("private readonly scratchSightStart: Vec2");
+    expect(gameSource).toContain("private readonly scratchSightTarget: Vec2");
+    expect(gameSource).toContain("private hasDungeonSightBetween(");
+    expect(gameSource).not.toMatch(/this\.hasDungeonSight\(\s*\{ x:/);
+  });
 });

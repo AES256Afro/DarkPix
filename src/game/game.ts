@@ -228,6 +228,8 @@ export class DarkPixGame {
   private readonly scratchDirection: Vec2 = { x: 0, z: 0 };
   private readonly scratchInteractionFacing: Vec2 = { x: 0, z: 0 };
   private readonly scratchInteractionTarget: Vec2 = { x: 0, z: 0 };
+  private readonly scratchSightStart: Vec2 = { x: 0, z: 0 };
+  private readonly scratchSightTarget: Vec2 = { x: 0, z: 0 };
   private readonly audio: AudioDirector;
   private readonly lifecycleTimers = new LifecycleTimers();
   private readonly keys = new Set<string>();
@@ -1592,6 +1594,14 @@ export class DarkPixGame {
     return dungeonLineOfSight(start, target, radius, !this.falseWallOpened && !ignoreClosedSecretPassage);
   }
 
+  private hasDungeonSightBetween(startX: number, startZ: number, targetX: number, targetZ: number, radius = 0.06): boolean {
+    this.scratchSightStart.x = startX;
+    this.scratchSightStart.z = startZ;
+    this.scratchSightTarget.x = targetX;
+    this.scratchSightTarget.z = targetZ;
+    return this.hasDungeonSight(this.scratchSightStart, this.scratchSightTarget, radius);
+  }
+
   private findDungeonPath(start: Vec2, target: Vec2, radius = 0.3): Vec2[] {
     return dungeonPath(start, target, radius, 0.5, !this.falseWallOpened);
   }
@@ -1803,9 +1813,11 @@ export class DarkPixGame {
       const toEnemy = enemy.group.position.clone().add(new THREE.Vector3(0, 1.1, 0)).sub(cameraPosition);
       const distance = toEnemy.length();
       const cone = this.options.classId === "hexbound" ? 0.965 : this.options.classId === "ranger" ? 0.975 : strike.direction === "SWEEP" ? 0.72 : 0.86;
-      const visible = this.hasDungeonSight(
-        { x: cameraPosition.x, z: cameraPosition.z },
-        { x: enemy.group.position.x, z: enemy.group.position.z },
+      const visible = this.hasDungeonSightBetween(
+        cameraPosition.x,
+        cameraPosition.z,
+        enemy.group.position.x,
+        enemy.group.position.z,
       );
       if (distance <= this.definition.reach && visible && toEnemy.normalize().dot(forward) > cone && distance < bestDistance) {
         best = enemy;
@@ -2281,9 +2293,11 @@ export class DarkPixGame {
         this.moving,
         this.armorPower,
       );
-      if (this.phaseElapsed() >= depthRules(this.depth).spawnGrace && this.concealmentTimer <= 0 && distance < awareness && this.hasDungeonSight(
-        { x: player.x, z: player.z },
-        { x: enemy.group.position.x, z: enemy.group.position.z },
+      if (this.phaseElapsed() >= depthRules(this.depth).spawnGrace && this.concealmentTimer <= 0 && distance < awareness && this.hasDungeonSightBetween(
+        player.x,
+        player.z,
+        enemy.group.position.x,
+        enemy.group.position.z,
       )) enemy.alerted = true;
       if (!enemy.alerted && enemy.kind === "rival" && this.updateRivalSkirmish(enemy, delta)) continue;
       if (!enemy.alerted && enemy.kind === "rival" && this.updateRivalScavenging(enemy, delta)) continue;
@@ -2296,9 +2310,11 @@ export class DarkPixGame {
         enemy.windupFacing = undefined;
         continue;
       }
-      const hasSight = this.hasDungeonSight(
-        { x: player.x, z: player.z },
-        { x: enemy.group.position.x, z: enemy.group.position.z },
+      const hasSight = this.hasDungeonSightBetween(
+        player.x,
+        player.z,
+        enemy.group.position.x,
+        enemy.group.position.z,
         0.12,
       );
       if (enemy.kind === "boss" && bossRingActive(this.depth, Boolean(enemy.group.userData.enraged))) {
@@ -2496,9 +2512,11 @@ export class DarkPixGame {
         pickup.group.position.x - enemy.group.position.x,
         pickup.group.position.z - enemy.group.position.z,
       );
-      if (distance >= nearest || !this.hasDungeonSight(
-        { x: enemy.group.position.x, z: enemy.group.position.z },
-        { x: pickup.group.position.x, z: pickup.group.position.z },
+      if (distance >= nearest || !this.hasDungeonSightBetween(
+        enemy.group.position.x,
+        enemy.group.position.z,
+        pickup.group.position.x,
+        pickup.group.position.z,
         0.12,
       )) continue;
       nearest = distance;
@@ -2538,9 +2556,11 @@ export class DarkPixGame {
         candidate.group.position.x - rival.group.position.x,
         candidate.group.position.z - rival.group.position.z,
       );
-      if (distance >= nearest || rivalDungeonTactic(candidate.kind, distance, this.hasDungeonSight(
-        { x: rival.group.position.x, z: rival.group.position.z },
-        { x: candidate.group.position.x, z: candidate.group.position.z },
+      if (distance >= nearest || rivalDungeonTactic(candidate.kind, distance, this.hasDungeonSightBetween(
+        rival.group.position.x,
+        rival.group.position.z,
+        candidate.group.position.x,
+        candidate.group.position.z,
         0.12,
       )) === "ignore") continue;
       nearest = distance;
@@ -2588,9 +2608,11 @@ export class DarkPixGame {
       this.portal.position.x - enemy.group.position.x,
       this.portal.position.z - enemy.group.position.z,
     );
-    const atPassage = distance <= 1.45 && this.hasDungeonSight(
-      { x: enemy.group.position.x, z: enemy.group.position.z },
-      { x: this.portal.position.x, z: this.portal.position.z },
+    const atPassage = distance <= 1.45 && this.hasDungeonSightBetween(
+      enemy.group.position.x,
+      enemy.group.position.z,
+      this.portal.position.x,
+      this.portal.position.z,
       0.12,
     );
     if (atPassage && enemy.stagger <= 0) {
@@ -2898,9 +2920,11 @@ export class DarkPixGame {
       const targetHeight = enemy.kind === "crawler" || enemy.kind === "mimic" ? 0.72 : enemy.kind === "boss" ? 1.55 : 1.12;
       const toEnemy = enemy.group.position.clone().add(new THREE.Vector3(0, targetHeight, 0)).sub(cameraPosition);
       const distance = toEnemy.length();
-      const visible = this.hasDungeonSight(
-        { x: cameraPosition.x, z: cameraPosition.z },
-        { x: enemy.group.position.x, z: enemy.group.position.z },
+      const visible = this.hasDungeonSightBetween(
+        cameraPosition.x,
+        cameraPosition.z,
+        enemy.group.position.x,
+        enemy.group.position.z,
         0.12,
       );
       if (distance <= bestDistance && visible && toEnemy.normalize().dot(forward) > 0.978) {
@@ -3009,9 +3033,11 @@ export class DarkPixGame {
         enemy.alive &&
         sanctuaryDamage(enemy.kind) > 0 &&
         enemy.group.position.distanceTo(this.camera.position) <= 5 &&
-        this.hasDungeonSight(
-          { x: this.camera.position.x, z: this.camera.position.z },
-          { x: enemy.group.position.x, z: enemy.group.position.z },
+        this.hasDungeonSightBetween(
+          this.camera.position.x,
+          this.camera.position.z,
+          enemy.group.position.x,
+          enemy.group.position.z,
           0.12,
         ),
       );
@@ -3027,9 +3053,11 @@ export class DarkPixGame {
       const nearby = this.enemies.filter((enemy) =>
         enemy.alive &&
         enemy.group.position.distanceTo(this.camera.position) <= 6.5 &&
-        this.hasDungeonSight(
-          { x: this.camera.position.x, z: this.camera.position.z },
-          { x: enemy.group.position.x, z: enemy.group.position.z },
+        this.hasDungeonSightBetween(
+          this.camera.position.x,
+          this.camera.position.z,
+          enemy.group.position.x,
+          enemy.group.position.z,
           0.12,
         ),
       );
@@ -3619,9 +3647,11 @@ export class DarkPixGame {
       toEnemy.sub(cameraPosition);
       const distance = toEnemy.length();
       if (distance > maxReach || distance >= closest || toEnemy.normalize().dot(forward) <= 0.985) continue;
-      if (!this.hasDungeonSight(
-        { x: cameraPosition.x, z: cameraPosition.z },
-        { x: enemy.group.position.x, z: enemy.group.position.z },
+      if (!this.hasDungeonSightBetween(
+        cameraPosition.x,
+        cameraPosition.z,
+        enemy.group.position.x,
+        enemy.group.position.z,
       )) continue;
       target = enemy;
       closest = distance;
