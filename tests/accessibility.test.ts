@@ -62,7 +62,9 @@ describe("lobby accessibility contracts", () => {
 
   it("attaches recovery downloads before invoking the browser save action", () => {
     expect(mainSource).toContain("document.body.append(anchor)");
+    expect(mainSource).toContain("try {");
     expect(mainSource).toContain("anchor.click()");
+    expect(mainSource).toContain("} finally {");
     expect(mainSource).toContain("anchor.remove()");
     expect(mainSource).toContain("URL.revokeObjectURL(url)");
   });

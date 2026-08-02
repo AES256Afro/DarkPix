@@ -68,6 +68,7 @@ Status: Complete for local-first play
 - Class XP, contracts, bestiary ledgers, survival streaks, raid history, settings, and backup import/export survive compatible profile migrations
 - Save import is single-flight, bound to its originating idle lobby, and must durably store the profile before replacing in-memory state
 - Save backups and raw recovery evidence briefly attach their download link before cleanup, improving browser consistency without retaining generated object URLs
+- A rejected browser download action still removes its temporary link and schedules object-URL revocation through a guaranteed cleanup path
 - Unexpected file-import failures finish their single-flight ticket and restore only the originating idle lobby instead of leaving disabled controls or an unhandled rejection
 - Iron Soul failure clears the selected discipline's XP while preserving the rest of the profile
 
