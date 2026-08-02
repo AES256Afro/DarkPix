@@ -283,6 +283,11 @@ export function dungeonLineOfSight(start: Vec2, target: Vec2, radius = 0.06): bo
   return true;
 }
 
+export function dungeonProjectilePathClear(start: Vec2, target: Vec2, radius = 0.04): boolean {
+  if (![start.x, start.z, target.x, target.z, radius].every(Number.isFinite) || radius < 0) return false;
+  return !dungeonCollides(start, radius) && !dungeonCollides(target, radius) && dungeonLineOfSight(start, target, radius);
+}
+
 export function dartTrapTargetDistance(origin: Vec2, direction: Vec2, range: number, target: Vec2, laneRadius = 0.5): number {
   const directionLength = Math.hypot(direction.x, direction.z);
   if (!Number.isFinite(directionLength) || directionLength <= 0.001 || !Number.isFinite(range) || range <= 0) return Number.POSITIVE_INFINITY;

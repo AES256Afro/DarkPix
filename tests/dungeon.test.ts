@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DUNGEON, dartTrapTargetDistance, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists, encounterPosition, selectRaidVariation } from "../src/game/dungeon";
+import { DUNGEON, dartTrapTargetDistance, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists, dungeonProjectilePathClear, encounterPosition, selectRaidVariation } from "../src/game/dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES } from "../src/game/depth";
 import { channelInterruptionReason, continuousHold, targetDistanceInView } from "../src/game/targeting";
 import { cardinalDirection, circlesOverlap, directionalCue, movementOffset, passiveAwarenessRange, recoveryNeed, relativeDirectionToSource } from "../src/game/navigation";
@@ -58,6 +58,14 @@ describe("Crypt of the Pale Toll topology", () => {
   it("blocks sight through masonry while preserving an open-room sightline", () => {
     expect(dungeonLineOfSight(DUNGEON.playerStart, DUNGEON.campfire)).toBe(false);
     expect(dungeonLineOfSight(DUNGEON.playerStart, { x: -5, z: 12 })).toBe(true);
+  });
+
+  it("blocks projectile segments whose start, path, or endpoint touches masonry", () => {
+    expect(dungeonProjectilePathClear(DUNGEON.playerStart, { x: -5, z: 12 })).toBe(true);
+    expect(dungeonProjectilePathClear({ x: -9, z: 14 }, { x: -9.6, z: 14 })).toBe(false);
+    expect(dungeonProjectilePathClear({ x: -9.6, z: 14 }, { x: -9, z: 14 })).toBe(false);
+    expect(dungeonProjectilePathClear({ x: -9, z: 14 }, { x: -11, z: 14 })).toBe(false);
+    expect(dungeonProjectilePathClear({ x: Number.NaN, z: 0 }, { x: 0, z: 0 })).toBe(false);
   });
 
   it("places both readable trap layouts in open corridors", () => {

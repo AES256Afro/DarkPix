@@ -3,7 +3,7 @@ import { escapeHtml } from "../html";
 import { AudioDirector, footstepCadenceCrossed } from "./audio";
 import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, damageImpactAccepted, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat, type AttackDirection, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
-import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
+import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, dungeonProjectilePathClear, encounterPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
 import { HAUL_CAPACITY, RIVAL_EXTRACTION_SECONDS, advanceRivalExtraction, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, rivalShouldExtract, treasureGoldTotal } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, pickupDecision, type LoadoutStats } from "./loadout";
@@ -1832,7 +1832,7 @@ export class DarkPixGame {
       projectile.mesh.position.set(position.x, position.y, position.z);
       const nextPosition = playerProjectilePosition(projectile.start, projectile.end, projectile.elapsed + 0.02, projectile.duration, projectile.kind);
       projectile.mesh.lookAt(nextPosition.x, nextPosition.y, nextPosition.z);
-      if (!dungeonLineOfSight({ x: previous.x, z: previous.z }, position, 0.04)) {
+      if (!dungeonProjectilePathClear({ x: previous.x, z: previous.z }, position, 0.04)) {
         this.removePlayerProjectile(index);
         if (projectile.kind === "throwable") this.feed(`${projectile.thrownName ?? "Thrown weapon"} strikes the stone and is lost.`, "system");
         continue;
@@ -1960,7 +1960,7 @@ export class DarkPixGame {
       projectile.mesh.position.set(position.x, position.y, position.z);
       const next = enemyProjectilePosition(projectile.start, projectile.end, projectile.elapsed + 0.02, projectile.duration, projectile.kind);
       projectile.mesh.lookAt(next.x, next.y, next.z);
-      if (!dungeonLineOfSight({ x: previous.x, z: previous.z }, position, 0.04)) {
+      if (!dungeonProjectilePathClear({ x: previous.x, z: previous.z }, position, 0.04)) {
         this.removeEnemyProjectile(index);
         continue;
       }
