@@ -92,11 +92,21 @@ previous_title_sha=""
 if [[ -n "$previous_container_id" ]]; then
   previous_image_id="$(docker inspect --format '{{.Image}}' "$previous_container_id" 2>/dev/null || true)"
   previous_release="$(docker compose exec -T darkpix wget -q -O - http://127.0.0.1:8080/version.txt 2>/dev/null || true)"
-  previous_worker_sha="$(docker compose exec -T darkpix sha256sum /usr/share/nginx/html/sw.js 2>/dev/null | awk '{print $1}' || true)"
+  previous_worker_sha="$(container_file_sha sw.js || true)"
   previous_manifest_sha="$(container_file_sha manifest.webmanifest || true)"
   previous_icon_sha="$(container_file_sha darkpix-icon.svg || true)"
   previous_title_sha="$(container_file_sha assets/darkpix-title.jpg || true)"
-  if [[ -n "$previous_image_id" ]]; then docker image tag "$previous_image_id" darkpix-web:rollback; fi
+  if [[ -z "$previous_image_id" || ! "$previous_release" =~ ^[0-9a-f]{7,40}$ ]]; then
+    echo "Refusing to replace the running DarkPix container without a valid rollback image and release identity." >&2
+    exit 1
+  fi
+  for previous_fixed_sha in "$previous_worker_sha" "$previous_manifest_sha" "$previous_icon_sha" "$previous_title_sha"; do
+    if [[ ! "$previous_fixed_sha" =~ ^[0-9a-f]{64}$ ]]; then
+      echo "Refusing to replace the running DarkPix container because its fixed-shell rollback checksums are incomplete." >&2
+      exit 1
+    fi
+  done
+  docker image tag "$previous_image_id" darkpix-web:rollback
 fi
 
 check_restored_public_routes() {
@@ -221,7 +231,7 @@ if ! check_container_hardening "$darkpix_container_id"; then
 fi
 echo "DarkPix container hardening and resource limits verified from Docker runtime state."
 
-current_worker_sha="$(docker compose exec -T darkpix sha256sum /usr/share/nginx/html/sw.js | awk '{print $1}')"
+current_worker_sha="$(container_file_sha sw.js)"
 current_manifest_sha="$(container_file_sha manifest.webmanifest)"
 current_icon_sha="$(container_file_sha darkpix-icon.svg)"
 current_title_sha="$(container_file_sha assets/darkpix-title.jpg)"

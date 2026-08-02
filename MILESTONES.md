@@ -173,6 +173,7 @@ Status: Complete
 - CI and production image dependency installation suppress third-party package lifecycle scripts before tests and compilation
 - CI scans interface copy, source, dependency metadata, documentation, configuration, and tests for the project's prohibited U+2014 character before building, while binary artwork is excluded from text decoding
 - Every deploy rejects a dirty source tree, snapshots the prior image, inspects effective runtime hardening, verifies Cloudflare-uncached live health and release identity, real missing-asset 404s, executable MIME types, immutable caching, and container-matching bytes for every HTML-referenced build asset, and the exact commit through both `ne-gro.com` and `www.ne-gro.com`; rollback must prove the restored constraints, read-only method gate, version, HTML release marker, and both public routes before discarding its snapshot
+- A running service is not replaced until its prior image, release marker, worker, manifest, icon, and title checksums are captured as complete rollback evidence
 - Rollout and rollback hash the unversioned public service worker against the running container, preventing a stale but correctly headed worker from passing either route gate
 - Rollout and rollback also require the public manifest, app icon, and title art to match the running container byte for byte through both Cloudflare hostnames
 - Public write-method rejection is enforced by both curl and wget deployment-verification paths, including rollback recovery

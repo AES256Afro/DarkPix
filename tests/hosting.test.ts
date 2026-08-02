@@ -109,6 +109,14 @@ describe("production asset routing", () => {
     expect(deployScript).toContain("public route recovery was not verified");
   });
 
+  it("captures complete rollback evidence before replacing a running service", () => {
+    expect(deployScript).toContain('previous_worker_sha="$(container_file_sha sw.js || true)"');
+    expect(deployScript).toContain('! "$previous_release" =~ ^[0-9a-f]{7,40}$');
+    expect(deployScript).toContain('for previous_fixed_sha in "$previous_worker_sha" "$previous_manifest_sha" "$previous_icon_sha" "$previous_title_sha"');
+    expect(deployScript).toContain("fixed-shell rollback checksums are incomplete");
+    expect(deployScript.indexOf("for previous_fixed_sha")).toBeLessThan(deployScript.indexOf('docker image tag "$previous_image_id" darkpix-web:rollback'));
+  });
+
   it("refuses to attach a clean commit identity to modified source", () => {
     expect(deployScript).toContain('git status --porcelain --untracked-files=normal');
     expect(deployScript).toContain("Refusing to deploy a dirty DarkPix worktree because its release identity would be false.");
