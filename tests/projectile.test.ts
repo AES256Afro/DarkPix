@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { playerProjectileDuration, playerProjectilePosition, projectileImpactConnects, projectileSegmentConnects } from "../src/game/projectile";
+import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileImpactConnects, projectileSegmentConnects } from "../src/game/projectile";
 
 describe("player projectile travel", () => {
   it("gives arrows and spells bounded nonzero travel time", () => {
@@ -24,6 +24,22 @@ describe("player projectile travel", () => {
     expect(projectileImpactConnects(impact, { x: 2.3, z: 4.2 }, 0.5)).toBe(true);
     expect(projectileImpactConnects(impact, { x: 2.6, z: 4 }, 0.5)).toBe(false);
     expect(projectileImpactConnects(impact, { x: Number.NaN, z: 4 }, 0.5)).toBe(false);
+  });
+
+  it("gives hostile knives and chains their own readable approach window", () => {
+    expect(enemyProjectileDuration(6.5, "knife")).toBe(0.5);
+    expect(enemyProjectileDuration(5, "chain")).toBe(0.5);
+    expect(enemyProjectilePosition({ x: 0, y: 1, z: 0 }, { x: 0, y: 1, z: 5 }, 0.5, 1, "chain")).toEqual({ x: 0, y: 1, z: 2.5 });
+    expect(enemyProjectilePosition({ x: 0, y: 1, z: 0 }, { x: 0, y: 1, z: 5 }, 0.5, 1, "knife")).toEqual({ x: 0, y: 1.14, z: 2.5 });
+  });
+
+  it("resolves incoming defense at impact and never parries a keeper chain", () => {
+    expect(enemyProjectileDefense("knife", true, true, 0.12)).toBe("parry");
+    expect(enemyProjectileDefense("knife", true, true, 0.24)).toBe("guard");
+    expect(enemyProjectileDefense("chain", true, true, 0.04)).toBe("guard");
+    expect(enemyProjectileDefense("knife", true, false, 0.04)).toBe("hit");
+    expect(enemyProjectileDefense("knife", false, true, 0.04)).toBe("hit");
+    expect(enemyProjectileDefense("knife", true, true, Number.NaN)).toBe("guard");
   });
 
   it("detects a threat crossed by a fast projectile without tunneling", () => {

@@ -1,4 +1,6 @@
 export type PlayerProjectileKind = "arrow" | "spell" | "throwable";
+export type EnemyProjectileKind = "knife" | "chain";
+export type EnemyProjectileDefense = "parry" | "guard" | "hit";
 
 export interface ProjectilePoint {
   x: number;
@@ -10,6 +12,33 @@ export function playerProjectileDuration(distance: number, kind: PlayerProjectil
   const safeDistance = Number.isFinite(distance) ? Math.max(0, distance) : 0;
   const speed = kind === "arrow" ? 18 : kind === "throwable" ? 15 : 13;
   return Math.min(1.25, Math.max(0.12, safeDistance / speed));
+}
+
+export function enemyProjectileDuration(distance: number, kind: EnemyProjectileKind): number {
+  const safeDistance = Number.isFinite(distance) ? Math.max(0, distance) : 0;
+  return Math.min(1.15, Math.max(0.14, safeDistance / (kind === "knife" ? 13 : 10)));
+}
+
+export function enemyProjectilePosition(
+  start: ProjectilePoint,
+  end: ProjectilePoint,
+  elapsed: number,
+  duration: number,
+  kind: EnemyProjectileKind,
+): ProjectilePoint {
+  const position = playerProjectilePosition(start, end, elapsed, duration, kind === "knife" ? "throwable" : "spell");
+  return kind === "knife" ? { ...position, y: position.y - Math.sin(Math.min(1, Math.max(0, elapsed / Math.max(0.14, duration))) * Math.PI) * 0.06 } : position;
+}
+
+export function enemyProjectileDefense(
+  kind: EnemyProjectileKind,
+  blocking: boolean,
+  facingSource: boolean,
+  blockAge: number,
+): EnemyProjectileDefense {
+  if (!blocking || !facingSource) return "hit";
+  if (kind === "knife" && Number.isFinite(blockAge) && blockAge >= 0 && blockAge < 0.24) return "parry";
+  return "guard";
 }
 
 export function playerProjectilePosition(

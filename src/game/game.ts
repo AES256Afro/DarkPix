@@ -20,7 +20,7 @@ import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, poi
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
 import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
-import { playerProjectileDuration, playerProjectilePosition, projectileSegmentConnects, type PlayerProjectileKind } from "./projectile";
+import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileSegmentConnects, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
 import { DARKNESS_PULSE_SECONDS, darknessPulseReady, directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "./zone";
 
@@ -85,6 +85,19 @@ interface PlayerProjectile {
   strike?: PendingStrike;
   thrownDamage?: number;
   thrownName?: string;
+}
+
+interface EnemyProjectile {
+  mesh: THREE.Mesh;
+  material: THREE.MeshStandardMaterial;
+  kind: EnemyProjectileKind;
+  start: THREE.Vector3;
+  end: THREE.Vector3;
+  elapsed: number;
+  duration: number;
+  sourceId: number;
+  sourceName: string;
+  damage: number;
 }
 
 interface Pickup {
@@ -319,6 +332,7 @@ export class DarkPixGame {
   private swingDirection: AttackDirection = "THRUST";
   private pendingStrike?: PendingStrike;
   private readonly playerProjectiles: PlayerProjectile[] = [];
+  private readonly enemyProjectiles: EnemyProjectile[] = [];
   private mouseAccumulator = { x: 0, y: 0 };
   private yaw = 0;
   private pitch = 0;
@@ -1424,6 +1438,8 @@ export class DarkPixGame {
     if (this.ended) return;
     this.updateEnemies(delta);
     if (this.ended) return;
+    this.updateEnemyProjectiles(delta);
+    if (this.ended) return;
     this.updateEnemyFootsteps();
     this.updateZone(delta);
     if (this.ended) return;
@@ -1937,36 +1953,97 @@ export class DarkPixGame {
     while (this.playerProjectiles.length) this.removePlayerProjectile(this.playerProjectiles.length - 1);
   }
 
-  private spawnRivalKnife(enemy: Enemy): void {
+  private launchEnemyProjectile(enemy: Enemy, kind: EnemyProjectileKind, damage: number): void {
     const start = enemy.group.position.clone().add(new THREE.Vector3(0, 1.25, 0));
     const end = this.camera.position.clone().add(new THREE.Vector3(0, -0.2, 0));
-    const distance = start.distanceTo(end);
-    const knifeMaterial = material(0xa59b8d, 0x3b2921);
-    const knife = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.065, Math.max(0.2, distance)), knifeMaterial);
-    knife.position.copy(start).lerp(end, 0.5);
-    knife.lookAt(end);
-    this.scene.add(knife);
-    this.lifecycleTimers.schedule(() => {
-      this.scene.remove(knife);
-      knife.geometry.dispose();
-      knifeMaterial.dispose();
-    }, 95);
+    if (kind === "chain") {
+      start.y = enemy.group.position.y + 1.35;
+      end.y = this.camera.position.y - 0.28;
+    }
+    const projectileMaterial = material(kind === "chain" ? 0x796554 : 0xa59b8d, kind === "chain" ? 0x301712 : 0x3b2921);
+    const projectile = new THREE.Mesh(
+      new THREE.BoxGeometry(kind === "chain" ? 0.13 : 0.065, kind === "chain" ? 0.13 : 0.065, kind === "chain" ? 0.62 : 0.34),
+      projectileMaterial,
+    );
+    projectile.position.copy(start);
+    projectile.lookAt(end);
+    this.scene.add(projectile);
+    this.enemyProjectiles.push({
+      mesh: projectile,
+      material: projectileMaterial,
+      kind,
+      start,
+      end,
+      elapsed: 0,
+      duration: enemyProjectileDuration(start.distanceTo(end), kind),
+      sourceId: enemy.id,
+      sourceName: enemy.name,
+      damage,
+    });
   }
 
-  private spawnBossChain(enemy: Enemy): void {
-    const start = enemy.group.position.clone().add(new THREE.Vector3(0, 1.35, 0));
-    const end = this.camera.position.clone().add(new THREE.Vector3(0, -0.28, 0));
-    const distance = start.distanceTo(end);
-    const chainMaterial = material(0x796554, 0x301712);
-    const chain = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, Math.max(0.3, distance)), chainMaterial);
-    chain.position.copy(start).lerp(end, 0.5);
-    chain.lookAt(end);
-    this.scene.add(chain);
-    this.lifecycleTimers.schedule(() => {
-      this.scene.remove(chain);
-      chain.geometry.dispose();
-      chainMaterial.dispose();
-    }, 130);
+  private updateEnemyProjectiles(delta: number): void {
+    for (let index = this.enemyProjectiles.length - 1; index >= 0; index -= 1) {
+      const projectile = this.enemyProjectiles[index]!;
+      const previous = projectile.mesh.position.clone();
+      projectile.elapsed = Math.min(projectile.duration, projectile.elapsed + delta);
+      const position = enemyProjectilePosition(projectile.start, projectile.end, projectile.elapsed, projectile.duration, projectile.kind);
+      projectile.mesh.position.set(position.x, position.y, position.z);
+      const next = enemyProjectilePosition(projectile.start, projectile.end, projectile.elapsed + 0.02, projectile.duration, projectile.kind);
+      projectile.mesh.lookAt(next.x, next.y, next.z);
+      if (!dungeonLineOfSight({ x: previous.x, z: previous.z }, position, 0.04)) {
+        this.removeEnemyProjectile(index);
+        continue;
+      }
+      if (projectileSegmentConnects(previous, position, this.camera.position, PLAYER_RADIUS + 0.18)) {
+        this.removeEnemyProjectile(index);
+        this.resolveEnemyProjectileHit(projectile);
+        if (this.ended) return;
+        continue;
+      }
+      if (projectile.elapsed >= projectile.duration) {
+        this.removeEnemyProjectile(index);
+        this.feed(`${projectile.kind === "chain" ? "CHAIN EVADED" : "MISSILE EVADED"} · the committed line passes`, "system");
+      }
+    }
+  }
+
+  private resolveEnemyProjectileHit(projectile: EnemyProjectile): void {
+    const source = this.enemies.find((enemy) => enemy.id === projectile.sourceId);
+    const guardFacing = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    const facingSource = guardFacesThreat(
+      { x: guardFacing.x, z: guardFacing.z },
+      { x: projectile.start.x - this.camera.position.x, z: projectile.start.z - this.camera.position.z },
+    );
+    const defense = enemyProjectileDefense(projectile.kind, this.blocking, facingSource, this.blockAge);
+    if (defense === "parry") {
+      if (source?.alive) {
+        source.stagger = Math.max(source.stagger, 1);
+        source.cooldown = Math.max(source.cooldown, 0.8);
+      }
+      this.drainGuard(5);
+      if (riposteDamageMultiplier(this.options.classId, RIPOSTE_DURATION_SECONDS) > 1) this.riposteTimer = RIPOSTE_DURATION_SECONDS;
+      this.feed(`PARRIED · ${projectile.sourceName}'s knife is turned${this.riposteTimer > 0 ? " · riposte ready" : ""}`, "system");
+      this.audio.tone(780, 0.12, "square", 0.13);
+      return;
+    }
+    const guardingAttack = defense === "guard";
+    const reduction = guardingAttack ? (this.options.classId === "hexbound" ? 0.45 : 0.72) : 0;
+    this.hurt(projectile.damage * (1 - reduction), projectile.sourceName, true, { x: projectile.start.x, z: projectile.start.z });
+    if (this.ended) return;
+    if (guardingAttack) this.drainGuard(projectile.damage * 0.75);
+  }
+
+  private removeEnemyProjectile(index: number): void {
+    const [projectile] = this.enemyProjectiles.splice(index, 1);
+    if (!projectile) return;
+    this.scene.remove(projectile.mesh);
+    projectile.mesh.geometry.dispose();
+    projectile.material.dispose();
+  }
+
+  private clearEnemyProjectiles(): void {
+    while (this.enemyProjectiles.length) this.removeEnemyProjectile(this.enemyProjectiles.length - 1);
   }
 
   private damageEnemy(
@@ -2184,8 +2261,11 @@ export class DarkPixGame {
           continue;
         }
 
-        if (enemy.kind === "rival" && enemy.attackStyle === "ranged") this.spawnRivalKnife(enemy);
-        if (enemy.kind === "boss" && rangedAttack) this.spawnBossChain(enemy);
+        if (rangedAttack) {
+          const projectileDamage = enemy.kind === "boss" ? Math.round(enemy.damage * 0.68) : enemy.damage;
+          this.launchEnemyProjectile(enemy, enemy.kind === "boss" ? "chain" : "knife", projectileDamage);
+          continue;
+        }
         const guardFacing = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
         const facingThreat = guardFacesThreat(
           { x: guardFacing.x, z: guardFacing.z },
@@ -3231,6 +3311,7 @@ export class DarkPixGame {
     this.descendHeld = false;
     this.clearHeldInputs();
     this.clearPlayerProjectiles();
+    this.clearEnemyProjectiles();
 
     for (const enemy of this.enemies) {
       if (!enemy.alive) continue;
@@ -3551,6 +3632,7 @@ export class DarkPixGame {
     this.abandonButton.removeEventListener("click", this.onAbandonRaid);
     this.audio.stop();
     this.clearPlayerProjectiles();
+    this.clearEnemyProjectiles();
     disposeSceneResources(this.scene);
     this.renderer.renderLists.dispose();
     this.renderer.dispose();
