@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createItemId, createLoot, createSigil, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
-import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, MAX_RAID_LOOT_ITEMS, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeProfile, normalizeRaidEscrow, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidThreatKillLedger, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
+import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, MAX_RAID_LOOT_ITEMS, RAID_ESCROW_LEASE_MS, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeProfile, normalizeRaidEscrow, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidThreatKillLedger, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, firstRunPreferences, normalizePreferences } from "../src/game/preferences";
 import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, damageImpactAccepted, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat } from "../src/game/combat";
 import type { RaidResult } from "../src/game/types";
@@ -422,6 +422,18 @@ describe("persistent raid consequences", () => {
     profile.lastSettledRaidStartedAt = escrow.startedAt;
     expect(raidEscrowAlreadySettled(profile, escrow)).toBe(true);
     expect(raidEscrowAlreadySettled(profile, { ...escrow, startedAt: 0 })).toBe(false);
+  });
+
+  it("protects a recently heartbeating raid journal from other page owners", () => {
+    const now = 1_700_000_000_000;
+    const escrow = createRaidEscrow("vanguard", "standard", [], now, 1, 0, 75, {}, 0, 0, "page-a", now - 1_000);
+    expect(escrow).toMatchObject({ ownerId: "page-a", heartbeatAt: now - 1_000 });
+    expect(normalizeRaidEscrow(escrow)).toMatchObject({ ownerId: "page-a", heartbeatAt: now - 1_000 });
+    expect(raidEscrowLeaseHeldByOther(escrow, "page-b", now)).toBe(true);
+    expect(raidEscrowLeaseHeldByOther(escrow, "page-a", now)).toBe(false);
+    expect(raidEscrowLeaseHeldByOther(escrow, "page-b", now + RAID_ESCROW_LEASE_MS)).toBe(false);
+    expect(raidEscrowLeaseHeldByOther({ ownerId: undefined, heartbeatAt: undefined }, "page-b", now)).toBe(false);
+    expect(raidEscrowLeaseHeldByOther({ ownerId: "page-a", heartbeatAt: now + 1_000 }, "page-b", now)).toBe(true);
   });
 
   it("allocates a raid marker distinct from the last settled journal in the same millisecond", () => {

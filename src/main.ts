@@ -9,7 +9,7 @@ import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEq
 import { SingleFlightGate, lobbyOperationCurrent } from "./game/lifecycle";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { browserStorageWritable, persistBeforeClearingEscrow } from "./game/persistence";
-import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
+import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
 import { rarityMark } from "./game/rarity";
 import { QUIET_KNIVES_REWARD, QUIET_KNIVES_TARGET } from "./game/stealth";
@@ -21,6 +21,9 @@ if (!foundApp) throw new Error("DarkPix application root is missing");
 const app = foundApp;
 const release = import.meta.env.VITE_DARKPIX_VERSION || "dev";
 document.documentElement.style.setProperty("--title-art", `url("/assets/darkpix-title.jpg?v=${encodeURIComponent(release)}")`);
+const raidOwnerId = typeof crypto.randomUUID === "function"
+  ? crypto.randomUUID()
+  : `page-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const CLASS_RUNES: Record<ClassId, string> = { vanguard: "V", cutpurse: "C", hexbound: "H", reaver: "R", ranger: "A", cleric: "L", shapeshifter: "S", minstrel: "M" };
 const storageWritableAtStart = browserStorageWritable();
 const profileLoad = loadProfileState();
@@ -32,6 +35,7 @@ let selectedClass: ClassId = profile.preferredClass;
 let selectedRaidMode: RaidMode = "standard";
 let equippedIds = new Set<string>();
 let activeGame: DarkPixGame | undefined;
+let raidHeartbeatTimer: number | undefined;
 let merchantNotice = "";
 let pendingSaleId: string | undefined;
 let persistenceWarning = profileLoad.status === "corrupt"
@@ -54,8 +58,11 @@ const raidLaunchGate = new SingleFlightGate();
 const saveImportGate = new SingleFlightGate();
 
 const interruptedRaid = raidEscrowLoad?.escrow;
+let foreignRaidLease = Boolean(interruptedRaid && raidEscrowLeaseHeldByOther(interruptedRaid, raidOwnerId, Date.now()));
 if (interruptedRaid) {
-  if (raidEscrowAlreadySettled(profile, interruptedRaid)) {
+  if (foreignRaidLease) {
+    merchantNotice = "A raid is active in another DarkPix tab. This tab will not touch its gear or journal.";
+  } else if (raidEscrowAlreadySettled(profile, interruptedRaid)) {
     if (clearRaidEscrow()) merchantNotice = "A completed raid journal was reconciled without repeating its verdict.";
     else persistenceWarning = "A completed raid journal could not be removed, but its verdict marker prevents repeat settlement.";
   } else {
@@ -73,6 +80,11 @@ if (interruptedRaid) {
       persistenceWarning = "The interrupted raid verdict is not durable yet. Lobby actions are locked to prevent duplicate settlement.";
     }
   }
+}
+
+function stopRaidHeartbeat(): void {
+  if (raidHeartbeatTimer !== undefined) window.clearInterval(raidHeartbeatTimer);
+  raidHeartbeatTimer = undefined;
 }
 
 function loadGameModule(): Promise<typeof import("./game/game")> {
@@ -241,7 +253,16 @@ function renderDamagedRaidJournalRecovery(): void {
   });
 }
 
+function renderForeignRaidLease(): void {
+  app.innerHTML = `<main class="game-mount" aria-label="DarkPix raid active in another tab"><section class="runtime-error persistence-recovery"><span>⌛</span><h1>ANOTHER TORCH IS BELOW</h1><p role="alert">A live raid in another DarkPix tab owns the active journal. This tab is locked so it cannot settle, overwrite, or clear that raid's gear risk. Finish or close the other raid, wait a few seconds, then check again.</p><button type="button">CHECK RAID JOURNAL AGAIN</button></section></main>`;
+  app.querySelector<HTMLButtonElement>("button")?.addEventListener("click", () => location.reload());
+}
+
 function renderLobby(): void {
+  if (foreignRaidLease) {
+    renderForeignRaidLease();
+    return;
+  }
   if (damagedRaidJournal !== undefined) {
     renderDamagedRaidJournalRecovery();
     return;
@@ -698,6 +719,7 @@ function renderLobby(): void {
 }
 
 function refundFailedRaidStart(goldBeforeEntry: number): boolean {
+  stopRaidHeartbeat();
   profile.gold = goldBeforeEntry;
   if (activeRaidStartedAt > 0) profile.lastSettledRaidStartedAt = activeRaidStartedAt;
   if (!saveProfile(profile)) return false;
@@ -717,6 +739,13 @@ async function startRaid(): Promise<void> {
   let securedGoldBeforeEntry: number | undefined;
   let mount: HTMLElement | null = null;
   try {
+    const existingJournal = loadRaidEscrowState();
+    if (existingJournal.status !== "missing") {
+      foreignRaidLease = true;
+      merchantNotice = "Another raid journal appeared before descent. Reload to reconcile it before risking gear.";
+      renderLobby();
+      return;
+    }
     const descendButton = app.querySelector<HTMLButtonElement>(".descend-button");
     if (descendButton) {
       descendButton.disabled = true;
@@ -749,13 +778,22 @@ async function startRaid(): Promise<void> {
     securedGoldBeforeEntry = goldBeforeEntry;
     const variationSeed = Math.floor(Math.random() * RAID_VARIATION_COUNT);
     const startedAt = nextRaidStartedAt(Date.now(), profile.lastSettledRaidStartedAt);
-    let escrow = createRaidEscrow(classId, raidMode, equipped.map((item) => item.id), startedAt, 1, 0, goldBeforeEntry, {}, variationSeed);
+    let escrow = createRaidEscrow(classId, raidMode, equipped.map((item) => item.id), startedAt, 1, 0, goldBeforeEntry, {}, variationSeed, 0, raidOwnerId, Date.now());
     if (!beginRaidEscrow(escrow)) {
       persistenceWarning = "The browser could not secure a raid escrow. No fee was charged and the raid did not start.";
       renderLobby();
       return;
     }
     activeRaidStartedAt = escrow.startedAt;
+    stopRaidHeartbeat();
+    raidHeartbeatTimer = window.setInterval(() => {
+      if (activeGame) {
+        activeGame.refreshJournalLease();
+        return;
+      }
+      escrow = createRaidEscrow(escrow.classId, escrow.raidMode, escrow.equippedIds, escrow.startedAt, escrow.depthReached, escrow.kills, escrow.goldBeforeEntry, escrow.killsByKind, escrow.variationSeed, escrow.unseenStrikes, raidOwnerId, Date.now());
+      if (!beginRaidEscrow(escrow)) console.warn("DarkPix could not renew the loading raid escrow lease");
+    }, 3_000);
     profile.gold = escrow.goldAfterEntry ?? Math.max(0, goldBeforeEntry - rules.entryFee);
     if (!saveProfile(profile)) {
       profile.gold = goldBeforeEntry;
@@ -791,7 +829,7 @@ async function startRaid(): Promise<void> {
       preferences: raidPreferences,
       variationSeed,
       onCheckpoint: (depthReached, kills, killsByKind, unseenStrikes) => {
-        escrow = createRaidEscrow(escrow.classId, escrow.raidMode, escrow.equippedIds, escrow.startedAt, depthReached, kills, escrow.goldBeforeEntry, killsByKind, escrow.variationSeed, unseenStrikes);
+        escrow = createRaidEscrow(escrow.classId, escrow.raidMode, escrow.equippedIds, escrow.startedAt, depthReached, kills, escrow.goldBeforeEntry, killsByKind, escrow.variationSeed, unseenStrikes, raidOwnerId, Date.now());
         const saved = beginRaidEscrow(escrow);
         if (!saved) console.warn("DarkPix could not update the active raid escrow checkpoint");
         return saved;
@@ -812,6 +850,7 @@ async function startRaid(): Promise<void> {
 }
 
 function finishRaid(result: RaidResult): void {
+  stopRaidHeartbeat();
   activeGame?.destroy();
   activeGame = undefined;
   const settledAt = Date.now();

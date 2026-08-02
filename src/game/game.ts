@@ -2206,6 +2206,10 @@ export class DarkPixGame {
     }
   }
 
+  refreshJournalLease(): void {
+    if (!this.ended) this.checkpointRaid();
+  }
+
   private updateJournalRetry(delta: number): void {
     const retry = advanceJournalRetry(this.journalSecure, this.journalRetryTimer, delta);
     this.journalRetryTimer = retry.remaining;

@@ -38,6 +38,12 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain('if (damagedRaidJournal !== undefined)');
   });
 
+  it("locks a foreign live raid journal without offering a destructive action", () => {
+    expect(mainSource).toContain("renderForeignRaidLease");
+    expect(mainSource).toContain("This tab is locked so it cannot settle, overwrite, or clear that raid's gear risk.");
+    expect(mainSource).toContain("CHECK RAID JOURNAL AGAIN");
+  });
+
   it("recovers an update prompt after another tab activates its worker", () => {
     expect(mainSource).toContain("const waitingWorker = updateRegistration?.waiting");
     expect(mainSource).toContain("RELOADING APPLIED UPDATE...");

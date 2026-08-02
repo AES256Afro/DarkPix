@@ -17,6 +17,7 @@ export const MAX_ITEM_VALUE = 99_999;
 export const MAX_RAID_SIGILS = 4;
 export const MAX_RAID_LOOT_ITEMS = HAUL_CAPACITY + MAX_RAID_SIGILS;
 export const MAX_RAID_CLOCK_SKEW_MS = 5 * 60 * 1_000;
+export const RAID_ESCROW_LEASE_MS = 12_000;
 const MAX_CLASS_XP = 99_999_999;
 const MAX_OUTCOME_COUNT = 9_999_999;
 export const RAID_HISTORY_LIMIT = 10;
@@ -390,6 +391,8 @@ export interface RaidEscrow {
   entryFee: number;
   goldBeforeEntry?: number;
   goldAfterEntry?: number;
+  ownerId?: string;
+  heartbeatAt?: number;
 }
 
 export function createRaidEscrow(
@@ -403,6 +406,8 @@ export function createRaidEscrow(
   killsByKind: Partial<Record<ThreatKind, number>> = {},
   variationSeed?: number,
   unseenStrikes = 0,
+  ownerId?: string,
+  heartbeatAt?: number,
 ): RaidEscrow {
   const entryFee = raidRules(raidMode).entryFee;
   const safeGoldBeforeEntry = Number.isFinite(goldBeforeEntry) ? nonnegativeInteger(goldBeforeEntry, MAX_GOLD) : undefined;
@@ -422,6 +427,8 @@ export function createRaidEscrow(
       goldBeforeEntry: safeGoldBeforeEntry,
       goldAfterEntry: Math.max(0, safeGoldBeforeEntry - entryFee),
     }),
+    ...(typeof ownerId === "string" && ownerId.length > 0 && ownerId.length <= 160 ? { ownerId } : {}),
+    ...(Number.isFinite(heartbeatAt) && Number(heartbeatAt) > 0 ? { heartbeatAt: nonnegativeInteger(heartbeatAt) } : {}),
   };
 }
 
@@ -440,7 +447,20 @@ export function normalizeRaidEscrow(value: unknown): RaidEscrow | undefined {
     candidate.killsByKind,
     candidate.variationSeed,
     candidate.unseenStrikes,
+    candidate.ownerId,
+    candidate.heartbeatAt,
   );
+}
+
+export function raidEscrowLeaseHeldByOther(
+  escrow: Pick<RaidEscrow, "ownerId" | "heartbeatAt">,
+  ownerId: string,
+  currentTimestamp: number,
+): boolean {
+  if (!escrow.ownerId || escrow.ownerId === ownerId || !Number.isFinite(escrow.heartbeatAt)) return false;
+  if (!Number.isFinite(currentTimestamp) || currentTimestamp <= 0 || Number(escrow.heartbeatAt) <= 0) return false;
+  const age = Math.max(0, Number(currentTimestamp) - Number(escrow.heartbeatAt));
+  return age < RAID_ESCROW_LEASE_MS;
 }
 
 export function beginRaidEscrow(escrow: RaidEscrow): boolean {
