@@ -189,13 +189,15 @@ describe("persistent raid consequences", () => {
     expect(normalizeRaidEscrow({ version: 1, classId: "dragon", raidMode: "iron_soul", equippedIds: [] })).toBeUndefined();
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "unknown", equippedIds: [] })).toBeUndefined();
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: "blade" })).toBeUndefined();
-    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "high_toll", equippedIds: [], goldBeforeEntry: 200, entryFee: 0 })).toMatchObject({ entryFee: 50, goldAfterEntry: 150 });
-    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], startedAt: Number.NaN })?.startedAt).toBe(0);
-    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], startedAt: Number.MAX_VALUE })?.startedAt).toBe(Number.MAX_SAFE_INTEGER);
-    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], kills: 2, killsByKind: { skeleton: 99, rival: 99 } })?.killsByKind).toEqual({ skeleton: 2, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 });
-    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], kills: 2 })?.killsByKind).toEqual({ skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 });
-    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], variationSeed: 32 })?.variationSeed).toBeUndefined();
-    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], unseenStrikes: 999 })?.unseenStrikes).toBe(32);
+    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "high_toll", equippedIds: [], startedAt: 1, goldBeforeEntry: 200, entryFee: 0 })).toMatchObject({ entryFee: 50, goldAfterEntry: 150 });
+    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], startedAt: Number.NaN })).toBeUndefined();
+    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], startedAt: Number.MAX_VALUE })).toBeUndefined();
+    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], startedAt: 0 })).toBeUndefined();
+    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [] })).toBeUndefined();
+    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], startedAt: 1, kills: 2, killsByKind: { skeleton: 99, rival: 99 } })?.killsByKind).toEqual({ skeleton: 2, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 });
+    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], startedAt: 1, kills: 2 })?.killsByKind).toEqual({ skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 });
+    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], startedAt: 1, variationSeed: 32 })?.variationSeed).toBeUndefined();
+    expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], startedAt: 1, unseenStrikes: 999 })?.unseenStrikes).toBe(32);
   });
 
   it("quarantines malformed active-raid journals instead of silently deleting their risk", () => {

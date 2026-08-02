@@ -416,7 +416,7 @@ export function createRaidEscrow(
     classId,
     raidMode,
     equippedIds: boundedItemIds(equippedIds),
-    startedAt: nonnegativeInteger(startedAt),
+    startedAt: Math.max(1, nonnegativeInteger(startedAt)),
     depthReached: depthReached === 2 ? 2 : 1,
     kills: Math.min(1_000, nonnegativeInteger(kills)),
     killsByKind: boundedThreatKills(kills, killsByKind),
@@ -435,7 +435,15 @@ export function createRaidEscrow(
 export function normalizeRaidEscrow(value: unknown): RaidEscrow | undefined {
   if (!value || typeof value !== "object") return undefined;
   const candidate = value as Partial<RaidEscrow>;
-  if (candidate.version !== 1 || !validClass(candidate.classId) || !validRaidMode(candidate.raidMode) || !Array.isArray(candidate.equippedIds)) return undefined;
+  if (
+    candidate.version !== 1
+    || !validClass(candidate.classId)
+    || !validRaidMode(candidate.raidMode)
+    || !Array.isArray(candidate.equippedIds)
+    || typeof candidate.startedAt !== "number"
+    || !Number.isSafeInteger(candidate.startedAt)
+    || candidate.startedAt <= 0
+  ) return undefined;
   return createRaidEscrow(
     candidate.classId,
     candidate.raidMode,

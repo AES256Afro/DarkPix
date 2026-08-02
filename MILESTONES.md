@@ -42,6 +42,7 @@ Status: Complete for local-first play
 - A future-dated heartbeat is trusted only within one 12-second lease window, preventing malformed or clock-shifted journals from indefinitely locking other tabs
 - Each new journal receives a marker beyond the last settled raid even when the system clock repeats a millisecond
 - An exhausted safe-integer settlement marker blocks descent instead of creating a lower journal that could be mistaken for an already-settled raid
+- Active journals without a positive safe-integer start marker are quarantined instead of being repeatedly settled without an idempotency key
 - Failed live checkpoints retry every three active seconds, expose a storage-only pause action, and announce durable recovery
 - The live HUD exposes checkpoint storage failure instead of silently leaving refresh recovery stale
 - Paid-contract entry is single-flight, snapshots its launch state, retries a rejected renderer download, and reconciles the authoritative before/after gold balance when interrupted between storage writes

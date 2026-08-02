@@ -60,6 +60,8 @@ Save import requires recognizable profile, stash, progression, and preference fi
 
 If that settlement high-water mark is exhausted at JavaScript's maximum safe integer, DarkPix blocks descent and asks for save recovery instead of generating a lower marker that could be mistaken for an already-settled raid.
 
+An active journal must also carry a positive safe-integer start marker. Missing, zero, fractional, or overflowing markers enter damaged-journal recovery instead of settling without a durable idempotency key.
+
 A retained settled journal is reconciled before its old page-owner lease is considered, so stale lease metadata cannot quarantine a lobby after the verdict is already durable.
 
 The final pre-descent journal check applies the same rule. It removes an already-settled journal before writing the next raid, while a removal failure blocks descent rather than overwriting recovery evidence.
