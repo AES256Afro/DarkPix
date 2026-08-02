@@ -212,6 +212,9 @@ export class DarkPixGame {
   private readonly camera = new THREE.PerspectiveCamera(72, 1, 0.05, 80);
   private readonly renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
   private readonly clock = new THREE.Clock();
+  private readonly scratchForward = new THREE.Vector3();
+  private readonly scratchToTarget = new THREE.Vector3();
+  private readonly scratchDirection: Vec2 = { x: 0, z: 0 };
   private readonly audio: AudioDirector;
   private readonly lifecycleTimers = new LifecycleTimers();
   private readonly keys = new Set<string>();
@@ -3584,13 +3587,15 @@ export class DarkPixGame {
 
   private updateStealthCue(maxReach: number): void {
     const cameraPosition = this.camera.position;
-    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).normalize();
+    const forward = this.scratchForward.set(0, 0, -1).applyQuaternion(this.camera.quaternion).normalize();
     let target: Enemy | undefined;
     let closest = Number.POSITIVE_INFINITY;
     for (const enemy of this.enemies) {
       if (!enemy.alive) continue;
       const targetHeight = enemy.kind === "crawler" || enemy.kind === "mimic" ? 0.72 : enemy.kind === "boss" ? 1.55 : 1.12;
-      const toEnemy = enemy.group.position.clone().add(new THREE.Vector3(0, targetHeight, 0)).sub(cameraPosition);
+      const toEnemy = this.scratchToTarget.copy(enemy.group.position);
+      toEnemy.y += targetHeight;
+      toEnemy.sub(cameraPosition);
       const distance = toEnemy.length();
       if (distance > maxReach || distance >= closest || toEnemy.normalize().dot(forward) <= 0.985) continue;
       if (!this.hasDungeonSight(
@@ -3613,8 +3618,10 @@ export class DarkPixGame {
   }
 
   private updateWayfinder(): void {
-    const facing = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
-    setTextIfChanged(this.compassHeadingHud, cardinalDirection({ x: facing.x, z: facing.z }));
+    const facing = this.scratchForward.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    this.scratchDirection.x = facing.x;
+    this.scratchDirection.z = facing.z;
+    setTextIfChanged(this.compassHeadingHud, cardinalDirection(this.scratchDirection));
 
     let target: THREE.Vector3 | undefined;
     let label = "WARDEN";
@@ -3638,17 +3645,23 @@ export class DarkPixGame {
       target = this.campfire.position;
       label = `CAMPFIRE ${recovery}`;
     } else {
-      const livingWardens = this.enemies.filter((enemy) => enemy.alive && enemy.kind === "warden");
-      livingWardens.sort((left, right) => left.group.position.distanceToSquared(this.camera.position) - right.group.position.distanceToSquared(this.camera.position));
-      target = livingWardens[0]?.group.position;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+      for (const enemy of this.enemies) {
+        if (!enemy.alive || enemy.kind !== "warden") continue;
+        const distance = enemy.group.position.distanceToSquared(this.camera.position);
+        if (distance >= nearestDistance) continue;
+        nearestDistance = distance;
+        target = enemy.group.position;
+      }
     }
 
     if (!target) {
       setTextIfChanged(this.wayfinderHud, "SEARCH THE CRYPT");
       return;
     }
-    const delta = { x: target.x - this.camera.position.x, z: target.z - this.camera.position.z };
-    setTextIfChanged(this.wayfinderHud, `${label} · ${cardinalDirection(delta)} ${Math.round(Math.hypot(delta.x, delta.z))}m`);
+    this.scratchDirection.x = target.x - this.camera.position.x;
+    this.scratchDirection.z = target.z - this.camera.position.z;
+    setTextIfChanged(this.wayfinderHud, `${label} · ${cardinalDirection(this.scratchDirection)} ${Math.round(Math.hypot(this.scratchDirection.x, this.scratchDirection.z))}m`);
   }
 
   private feed(message: string, tone: "system" | "danger" | "combat" | "loot" | "rival"): void {

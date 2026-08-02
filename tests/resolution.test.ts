@@ -40,4 +40,16 @@ describe("adaptive raid resolution", () => {
     expect(updateHud).toContain("setTextIfChanged(this.wayfinderHud");
     expect(updateHud).not.toContain(".textContent =");
   });
+
+  it("reuses targeting vectors and scans Wardens without frame allocations", () => {
+    const stealthStart = gameSource.indexOf("private updateStealthCue");
+    const stealthCue = gameSource.slice(stealthStart, gameSource.indexOf("private updateWayfinder", stealthStart));
+    const wayfinderStart = gameSource.indexOf("private updateWayfinder");
+    const wayfinder = gameSource.slice(wayfinderStart, gameSource.indexOf("private feed(", wayfinderStart));
+    expect(stealthCue).toContain("this.scratchToTarget.copy");
+    expect(stealthCue).not.toContain("new THREE.Vector3");
+    expect(wayfinder).toContain("for (const enemy of this.enemies)");
+    expect(wayfinder).not.toContain(".filter(");
+    expect(wayfinder).not.toContain(".sort(");
+  });
 });
