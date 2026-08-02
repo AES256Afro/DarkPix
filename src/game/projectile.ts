@@ -43,7 +43,9 @@ export function enemyProjectilePosition(
   kind: EnemyProjectileKind,
 ): ProjectilePoint {
   const position = playerProjectilePosition(start, end, elapsed, duration, kind === "knife" ? "throwable" : "spell");
-  return kind === "knife" ? { ...position, y: position.y - Math.sin(Math.min(1, Math.max(0, elapsed / Math.max(0.14, duration))) * Math.PI) * 0.06 } : position;
+  const safeDuration = Number.isFinite(duration) && duration > 0 ? Math.max(0.14, duration) : 0.14;
+  const flightProgress = Number.isFinite(elapsed) ? Math.min(1, Math.max(0, elapsed / safeDuration)) : 0;
+  return kind === "knife" ? { ...position, y: position.y - Math.sin(flightProgress * Math.PI) * 0.06 } : position;
 }
 
 export function enemyProjectileDefense(

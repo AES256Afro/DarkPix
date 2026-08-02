@@ -34,6 +34,14 @@ describe("player projectile travel", () => {
     expect(enemyProjectilePosition({ x: 0, y: 1, z: 0 }, { x: 0, y: 1, z: 5 }, 0.5, 1, "knife")).toEqual({ x: 0, y: 1.14, z: 2.5 });
   });
 
+  it("keeps hostile knife animation finite when timing state is malformed", () => {
+    const start = { x: 1, y: 1.2, z: 2 };
+    const end = { x: 4, y: 1.2, z: 8 };
+    expect(enemyProjectilePosition(start, end, Number.NaN, 1, "knife")).toEqual(start);
+    expect(Object.values(enemyProjectilePosition(start, end, 0.07, Number.NaN, "knife")).every(Number.isFinite)).toBe(true);
+    expect(Object.values(enemyProjectilePosition(start, end, Number.POSITIVE_INFINITY, 1, "knife")).every(Number.isFinite)).toBe(true);
+  });
+
   it("resolves incoming defense at impact and never parries a keeper chain", () => {
     expect(enemyProjectileDefense("knife", true, true, 0.12)).toBe("parry");
     expect(enemyProjectileDefense("knife", true, true, 0.24)).toBe("guard");
