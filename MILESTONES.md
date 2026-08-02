@@ -127,6 +127,7 @@ Status: Complete
 - The public manifest is served as JSON, while the unversioned app icon and title image revalidate instead of inheriting a stale edge or one-year immutable response
 - CI-enforced compressed JavaScript, CSS, and entry-HTML performance budgets
 - CI rejects high or critical dependency advisories before building the release image
+- CI executes official checkout and Node setup actions by immutable commit identity while retaining their audited major-version annotations
 - Every deploy rejects a dirty source tree, snapshots the prior image, inspects effective runtime hardening, verifies Cloudflare-uncached live health and release identity, real missing-asset 404s, executable MIME types and immutable caching for every HTML-referenced build asset, and the exact commit through both `ne-gro.com` and `www.ne-gro.com`; rollback must prove the restored constraints, version, HTML release marker, and both public routes before discarding its snapshot
 - CI and every public rollout require the HTML build marker to equal the image and `/version.txt` release identity before accepting its asset graph
 

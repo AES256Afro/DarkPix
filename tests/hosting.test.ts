@@ -3,6 +3,7 @@ import nginx from "../deploy/nginx.conf?raw";
 import deployScript from "../scripts/deploy-bigbox.sh?raw";
 import dockerfile from "../Dockerfile?raw";
 import compose from "../compose.yml?raw";
+import workflow from "../.github/workflows/ci.yml?raw";
 
 describe("production asset routing", () => {
   it("returns a real 404 for missing hashed assets instead of the HTML shell", () => {
@@ -62,6 +63,12 @@ describe("production asset routing", () => {
     const stages = dockerfile.match(/^FROM .+$/gm) ?? [];
     expect(stages).toHaveLength(2);
     expect(stages.every((stage) => /@sha256:[a-f0-9]{64}(?: AS build)?$/.test(stage))).toBe(true);
+  });
+
+  it("pins CI actions to immutable commit identities", () => {
+    const actionUses = workflow.match(/uses: actions\/.+/g) ?? [];
+    expect(actionUses).toHaveLength(2);
+    expect(actionUses.every((entry) => /uses: actions\/[a-z-]+@[a-f0-9]{40} # v\d+$/.test(entry))).toBe(true);
   });
 
   it("bounds public access-log growth inside the DarkPix service", () => {
