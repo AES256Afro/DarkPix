@@ -146,4 +146,12 @@ describe("raid resource cleanup", () => {
     expect(movement).toContain("this.footstepClock += traveled");
     expect(movement).not.toContain("this.footstepClock += delta * speed");
   });
+
+  it("reuses raid vectors while resolving repeated attacks", () => {
+    const resolveStrike = gameSource.slice(gameSource.indexOf("private resolveStrike"), gameSource.indexOf("private launchPlayerProjectile"));
+    expect(resolveStrike).toContain("this.scratchForward.set(0, 0, -1)");
+    expect(resolveStrike).toContain("this.scratchToTarget.copy(enemy.group.position)");
+    expect(resolveStrike).not.toContain("new THREE.Vector3");
+    expect(resolveStrike).not.toContain(".clone()");
+  });
 });

@@ -1827,13 +1827,15 @@ export class DarkPixGame {
   }
 
   private resolveStrike(strike: PendingStrike): void {
-    const cameraPosition = this.camera.position.clone();
-    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).normalize();
+    const cameraPosition = this.camera.position;
+    const forward = this.scratchForward.set(0, 0, -1).applyQuaternion(this.camera.quaternion).normalize();
     let best: Enemy | undefined;
     let bestDistance = Number.POSITIVE_INFINITY;
     for (const enemy of this.enemies) {
       if (!enemy.alive) continue;
-      const toEnemy = enemy.group.position.clone().add(new THREE.Vector3(0, 1.1, 0)).sub(cameraPosition);
+      const toEnemy = this.scratchToTarget.copy(enemy.group.position);
+      toEnemy.y += 1.1;
+      toEnemy.sub(cameraPosition);
       const distance = toEnemy.length();
       const cone = this.options.classId === "hexbound" ? 0.965 : this.options.classId === "ranger" ? 0.975 : strike.direction === "SWEEP" ? 0.72 : 0.86;
       const visible = this.hasDungeonSightBetween(
@@ -1849,17 +1851,22 @@ export class DarkPixGame {
     }
     const ranged = this.options.classId === "hexbound" || this.options.classId === "ranger";
     if (!best && ranged) {
-      this.launchPlayerProjectile(strike, cameraPosition, cameraPosition.clone().add(forward.multiplyScalar(this.definition.reach)));
+      this.scratchToTarget.copy(cameraPosition).addScaledVector(forward, this.definition.reach);
+      this.launchPlayerProjectile(strike, cameraPosition, this.scratchToTarget);
       return;
     }
     if (!best) return;
 
     const headHeight = best.kind === "crawler" || best.kind === "mimic" ? 0.72 : best.kind === "boss" ? 2.35 : 1.82;
-    const toHead = best.group.position.clone().add(new THREE.Vector3(0, headHeight, 0)).sub(cameraPosition).normalize();
+    const toHead = this.scratchToTarget.copy(best.group.position);
+    toHead.y += headHeight;
+    toHead.sub(cameraPosition).normalize();
     const headshot = toHead.dot(forward) > (this.options.classId === "hexbound" ? 0.992 : this.options.classId === "ranger" ? 0.988 : 0.975);
     if (ranged) {
       const impactHeight = headshot ? headHeight : best.kind === "crawler" || best.kind === "mimic" ? 0.38 : best.kind === "boss" ? 1.55 : 1.1;
-      this.launchPlayerProjectile(strike, cameraPosition, best.group.position.clone().add(new THREE.Vector3(0, impactHeight, 0)));
+      this.scratchToTarget.copy(best.group.position);
+      this.scratchToTarget.y += impactHeight;
+      this.launchPlayerProjectile(strike, cameraPosition, this.scratchToTarget);
       return;
     }
     const limbHit = !headshot && strike.direction === "SWEEP" && this.options.classId !== "hexbound" && this.options.classId !== "ranger";

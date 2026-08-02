@@ -103,6 +103,7 @@ Status: Complete for the current map
 - Wall-flame animation walks a fixed torch registry instead of traversing the full dungeon scene graph every rendered frame
 - Sight and projectile sampling reuse the immutable wall and pillar registries directly instead of rebuilding geometry arrays and point records for every sample
 - Repeated threat, rival, ability, attack, and stealth sight checks write through two raid-owned coordinate records instead of creating caller-side point pairs
+- Repeated melee and ranged attack acquisition reuses raid-owned Three.js vectors instead of cloning the camera and allocating target vectors per living threat
 - Migrating darkness updates one raid-owned zone record, measures player distance once, and reuses the direction scratch record only when the delver is outside safety
 - Player and threat collision plus floor and dart-trap scans use early-exit loops and squared scalar overlap math instead of frame-hot square roots, callbacks, and coordinate pairs
 - Combat and hazard simulation remain frame-rate driven while inventory summaries, wayfinding, bars, countdown text, and transient visibility refresh at a bounded 20 Hz
