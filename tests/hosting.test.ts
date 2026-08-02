@@ -33,6 +33,13 @@ describe("production asset routing", () => {
     expect(deployScript).toContain('"$public_url/assets/darkpix-title.jpg?v=$darkpix_release"');
   });
 
+  it("keeps the HTML shell out of Cloudflare edge storage", () => {
+    expect(nginx).toContain('~^/(?:index\\.html)?$ "no-store";');
+    expect(deployScript).toContain("cloudflare-cdn-cache-control:.*no-store");
+    expect(deployScript).toContain('cf-cache-status: *HIT');
+    expect(workflow).toContain("^cloudflare-cdn-cache-control: no-store");
+  });
+
   it("rejects a public rollout whose missing release chunk does not return 404", () => {
     expect(deployScript).toContain('"$public_url/assets/missing-$darkpix_release.js"');
     expect(deployScript).toContain('[[ "$missing_asset_status" == "404" ]] || return 1');

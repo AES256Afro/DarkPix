@@ -269,6 +269,8 @@ check_public_release() {
     return 1
   fi
   grep -qi 'strict-transport-security: max-age=31536000' <<<"$public_headers" || return 1
+  grep -qi 'cloudflare-cdn-cache-control:.*no-store' <<<"$public_headers" || return 1
+  if grep -qi 'cf-cache-status: *HIT' <<<"$public_headers"; then return 1; fi
   grep -qi 'x-content-type-options: nosniff' <<<"$public_headers" || return 1
   grep -qi 'x-frame-options: DENY' <<<"$public_headers" || return 1
   grep -qi 'referrer-policy: strict-origin-when-cross-origin' <<<"$public_headers" || return 1
