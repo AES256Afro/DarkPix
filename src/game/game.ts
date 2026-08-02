@@ -7,7 +7,7 @@ import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, dunge
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
 import { HAUL_CAPACITY, RIVAL_EXTRACTION_SECONDS, advanceRivalExtraction, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, rivalShouldExtract, treasureGoldTotal } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, pickupDecision, type LoadoutStats } from "./loadout";
-import { cardinalDirection, circlesOverlap, directionalCue, movementOffset, movementSubstepCount, passiveAwarenessRange, recoveryNeed } from "./navigation";
+import { cardinalDirection, directionalCue, movementOffset, movementSubstepCount, passiveAwarenessRange, recoveryNeed } from "./navigation";
 import { raidRules, type RaidRules } from "./raid";
 import { consumablesInUseOrder, nextConsumableId, nextThrowableId, resolveConsumableId, resolveThrowableId, summarizeQuickslot, throwablesInUseOrder, type QuickslotSummary } from "./quickslots";
 import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./resolution";
@@ -1586,9 +1586,10 @@ export class DarkPixGame {
   }
 
   private collides(x: number, z: number): boolean {
-    return this.walls.some((wall) =>
-      Math.abs(x - wall.x) < wall.halfW + PLAYER_RADIUS && Math.abs(z - wall.z) < wall.halfD + PLAYER_RADIUS,
-    );
+    for (const wall of this.walls) {
+      if (Math.abs(x - wall.x) < wall.halfW + PLAYER_RADIUS && Math.abs(z - wall.z) < wall.halfD + PLAYER_RADIUS) return true;
+    }
+    return false;
   }
 
   private hasDungeonSight(start: Vec2, target: Vec2, radius = 0.06, ignoreClosedSecretPassage = false): boolean {
@@ -1647,10 +1648,15 @@ export class DarkPixGame {
         if (this.ended) return;
         continue;
       }
-      const victim = this.enemies.find((enemy) => enemy.alive && Math.hypot(
-        enemy.group.position.x - trap.group.position.x,
-        enemy.group.position.z - trap.group.position.z,
-      ) < (enemy.kind === "boss" ? 1.05 : 0.78));
+      let victim: Enemy | undefined;
+      for (const enemy of this.enemies) {
+        if (!enemy.alive || Math.hypot(
+          enemy.group.position.x - trap.group.position.x,
+          enemy.group.position.z - trap.group.position.z,
+        ) >= (enemy.kind === "boss" ? 1.05 : 0.78)) continue;
+        victim = enemy;
+        break;
+      }
       if (!victim) continue;
       trap.cooldown = 3.2;
       trap.active = 0.72;
@@ -1673,17 +1679,20 @@ export class DarkPixGame {
       }
       trap.portMaterial.emissiveIntensity = 0.15;
       if (trap.cooldown > 0) continue;
-      const origin = { x: trap.group.position.x, z: trap.group.position.z };
-      const playerDistance = dartTrapTargetDistance(origin, trap.direction, trap.range, this.camera.position);
-      const enemyDistance = this.enemies.reduce((nearest, enemy) => {
-        if (!enemy.alive) return nearest;
-        return Math.min(nearest, dartTrapTargetDistance(origin, trap.direction, trap.range, enemy.group.position, enemy.kind === "boss" ? 0.72 : 0.5));
-      }, Number.POSITIVE_INFINITY);
+      const playerDistance = dartTrapTargetDistance(trap.group.position, trap.direction, trap.range, this.camera.position);
+      let enemyDistance = Number.POSITIVE_INFINITY;
+      for (const enemy of this.enemies) {
+        if (!enemy.alive) continue;
+        enemyDistance = Math.min(
+          enemyDistance,
+          dartTrapTargetDistance(trap.group.position, trap.direction, trap.range, enemy.group.position, enemy.kind === "boss" ? 0.72 : 0.5),
+        );
+      }
       if (!Number.isFinite(Math.min(playerDistance, enemyDistance))) continue;
       trap.windup = 0.62;
       if (Number.isFinite(playerDistance)) {
         this.feed("WALL PORTS GLOW · leave the dart lane", "danger");
-        this.showDirectionalCue(origin, "DART LANE", 0.8, "warning");
+        this.showDirectionalCue(trap.group.position, "DART LANE", 0.8, "warning");
         this.audio.tone(880, 0.08, "square", 0.07);
       }
     }
@@ -2669,17 +2678,17 @@ export class DarkPixGame {
 
   private collidesEnemy(movingEnemy: Enemy, x: number, z: number): boolean {
     const radius = movingEnemy.kind === "boss" ? 0.44 : 0.3;
-    if (this.walls.some((wall) => Math.abs(x - wall.x) < wall.halfW + radius && Math.abs(z - wall.z) < wall.halfD + radius)) return true;
-    return this.enemies.some((other) =>
-      other !== movingEnemy &&
-      other.alive &&
-      circlesOverlap(
-        { x, z },
-        radius,
-        { x: other.group.position.x, z: other.group.position.z },
-        other.kind === "boss" ? 0.44 : 0.3,
-      ),
-    );
+    for (const wall of this.walls) {
+      if (Math.abs(x - wall.x) < wall.halfW + radius && Math.abs(z - wall.z) < wall.halfD + radius) return true;
+    }
+    for (const other of this.enemies) {
+      if (other === movingEnemy || !other.alive) continue;
+      const minimumDistance = radius + (other.kind === "boss" ? 0.44 : 0.3);
+      const offsetX = x - other.group.position.x;
+      const offsetZ = z - other.group.position.z;
+      if (offsetX * offsetX + offsetZ * offsetZ < minimumDistance * minimumDistance) return true;
+    }
+    return false;
   }
 
   private enemyStepHeight(enemy: Enemy): number {

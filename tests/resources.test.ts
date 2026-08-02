@@ -77,4 +77,16 @@ describe("raid resource cleanup", () => {
     expect(updateZone).not.toContain("distanceOutsideZone");
     expect(updateZone).not.toContain("{ x: this.camera.position.x");
   });
+
+  it("keeps movement and trap collision scans free of array callbacks", () => {
+    const collides = gameSource.slice(gameSource.indexOf("private collides("), gameSource.indexOf("private hasDungeonSight("));
+    const traps = gameSource.slice(gameSource.indexOf("private updateTraps"), gameSource.indexOf("private updateAshVents"));
+    const enemyCollision = gameSource.slice(gameSource.indexOf("private collidesEnemy"), gameSource.indexOf("private enemyStepHeight"));
+    expect(collides).toContain("for (const wall of this.walls)");
+    expect(collides).not.toContain(".some(");
+    expect(traps).not.toContain(".find(");
+    expect(traps).not.toContain(".reduce(");
+    expect(enemyCollision).not.toContain(".some(");
+    expect(enemyCollision).not.toContain("{ x, z }");
+  });
 });
