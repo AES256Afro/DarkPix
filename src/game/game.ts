@@ -16,7 +16,7 @@ import { RAID_VARIATION_COUNT, raidVariationSeal, validRaidVariationSeed } from 
 import { rarityShape } from "./rarity";
 import { raidReadinessSummary } from "./readiness";
 import { MAX_TORCH_FUEL_SECONDS, addTorchFuel, spendTorchFuel } from "./light";
-import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, pointerLockTimeoutOutcome, raidDeadlineReached, raidFrameLoopActive } from "./lifecycle";
+import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, pointerLockTimeoutOutcome, raidDeadlineReached, raidFrameLoopActive, simulationFrameDelta } from "./lifecycle";
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
 import { channelCommitmentLabel, channelInterruptionReason, continuousHold, heldInteractionTargetMatches, targetDistanceInView, type ChannelInterruptionReason, type HeldInteractionTarget } from "./targeting";
@@ -1375,7 +1375,7 @@ export class DarkPixGame {
 
   private frame = (): void => {
     this.animationFrame = 0;
-    const delta = Math.min(this.clock.getDelta(), 0.05);
+    const delta = simulationFrameDelta(this.clock.getDelta());
     if (raidFrameLoopActive(this.paused, this.ended, this.contextLost)) this.update(delta);
     if (!this.contextLost) {
       if (raidFrameLoopActive(this.paused, this.ended, this.contextLost)) {

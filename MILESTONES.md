@@ -44,6 +44,7 @@ Status: Complete for local-first play
 - Verdicts itemize the bounded per-threat kill evidence used by bestiary, commission, and boss settlement
 - Future-dated verdicts cannot pre-claim a later daily commission or poison the contract journal clock
 - The exact floor deadline and first lethal source stop the terminal simulation frame before later systems can mutate a captured verdict
+- Malformed, non-positive, and excessively delayed frame-clock samples fail closed before entering the raid simulation
 - Version 15 migrates older profiles into the Quiet Knives contract and settled-journal marker without changing prior progress
 - Future profile schemas and backup imports are preserved or rejected instead of being destructively downgraded
 - Class XP, contracts, bestiary ledgers, survival streaks, raid history, settings, and backup import/export survive compatible profile migrations

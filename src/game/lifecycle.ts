@@ -82,6 +82,11 @@ export function raidFrameLoopActive(paused: boolean, ended: boolean, contextLost
   return !paused && !ended && !contextLost;
 }
 
+export function simulationFrameDelta(delta: number, maximum = 0.05): number {
+  if (!Number.isFinite(delta) || delta <= 0 || !Number.isFinite(maximum) || maximum <= 0) return 0;
+  return Math.min(delta, maximum);
+}
+
 export type PointerLockTimeoutOutcome = "ignore" | "confirm" | "reject";
 
 export function pointerLockTimeoutOutcome(requestPending: boolean, requestIsCurrent: boolean, lockMatchesCanvas: boolean): PointerLockTimeoutOutcome {
