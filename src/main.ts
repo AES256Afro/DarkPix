@@ -516,7 +516,7 @@ function renderLobby(): void {
               <div class="panel-heading"><span><small>THE IRONMONGER</small><strong>Provision bench</strong></span><b>${ironmongerStanding.name.toUpperCase()}</b></div>
               <p class="panel-intro">Buy dependable supplies between raids. Successful extracts unlock stronger stock. Purchased gear enters the stash and is still lost if packed into a failed delve.</p>
               <div class="merchant-standing">
-                <span><i style="width:${ironmongerStanding.progress}%"></i></span>
+                <span role="progressbar" aria-label="Ironmonger reputation" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${ironmongerStanding.progress}"><i style="width:${ironmongerStanding.progress}%"></i></span>
                 <small>${ironmongerStanding.nextExtracts === undefined ? "ALL STOCK EARNED" : `NEXT STOCK · ${profile.extracts} / ${ironmongerStanding.nextExtracts} EXTRACTS`}</small>
               </div>
               <div class="merchant-offers">
@@ -548,7 +548,7 @@ function renderLobby(): void {
           <aside class="right-rail">
             <section class="delver-sheet">
               <div class="panel-heading"><span><small>ACTIVE DELVER</small><strong>${chosen.name}</strong></span><b>LV ${level}</b></div>
-              <div class="level-track"><i style="width:${levelProgress}%"></i></div>
+              <div class="level-track" role="progressbar" aria-label="${chosen.name} level progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${levelProgress}"><i style="width:${levelProgress}%"></i></div>
               <div class="sheet-line"><span>Experience</span><strong>${classXp} / ${nextLevelXp}</strong></div>
               <div class="sheet-line"><span>Raid weapon</span><strong>${chosen.weapon}</strong></div>
               <div class="sheet-line"><span>Class art</span><strong>${chosen.ability}</strong></div>

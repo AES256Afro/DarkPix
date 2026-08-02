@@ -12,6 +12,13 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain('aria-pressed="${selected}"');
   });
 
+  it("exposes class and merchant advancement beyond their visual tracks", () => {
+    expect(mainSource).toContain('role="progressbar" aria-label="Ironmonger reputation"');
+    expect(mainSource).toContain('aria-valuenow="${ironmongerStanding.progress}"');
+    expect(mainSource).toContain('role="progressbar" aria-label="${chosen.name} level progress"');
+    expect(mainSource).toContain('aria-valuenow="${levelProgress}"');
+  });
+
   it("keeps every native control visibly focused and preserves selection in forced colors", () => {
     expect(styles).toContain("button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible");
     expect(styles).toContain("@media (forced-colors: active)");
