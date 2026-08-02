@@ -19,6 +19,17 @@ describe("player projectile travel", () => {
     expect(playerProjectilePosition(start, end, 2, 1, "arrow")).toMatchObject(end);
   });
 
+  it("can reuse caller-owned flight points without changing travel", () => {
+    const start = { x: 0, y: 1, z: 0 };
+    const end = { x: 10, y: 1, z: -2 };
+    const playerTarget = { x: 99, y: 99, z: 99 };
+    const enemyTarget = { x: 99, y: 99, z: 99 };
+    expect(playerProjectilePosition(start, end, 0.5, 1, "arrow", playerTarget)).toBe(playerTarget);
+    expect(playerTarget).toEqual({ x: 5, y: 1.34, z: -1 });
+    expect(enemyProjectilePosition(start, end, 0.5, 1, "knife", enemyTarget)).toBe(enemyTarget);
+    expect(enemyTarget).toEqual({ x: 5, y: 1.14, z: -1 });
+  });
+
   it("lets a target sidestep outside the committed impact radius", () => {
     const impact = { x: 2, z: 4 };
     expect(projectileImpactConnects(impact, { x: 2.3, z: 4.2 }, 0.5)).toBe(true);

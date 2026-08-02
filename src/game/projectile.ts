@@ -41,11 +41,13 @@ export function enemyProjectilePosition(
   elapsed: number,
   duration: number,
   kind: EnemyProjectileKind,
+  target?: ProjectilePoint,
 ): ProjectilePoint {
-  const position = playerProjectilePosition(start, end, elapsed, duration, kind === "knife" ? "throwable" : "spell");
+  const position = playerProjectilePosition(start, end, elapsed, duration, kind === "knife" ? "throwable" : "spell", target);
   const safeDuration = Number.isFinite(duration) && duration > 0 ? Math.max(0.14, duration) : 0.14;
   const flightProgress = Number.isFinite(elapsed) ? Math.min(1, Math.max(0, elapsed / safeDuration)) : 0;
-  return kind === "knife" ? { ...position, y: position.y - Math.sin(flightProgress * Math.PI) * 0.06 } : position;
+  if (kind === "knife") position.y -= Math.sin(flightProgress * Math.PI) * 0.06;
+  return position;
 }
 
 export function enemyProjectileDefense(
@@ -89,15 +91,15 @@ export function playerProjectilePosition(
   elapsed: number,
   duration: number,
   kind: PlayerProjectileKind,
+  target: ProjectilePoint = { x: 0, y: 0, z: 0 },
 ): ProjectilePoint {
   const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0.12;
   const progress = Math.min(1, Math.max(0, Number.isFinite(elapsed) ? elapsed / safeDuration : 0));
   const arc = kind === "arrow" ? Math.sin(progress * Math.PI) * 0.34 : kind === "throwable" ? Math.sin(progress * Math.PI) * 0.2 : 0;
-  return {
-    x: start.x + (end.x - start.x) * progress,
-    y: start.y + (end.y - start.y) * progress + arc,
-    z: start.z + (end.z - start.z) * progress,
-  };
+  target.x = start.x + (end.x - start.x) * progress;
+  target.y = start.y + (end.y - start.y) * progress + arc;
+  target.z = start.z + (end.z - start.z) * progress;
+  return target;
 }
 
 export function projectileImpactConnects(
@@ -115,18 +117,21 @@ export function projectileSegmentConnects(start: ProjectilePoint, end: Projectil
 
 export function projectileSegmentContact(start: ProjectilePoint, end: ProjectilePoint, target: ProjectilePoint, radius: number): number | undefined {
   if (![start.x, start.y, start.z, end.x, end.y, end.z, target.x, target.y, target.z, radius].every(Number.isFinite) || radius < 0) return undefined;
-  const segment = { x: end.x - start.x, y: end.y - start.y, z: end.z - start.z };
-  const toTarget = { x: target.x - start.x, y: target.y - start.y, z: target.z - start.z };
-  const lengthSquared = segment.x ** 2 + segment.y ** 2 + segment.z ** 2;
+  const segmentX = end.x - start.x;
+  const segmentY = end.y - start.y;
+  const segmentZ = end.z - start.z;
+  const toTargetX = target.x - start.x;
+  const toTargetY = target.y - start.y;
+  const toTargetZ = target.z - start.z;
+  const lengthSquared = segmentX ** 2 + segmentY ** 2 + segmentZ ** 2;
   const progress = lengthSquared > 0
-    ? Math.min(1, Math.max(0, (toTarget.x * segment.x + toTarget.y * segment.y + toTarget.z * segment.z) / lengthSquared))
+    ? Math.min(1, Math.max(0, (toTargetX * segmentX + toTargetY * segmentY + toTargetZ * segmentZ) / lengthSquared))
     : 0;
-  const nearest = {
-    x: start.x + segment.x * progress,
-    y: start.y + segment.y * progress,
-    z: start.z + segment.z * progress,
-  };
-  return Math.hypot(target.x - nearest.x, target.y - nearest.y, target.z - nearest.z) <= radius ? progress : undefined;
+  return Math.hypot(
+    target.x - (start.x + segmentX * progress),
+    target.y - (start.y + segmentY * progress),
+    target.z - (start.z + segmentZ * progress),
+  ) <= radius ? progress : undefined;
 }
 
 export function projectileTargetContact(headContact: number | undefined, bodyContact: number | undefined): ProjectileTargetContact | undefined {

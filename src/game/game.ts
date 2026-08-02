@@ -215,6 +215,8 @@ export class DarkPixGame {
   private readonly scratchForward = new THREE.Vector3();
   private readonly scratchToTarget = new THREE.Vector3();
   private readonly scratchProjectilePrevious = new THREE.Vector3();
+  private readonly scratchProjectilePosition = new THREE.Vector3();
+  private readonly scratchProjectileNext = new THREE.Vector3();
   private readonly scratchProjectileBody = new THREE.Vector3();
   private readonly scratchProjectileHead = new THREE.Vector3();
   private readonly scratchDirection: Vec2 = { x: 0, z: 0 };
@@ -1874,9 +1876,9 @@ export class DarkPixGame {
       const projectile = this.playerProjectiles[index]!;
       const previous = this.scratchProjectilePrevious.copy(projectile.mesh.position);
       projectile.elapsed = Math.min(projectile.duration, projectile.elapsed + delta);
-      const position = playerProjectilePosition(projectile.start, projectile.end, projectile.elapsed, projectile.duration, projectile.kind);
+      const position = playerProjectilePosition(projectile.start, projectile.end, projectile.elapsed, projectile.duration, projectile.kind, this.scratchProjectilePosition);
       projectile.mesh.position.set(position.x, position.y, position.z);
-      const nextPosition = playerProjectilePosition(projectile.start, projectile.end, projectile.elapsed + 0.02, projectile.duration, projectile.kind);
+      const nextPosition = playerProjectilePosition(projectile.start, projectile.end, projectile.elapsed + 0.02, projectile.duration, projectile.kind, this.scratchProjectileNext);
       projectile.mesh.lookAt(nextPosition.x, nextPosition.y, nextPosition.z);
       const stoneContact = this.projectileStoneContact({ x: previous.x, z: previous.z }, position, 0.04);
       let enemyContact: { enemy: Enemy; progress: number; headshot: boolean } | undefined;
@@ -2010,9 +2012,9 @@ export class DarkPixGame {
       const projectile = this.enemyProjectiles[index]!;
       const previous = this.scratchProjectilePrevious.copy(projectile.mesh.position);
       projectile.elapsed = Math.min(projectile.duration, projectile.elapsed + delta);
-      const position = enemyProjectilePosition(projectile.start, projectile.end, projectile.elapsed, projectile.duration, projectile.kind);
+      const position = enemyProjectilePosition(projectile.start, projectile.end, projectile.elapsed, projectile.duration, projectile.kind, this.scratchProjectilePosition);
       projectile.mesh.position.set(position.x, position.y, position.z);
-      const next = enemyProjectilePosition(projectile.start, projectile.end, projectile.elapsed + 0.02, projectile.duration, projectile.kind);
+      const next = enemyProjectilePosition(projectile.start, projectile.end, projectile.elapsed + 0.02, projectile.duration, projectile.kind, this.scratchProjectileNext);
       projectile.mesh.lookAt(next.x, next.y, next.z);
       const stoneContact = this.projectileStoneContact({ x: previous.x, z: previous.z }, position, 0.04);
       const playerContact = projectileSegmentContact(previous, position, this.camera.position, PLAYER_RADIUS + 0.18);
