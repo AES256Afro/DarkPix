@@ -91,7 +91,7 @@ describe("installable offline shell", () => {
       ["https://darkpix.test/assets/title.jpg", { type: "image/jpeg", body: "pixels" }],
       ["https://darkpix.test/assets/chunk.js", { type: "application/javascript", body: "export{}" }],
     ]);
-    const put = vi.fn(async () => undefined);
+    const put = vi.fn(async (_request: string, _response: unknown) => undefined);
     const fixedAssets = new Map<string, unknown>([
       ["/", shell],
       ["/manifest.webmanifest", { headers: { get: () => "application/manifest+json" } }],
@@ -122,6 +122,12 @@ describe("installable offline shell", () => {
     handlers.get("install")?.({ waitUntil: (promise) => { installation = promise; } });
 
     await expect(installation).resolves.toBeUndefined();
+    expect(cache.addAll).toHaveBeenCalledWith([
+      "/",
+      "/manifest.webmanifest?v=complete-release",
+      "/darkpix-icon.svg?v=complete-release",
+      "/assets/darkpix-title.jpg?v=complete-release",
+    ]);
     expect(fetchAsset.mock.calls.map(([url]) => url)).toEqual([
       "https://darkpix.test/assets/app.css",
       "https://darkpix.test/assets/app.js",
@@ -205,7 +211,7 @@ describe("installable offline shell", () => {
 
   it("bounds runtime writes to owned shell and asset paths", async () => {
     const handlers = new Map<string, (event: any) => void>();
-    const put = vi.fn(async () => undefined);
+    const put = vi.fn(async (_request: string, _response: unknown) => undefined);
     const cache = { match: vi.fn(async () => undefined), put };
     const workerScope = {
       location: { href: "https://darkpix.test/sw.js?v=bounded-release", origin: "https://darkpix.test" },
@@ -250,5 +256,18 @@ describe("installable offline shell", () => {
     });
     await expect(responsePromise).resolves.toBe(htmlFallback);
     expect(put).toHaveBeenCalledTimes(1);
+
+    const iconResponse = {
+      ok: true,
+      headers: { get: (name: string) => name === "content-type" ? "image/svg+xml" : null },
+      clone: () => iconResponse,
+    };
+    fetchNetwork.mockResolvedValueOnce(iconResponse);
+    fetchHandler?.({
+      request: { method: "GET", mode: "cors", url: "https://darkpix.test/darkpix-icon.svg?v=bounded-release" },
+      respondWith: (promise: Promise<unknown>) => { responsePromise = promise; },
+    });
+    await responsePromise;
+    expect(put.mock.calls.at(-1)?.[0]).toBe("/darkpix-icon.svg?v=bounded-release");
   });
 });
