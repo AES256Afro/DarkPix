@@ -56,6 +56,7 @@ Status: Complete for the current map
 - Contract-critical locations remain reachable in topology tests
 - Facing-locked threat windups with cover, evasion, and range verdicts, directional pre-hit and impact markers, guard cone, pre-action strike stamina cost, readable crouch and sprint noise, crosshair awareness and unique unseen marks, chain telegraphs, safe annulus, darkness bearing, channel interruption reasons, crosshair scaling, rarity rank marks, and loose-loot silhouettes expose actionable state
 - Released rival knives and Tollkeeper chains use swept travel-time collision, stop at stone, and resolve guard or parry only at physical impact
+- Hostile missile warnings persist with directional shape, text, and release tone through the full dodge window
 - Overlapping ordinary impacts share one acceptance gate, preventing a rejected wound from silently draining guard stamina
 - Distance-driven footsteps and AI acquisition distinguish stillness, crouch, steady movement, sprint, and packed armor without changing cadence with frame rate
 - Occluded moving threats emit range-attenuated class-specific footsteps and a separate directional accessibility cue without replacing combat markers

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileImpactConnects, projectileSegmentConnects } from "../src/game/projectile";
+import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileImpactConnects, projectileSegmentConnects } from "../src/game/projectile";
 
 describe("player projectile travel", () => {
   it("gives arrows and spells bounded nonzero travel time", () => {
@@ -40,6 +40,12 @@ describe("player projectile travel", () => {
     expect(enemyProjectileDefense("knife", true, false, 0.04)).toBe("hit");
     expect(enemyProjectileDefense("knife", false, true, 0.04)).toBe("hit");
     expect(enemyProjectileDefense("knife", true, true, Number.NaN)).toBe("guard");
+  });
+
+  it("keeps a shape-and-text warning alive for the full hostile flight", () => {
+    expect(enemyProjectileFlightCue("knife", 0.5)).toEqual({ label: "KNIFE IN FLIGHT", duration: 0.62 });
+    expect(enemyProjectileFlightCue("chain", 0.8)).toEqual({ label: "CHAIN IN FLIGHT", duration: 0.92 });
+    expect(enemyProjectileFlightCue("knife", Number.NaN)).toEqual({ label: "KNIFE IN FLIGHT", duration: 0.26 });
   });
 
   it("detects a threat crossed by a fast projectile without tunneling", () => {

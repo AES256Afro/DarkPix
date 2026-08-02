@@ -20,7 +20,7 @@ import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, poi
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
 import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
-import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileSegmentConnects, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
+import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileSegmentConnects, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
 import { DARKNESS_PULSE_SECONDS, darknessPulseReady, directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "./zone";
 
@@ -1968,6 +1968,7 @@ export class DarkPixGame {
     projectile.position.copy(start);
     projectile.lookAt(end);
     this.scene.add(projectile);
+    const duration = enemyProjectileDuration(start.distanceTo(end), kind);
     this.enemyProjectiles.push({
       mesh: projectile,
       material: projectileMaterial,
@@ -1975,11 +1976,14 @@ export class DarkPixGame {
       start,
       end,
       elapsed: 0,
-      duration: enemyProjectileDuration(start.distanceTo(end), kind),
+      duration,
       sourceId: enemy.id,
       sourceName: enemy.name,
       damage,
     });
+    const cue = enemyProjectileFlightCue(kind, duration);
+    this.showDirectionalCue(start, cue.label, cue.duration, "warning");
+    this.audio.tone(kind === "chain" ? 74 : 420, Math.min(0.22, duration), kind === "chain" ? "sawtooth" : "square", 0.055);
   }
 
   private updateEnemyProjectiles(delta: number): void {

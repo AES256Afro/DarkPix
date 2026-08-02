@@ -2,6 +2,11 @@ export type PlayerProjectileKind = "arrow" | "spell" | "throwable";
 export type EnemyProjectileKind = "knife" | "chain";
 export type EnemyProjectileDefense = "parry" | "guard" | "hit";
 
+export interface EnemyProjectileFlightCue {
+  label: "KNIFE IN FLIGHT" | "CHAIN IN FLIGHT";
+  duration: number;
+}
+
 export interface ProjectilePoint {
   x: number;
   y: number;
@@ -39,6 +44,14 @@ export function enemyProjectileDefense(
   if (!blocking || !facingSource) return "hit";
   if (kind === "knife" && Number.isFinite(blockAge) && blockAge >= 0 && blockAge < 0.24) return "parry";
   return "guard";
+}
+
+export function enemyProjectileFlightCue(kind: EnemyProjectileKind, duration: number): EnemyProjectileFlightCue {
+  const safeDuration = Number.isFinite(duration) ? Math.max(0.14, duration) : 0.14;
+  return {
+    label: kind === "chain" ? "CHAIN IN FLIGHT" : "KNIFE IN FLIGHT",
+    duration: safeDuration + 0.12,
+  };
 }
 
 export function playerProjectilePosition(
