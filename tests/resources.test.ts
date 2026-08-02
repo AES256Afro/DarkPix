@@ -163,6 +163,21 @@ describe("raid resource cleanup", () => {
     expect(throwItem).not.toContain(".clone()");
   });
 
+  it("avoids disposable vectors across projectile, guard, and drop actions", () => {
+    const dartLaunch = gameSource.slice(gameSource.indexOf("private launchDartProjectile"), gameSource.indexOf("private attack()"));
+    const playerLaunch = gameSource.slice(gameSource.indexOf("private launchPlayerProjectile"), gameSource.indexOf("private updatePlayerProjectiles"));
+    const enemyLaunch = gameSource.slice(gameSource.indexOf("private launchEnemyProjectile"), gameSource.indexOf("private launchIncomingProjectile"));
+    const projectileDefense = gameSource.slice(gameSource.indexOf("private resolveEnemyProjectileHit"), gameSource.indexOf("private removeEnemyProjectile"));
+    const dropHaul = gameSource.slice(gameSource.indexOf("private dropLowestHaul"), gameSource.indexOf("private openChest"));
+    expect(dartLaunch.match(/new THREE\.Vector3/g)).toHaveLength(1);
+    expect(playerLaunch).not.toContain("new THREE.Vector3");
+    expect(enemyLaunch).not.toContain("new THREE.Vector3");
+    expect(projectileDefense).toContain("this.scratchForward.set(0, 0, -1)");
+    expect(projectileDefense).not.toContain("new THREE.Vector3");
+    expect(dropHaul).toContain("this.scratchToTarget.copy(this.camera.position)");
+    expect(dropHaul).not.toContain("new THREE.Vector3");
+  });
+
   it("applies area abilities in one allocation-free threat scan", () => {
     const abilities = gameSource.slice(gameSource.indexOf("private useClassAbility"), gameSource.indexOf("private updateZone"));
     expect(abilities).toContain("distanceToSquared");

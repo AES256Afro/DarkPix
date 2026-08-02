@@ -1780,8 +1780,9 @@ export class DarkPixGame {
 
   private launchDartProjectile(trap: DartTrap): void {
     const direction = new THREE.Vector3(trap.direction.x, 0, trap.direction.z).normalize();
-    const start = trap.group.position.clone().add(new THREE.Vector3(0, 1.35, 0)).add(direction.clone().multiplyScalar(0.18));
-    const end = start.clone().add(direction.multiplyScalar(Math.max(0.2, trap.range - 0.18)));
+    const start = trap.group.position.clone().addScaledVector(direction, 0.18);
+    start.y += 1.35;
+    const end = start.clone().addScaledVector(direction, Math.max(0.2, trap.range - 0.18));
     this.launchIncomingProjectile("dart", start, end, trap.damage, "a wall dart");
   }
 
@@ -1901,7 +1902,8 @@ export class DarkPixGame {
       kind === "arrow" ? new THREE.BoxGeometry(0.045, 0.045, 0.48) : new THREE.OctahedronGeometry(0.1, 0),
       projectileMaterial,
     );
-    const origin = start.clone().add(new THREE.Vector3(0, -0.12, 0));
+    const origin = start.clone();
+    origin.y -= 0.12;
     const distance = origin.distanceTo(end);
     projectile.position.copy(origin);
     projectile.lookAt(end);
@@ -2018,12 +2020,10 @@ export class DarkPixGame {
   }
 
   private launchEnemyProjectile(enemy: Enemy, kind: EnemyProjectileKind, damage: number): void {
-    const start = enemy.group.position.clone().add(new THREE.Vector3(0, 1.25, 0));
-    const end = this.camera.position.clone().add(new THREE.Vector3(0, -0.2, 0));
-    if (kind === "chain") {
-      start.y = enemy.group.position.y + 1.35;
-      end.y = this.camera.position.y - 0.28;
-    }
+    const start = enemy.group.position.clone();
+    const end = this.camera.position.clone();
+    start.y += kind === "chain" ? 1.35 : 1.25;
+    end.y -= kind === "chain" ? 0.28 : 0.2;
     this.launchIncomingProjectile(kind, start, end, damage, enemy.name, enemy.id);
   }
 
@@ -2124,7 +2124,7 @@ export class DarkPixGame {
 
   private resolveEnemyProjectileHit(projectile: EnemyProjectile): void {
     const source = projectile.sourceId === undefined ? undefined : this.enemies.find((enemy) => enemy.id === projectile.sourceId);
-    const guardFacing = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    const guardFacing = this.scratchForward.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
     const facingSource = guardFacesThreat(
       { x: guardFacing.x, z: guardFacing.z },
       { x: projectile.start.x - this.camera.position.x, z: projectile.start.z - this.camera.position.z },
@@ -2411,7 +2411,7 @@ export class DarkPixGame {
           this.launchEnemyProjectile(enemy, enemy.kind === "boss" ? "chain" : "knife", projectileDamage);
           continue;
         }
-        const guardFacing = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+        const guardFacing = this.scratchForward.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
         const facingThreat = guardFacesThreat(
           { x: guardFacing.x, z: guardFacing.z },
           { x: enemy.group.position.x - player.x, z: enemy.group.position.z - player.z },
@@ -2526,7 +2526,7 @@ export class DarkPixGame {
       this.feed("CHAIN RING PASSES · safe stone holds", "system");
       return;
     }
-    const guardFacing = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    const guardFacing = this.scratchForward.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
     const facingThreat = guardFacesThreat(
       { x: guardFacing.x, z: guardFacing.z },
       { x: enemy.group.position.x - this.camera.position.x, z: enemy.group.position.z - this.camera.position.z },
@@ -3001,7 +3001,8 @@ export class DarkPixGame {
   private launchThrowableProjectile(item: Item, start: THREE.Vector3, end: THREE.Vector3): void {
     const projectileMaterial = material(0xb7aea1, 0x34231d);
     const projectile = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.055, 0.36), projectileMaterial);
-    const origin = start.clone().add(new THREE.Vector3(0, -0.12, 0));
+    const origin = start.clone();
+    origin.y -= 0.12;
     projectile.position.copy(origin);
     projectile.lookAt(end);
     this.scene.add(projectile);
@@ -3364,10 +3365,10 @@ export class DarkPixGame {
       return;
     }
     this.raidLoot.splice(0, this.raidLoot.length, ...kept);
-    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).setY(0).normalize();
-    const position = this.camera.position.clone().add(forward.multiplyScalar(1.15));
-    position.y = 0.55;
-    this.spawnPickup(dropped, position);
+    const forward = this.scratchForward.set(0, 0, -1).applyQuaternion(this.camera.quaternion).setY(0).normalize();
+    this.scratchToTarget.copy(this.camera.position).addScaledVector(forward, 1.15);
+    this.scratchToTarget.y = 0.55;
+    this.spawnPickup(dropped, this.scratchToTarget);
     this.feed(`${dropped.name} dropped from the haul.`, "system");
   }
 
