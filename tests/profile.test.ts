@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createItemId, createLoot, createSigil, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
-import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, MAX_RAID_LOOT_ITEMS, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, loadProfileState, nextRaidStartedAt, normalizeProfile, normalizeRaidEscrow, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidThreatKillLedger, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
+import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, MAX_RAID_LOOT_ITEMS, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeProfile, normalizeRaidEscrow, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidThreatKillLedger, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, firstRunPreferences, normalizePreferences } from "../src/game/preferences";
 import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, damageImpactAccepted, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat } from "../src/game/combat";
 import type { RaidResult } from "../src/game/types";
@@ -196,6 +196,26 @@ describe("persistent raid consequences", () => {
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], kills: 2 })?.killsByKind).toEqual({ skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 });
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], variationSeed: 32 })?.variationSeed).toBeUndefined();
     expect(normalizeRaidEscrow({ version: 1, classId: "ranger", raidMode: "standard", equippedIds: [], unseenStrikes: 999 })?.unseenStrikes).toBe(32);
+  });
+
+  it("quarantines malformed active-raid journals instead of silently deleting their risk", () => {
+    const malformed = "{damaged-raid";
+    const values = new Map<string, string>([["darkpix-active-raid-v1", malformed]]);
+    const storage = { getItem: (key: string) => values.get(key) ?? null };
+    expect(loadRaidEscrowState(storage)).toEqual({ status: "corrupt", recovery: malformed });
+    expect(values.get("darkpix-active-raid-v1")).toBe(malformed);
+
+    const future = JSON.stringify({ version: 2, classId: "ranger", raidMode: "standard", equippedIds: [] });
+    values.set("darkpix-active-raid-v1", future);
+    expect(loadRaidEscrowState(storage)).toEqual({ status: "corrupt", recovery: future });
+    expect(values.get("darkpix-active-raid-v1")).toBe(future);
+  });
+
+  it("distinguishes valid, missing, and unavailable active-raid storage", () => {
+    const escrow = createRaidEscrow("cleric", "standard", ["starter-jack"], 123);
+    expect(loadRaidEscrowState({ getItem: () => JSON.stringify(escrow) })).toEqual({ status: "loaded", escrow });
+    expect(loadRaidEscrowState({ getItem: () => null })).toEqual({ status: "missing" });
+    expect(loadRaidEscrowState({ getItem: () => { throw new Error("storage blocked"); } })).toEqual({ status: "unavailable" });
   });
 
   it("fails closed on malformed runtime identity and inventory fields", () => {

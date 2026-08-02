@@ -262,6 +262,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .runtime-error h1 { margin: 10px 0; font: 38px Georgia, serif; }
 .runtime-error p { max-width: 500px; color: #7d7469; font: 14px/1.6 Georgia, serif; }
 .runtime-error button { margin-top: 18px; padding: 14px 22px; border: 1px solid #77462f; background: #321e16; color: #d4b99a; font: 800 9px ui-monospace, monospace; letter-spacing: .12em; cursor: pointer; }
+.recovery-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; max-width: 560px; }
 .raid-shell { --darkness: 0; position: relative; width: 100%; height: 100%; overflow: hidden; cursor: crosshair; user-select: none; }
 .raid-shell[data-raid-mode="high_toll"] { box-shadow: inset 0 0 90px rgba(122, 27, 24, .18); }
 .raid-shell[data-raid-mode="iron_soul"] { box-shadow: inset 0 0 120px rgba(155, 18, 14, .28); }

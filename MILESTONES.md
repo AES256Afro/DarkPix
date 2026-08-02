@@ -28,6 +28,7 @@ Status: Complete for local-first play
 
 - Risked equipment leaves the stash only after a failed verdict
 - Active-raid escrow checkpoints the layout seal, depth, unseen marks, and bounded total and per-threat kills, settles refreshes and interrupted tabs as abandonment, and clears only after the verdict and its idempotency marker are durably saved
+- Malformed or future active-raid journals stay quarantined behind raw download and explicit two-step discard instead of silently bypassing the raid's risk
 - An unsecured live or recovered verdict locks mutable lobby state behind a storage retry, while an exact settled-journal marker prevents a retained escrow from being applied twice
 - Each new journal receives a marker beyond the last settled raid even when the system clock repeats a millisecond
 - Failed live checkpoints retry every three active seconds, expose a storage-only pause action, and announce durable recovery

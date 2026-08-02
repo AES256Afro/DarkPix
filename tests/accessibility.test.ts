@@ -30,6 +30,14 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain("DOWNLOAD RAW SAVE");
   });
 
+  it("locks a malformed raid journal behind recovery and explicit discard", () => {
+    expect(mainSource).toContain("renderDamagedRaidJournalRecovery");
+    expect(mainSource).toContain("DOWNLOAD RAW JOURNAL");
+    expect(mainSource).toContain("CONFIRM DISCARD AND RETURN");
+    expect(mainSource).toContain('if (!clearRaidEscrow())');
+    expect(mainSource).toContain('if (damagedRaidJournal !== undefined)');
+  });
+
   it("recovers an update prompt after another tab activates its worker", () => {
     expect(mainSource).toContain("const waitingWorker = updateRegistration?.waiting");
     expect(mainSource).toContain("RELOADING APPLIED UPDATE...");

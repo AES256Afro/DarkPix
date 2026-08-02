@@ -9,7 +9,7 @@ import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEq
 import { SingleFlightGate, lobbyOperationCurrent } from "./game/lifecycle";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { browserStorageWritable, persistBeforeClearingEscrow } from "./game/persistence";
-import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfileState, loadRaidEscrow, nextRaidStartedAt, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
+import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
 import { rarityMark } from "./game/rarity";
 import { QUIET_KNIVES_REWARD, QUIET_KNIVES_TARGET } from "./game/stealth";
@@ -46,11 +46,13 @@ let reloadForUpdate = false;
 let activeRaidStartedAt = 0;
 let interruptedSettlementPending = false;
 let interruptedSettlementNotice = "";
+const raidEscrowLoad = profileLoad.status === "incompatible" ? undefined : loadRaidEscrowState();
+let damagedRaidJournal = raidEscrowLoad?.status === "corrupt" ? raidEscrowLoad.recovery : undefined;
 let lobbyEpoch = 0;
 const raidLaunchGate = new SingleFlightGate();
 const saveImportGate = new SingleFlightGate();
 
-const interruptedRaid = profileLoad.status === "incompatible" ? undefined : loadRaidEscrow();
+const interruptedRaid = raidEscrowLoad?.escrow;
 if (interruptedRaid) {
   if (raidEscrowAlreadySettled(profile, interruptedRaid)) {
     if (clearRaidEscrow()) merchantNotice = "A completed raid journal was reconciled without repeating its verdict.";
@@ -210,7 +212,39 @@ function renderInterruptedSettlementRecovery(): void {
   });
 }
 
+function renderDamagedRaidJournalRecovery(): void {
+  activeGame?.destroy();
+  activeGame = undefined;
+  app.innerHTML = `<main class="game-mount" aria-label="DarkPix damaged raid journal recovery"><section class="runtime-error persistence-recovery"><span>†</span><h1>THE RAID JOURNAL IS DAMAGED</h1><p role="alert">An active-raid journal exists, but this release cannot safely settle it. The Last Lantern remains locked so corrupted storage cannot erase the raid's risk. Download the raw journal before choosing whether to discard it.</p><div class="recovery-actions"><button type="button" data-journal-action="download">DOWNLOAD RAW JOURNAL</button><button type="button" data-journal-action="discard">DISCARD DAMAGED JOURNAL</button></div></section></main>`;
+  app.querySelector<HTMLButtonElement>('[data-journal-action="download"]')?.addEventListener("click", () => {
+    if (damagedRaidJournal === undefined) return;
+    downloadTextFile(damagedRaidJournal, `darkpix-damaged-raid-${new Date().toISOString().slice(0, 10)}.txt`, "text/plain");
+  });
+  const discard = app.querySelector<HTMLButtonElement>('[data-journal-action="discard"]');
+  let discardArmed = false;
+  discard?.addEventListener("click", () => {
+    const notice = app.querySelector<HTMLElement>("[role=alert]");
+    if (!discardArmed) {
+      discardArmed = true;
+      discard.textContent = "CONFIRM DISCARD AND RETURN";
+      if (notice) notice.textContent = "Discarding removes the damaged journal without applying a raid verdict. Download it first if you may need recovery evidence, then confirm.";
+      return;
+    }
+    if (!clearRaidEscrow()) {
+      if (notice) notice.textContent = "The browser refused to remove the damaged journal. Check private-browsing or storage settings, then retry.";
+      return;
+    }
+    damagedRaidJournal = undefined;
+    persistenceWarning = "A damaged active-raid journal was discarded after explicit confirmation. No raid verdict was applied.";
+    renderLobby();
+  });
+}
+
 function renderLobby(): void {
+  if (damagedRaidJournal !== undefined) {
+    renderDamagedRaidJournalRecovery();
+    return;
+  }
   if (interruptedSettlementPending) {
     renderInterruptedSettlementRecovery();
     return;

@@ -452,16 +452,30 @@ export function beginRaidEscrow(escrow: RaidEscrow): boolean {
   }
 }
 
-export function loadRaidEscrow(): RaidEscrow | undefined {
+export interface RaidEscrowLoadResult {
+  status: "loaded" | "missing" | "corrupt" | "unavailable";
+  escrow?: RaidEscrow;
+  recovery?: string;
+}
+
+export function loadRaidEscrowState(storage?: Pick<ProfileStorageTarget, "getItem">): RaidEscrowLoadResult {
+  let serialized: string | null;
   try {
-    const serialized = localStorage.getItem(RAID_ESCROW_KEY);
-    if (!serialized) return undefined;
-    const escrow = normalizeRaidEscrow(JSON.parse(serialized));
-    if (!escrow) localStorage.removeItem(RAID_ESCROW_KEY);
-    return escrow;
+    serialized = (storage ?? globalThis.localStorage).getItem(RAID_ESCROW_KEY);
   } catch {
-    return undefined;
+    return { status: "unavailable" };
   }
+  if (serialized === null) return { status: "missing" };
+  try {
+    const escrow = normalizeRaidEscrow(JSON.parse(serialized));
+    return escrow ? { status: "loaded", escrow } : { status: "corrupt", recovery: serialized };
+  } catch {
+    return { status: "corrupt", recovery: serialized };
+  }
+}
+
+export function loadRaidEscrow(): RaidEscrow | undefined {
+  return loadRaidEscrowState().escrow;
 }
 
 export function clearRaidEscrow(): boolean {
