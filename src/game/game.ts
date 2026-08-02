@@ -19,7 +19,7 @@ import { MAX_TORCH_FUEL_SECONDS, addTorchFuel, spendTorchFuel } from "./light";
 import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, pointerLockTimeoutOutcome, raidDeadlineReached, raidFrameLoopActive } from "./lifecycle";
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
-import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
+import { channelCommitmentLabel, channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
 import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, enemyProjectileTargetsThreat, playerProjectileDuration, playerProjectilePosition, projectileSegmentContact, projectileStoneOutcome, projectileTargetContact, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
 import { advanceJournalRetry } from "./persistence";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
@@ -274,7 +274,9 @@ export class DarkPixGame {
   private damageOverlay!: HTMLElement;
   private damageDirectionHud!: HTMLElement;
   private soundDirectionHud!: HTMLElement;
+  private extractMeter!: HTMLElement;
   private extractProgress!: HTMLElement;
+  private extractProgressLabel!: HTMLElement;
   private abilityHud!: HTMLElement;
   private consumableHud!: HTMLElement;
   private throwableHud!: HTMLElement;
@@ -424,7 +426,7 @@ export class DarkPixGame {
           <div class="stealth-cue" aria-hidden="true"></div>
           <div class="attack-direction">THRUST</div>
           <div class="interaction-prompt"></div>
-          <div class="extract-meter"><i></i></div>
+          <div class="extract-meter" role="progressbar" aria-label="Ritual channel" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i><span></span></div>
           <div class="hud-bottom">
             <section class="vitals">
               <div class="portrait-rune">${this.options.classId === "vanguard" ? "V" : this.options.classId === "cutpurse" ? "C" : this.options.classId === "hexbound" ? "H" : this.options.classId === "reaver" ? "R" : this.options.classId === "ranger" ? "A" : this.options.classId === "cleric" ? "L" : this.options.classId === "shapeshifter" ? "S" : "M"}</div>
@@ -491,7 +493,9 @@ export class DarkPixGame {
     this.damageOverlay = this.mount.querySelector<HTMLElement>(".damage-flash")!;
     this.damageDirectionHud = this.mount.querySelector<HTMLElement>(".damage-direction")!;
     this.soundDirectionHud = this.mount.querySelector<HTMLElement>(".sound-direction")!;
+    this.extractMeter = this.mount.querySelector<HTMLElement>(".extract-meter")!;
     this.extractProgress = this.mount.querySelector<HTMLElement>(".extract-meter i")!;
+    this.extractProgressLabel = this.mount.querySelector<HTMLElement>(".extract-meter span")!;
     this.abilityHud = this.mount.querySelector<HTMLElement>(".ability-slot small")!;
     this.consumableHud = this.mount.querySelector<HTMLElement>(".consumable-slot small")!;
     this.throwableHud = this.mount.querySelector<HTMLElement>(".throwable-slot small")!;
@@ -3124,8 +3128,13 @@ export class DarkPixGame {
     }
     const channelDuration = (descending ? 2.4 : interactive === "campfire" ? 2.2 : interactive === "false_wall" ? 1.45 : 1.8) * this.loadoutBonuses.interactionDurationMultiplier;
     this.interactionHold = continuousHold(this.interactionHold, delta, channeling);
-    this.extractProgress.style.width = `${Math.min(100, (this.interactionHold / channelDuration) * 100)}%`;
-    this.extractProgress.parentElement?.classList.toggle("visible", channeling);
+    const channelPercent = Math.min(100, (this.interactionHold / channelDuration) * 100);
+    const channelLabel = channelCommitmentLabel(interactive === "portal" || interactive === "campfire" || interactive === "false_wall" ? interactive : undefined, descending, this.depth);
+    this.extractProgress.style.width = `${channelPercent}%`;
+    this.extractMeter.classList.toggle("visible", channeling);
+    this.extractMeter.setAttribute("aria-valuenow", String(Math.round(channelPercent)));
+    this.extractMeter.setAttribute("aria-label", channeling ? channelLabel : "Ritual channel");
+    this.extractProgressLabel.textContent = channeling ? `${channelLabel} · ${Math.round(channelPercent)}%` : "";
 
     if (!this.interactHeld && !this.descendHeld) return;
     if (interactive === "pickup" && targetPickup) {

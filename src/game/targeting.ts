@@ -26,6 +26,16 @@ export function continuousHold(previous: number, delta: number, active: boolean)
 }
 
 export type ChannelInterruptionReason = "target_lost" | "moving" | "guarding" | "recovering" | "damaged";
+export type HeldInteractionTarget = "portal" | "campfire" | "false_wall" | undefined;
+
+export function channelCommitmentLabel(target: HeldInteractionTarget, descending: boolean, depth: 1 | 2): string {
+  if (target === "portal" && descending && depth === 1) return "DESCENDING RED · FLOOR 2";
+  if (target === "portal" && depth === 2) return "EXTRACTING ASHEN · RETURN TO STASH";
+  if (target === "portal") return "EXTRACTING BLUE · RETURN TO STASH";
+  if (target === "campfire") return "RESTING AT CAMPFIRE";
+  if (target === "false_wall") return "OPENING FALSE STONE";
+  return "CHANNELING";
+}
 
 export function channelInterruptionReason(input: {
   targeted: boolean;

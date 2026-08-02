@@ -31,6 +31,13 @@ describe("lobby accessibility contracts", () => {
     expect(styles).toContain(".lock-actions .retry-journal.hidden { display: none; }");
   });
 
+  it("exposes held ritual progress and its committed destination semantically", () => {
+    const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
+    expect(gameSource).toContain('class="extract-meter" role="progressbar"');
+    expect(gameSource).toContain('this.extractMeter.setAttribute("aria-valuenow"');
+    expect(gameSource).toContain('this.extractMeter.setAttribute("aria-label", channeling ? channelLabel');
+  });
+
   it("keeps occluded movement cues separate from combat impact announcements", () => {
     expect(readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8")).toContain('class="sound-direction" role="status" aria-live="polite"');
     expect(styles).toContain(".raid-shell.high-contrast-hud .damage-direction, .raid-shell.high-contrast-hud .sound-direction");

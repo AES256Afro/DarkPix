@@ -344,6 +344,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .extract-meter { position: absolute; bottom: 150px; left: 50%; width: 270px; height: 3px; transform: translateX(-50%); background: rgba(34,54,55,.8); opacity: 0; }
 .extract-meter.visible { opacity: 1; }
 .extract-meter i { display: block; width: 0; height: 100%; background: var(--cyan); box-shadow: 0 0 13px var(--cyan); }
+.extract-meter span { position: absolute; bottom: 9px; left: 50%; width: max-content; transform: translateX(-50%); color: #b7d7d2; font: 800 7px ui-monospace, monospace; letter-spacing: .1em; text-shadow: 0 1px 3px #000; }
 .hud-bottom { position: absolute; inset: auto 0 0; display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; padding: 24px 30px 28px; background: linear-gradient(0deg, rgba(3,3,3,.66), transparent); }
 .vitals { display: flex; align-items: end; gap: 11px; }
 .portrait-rune { display: grid; width: 53px; height: 65px; place-items: center; border: 1px solid #665441; background: rgba(16,13,10,.85); color: #d1a265; font: 400 25px Georgia, serif; clip-path: polygon(50% 0, 100% 15%, 86% 86%, 50% 100%, 14% 86%, 0 15%); }
