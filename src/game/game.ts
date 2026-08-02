@@ -168,6 +168,7 @@ export interface DarkPixGameOptions {
 const PLAYER_HEIGHT = 1.67;
 const CROUCH_HEIGHT = 1.24;
 const PLAYER_RADIUS = 0.38;
+const HUD_REFRESH_SECONDS = 1 / 20;
 
 function pixelTexture(base: string, light: string, dark: string, mortar = false): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
@@ -387,6 +388,7 @@ export class DarkPixGame {
   private renderScale = 0;
   private frameTimeTotal = 0;
   private frameSamples = 0;
+  private hudRefreshTimer = 0;
   private resolutionTimer = 0;
   private depth: DungeonDepth = 1;
   private depthStartedAt = 0;
@@ -1491,7 +1493,11 @@ export class DarkPixGame {
     if (this.ended) return;
     this.updateInteraction(delta);
     if (this.ended) return;
-    this.updateHud();
+    this.hudRefreshTimer = Math.max(0, this.hudRefreshTimer - delta);
+    if (this.hudRefreshTimer === 0) {
+      this.hudRefreshTimer = HUD_REFRESH_SECONDS;
+      this.updateHud();
+    }
   }
 
   private phaseElapsed(): number {

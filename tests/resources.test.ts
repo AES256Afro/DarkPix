@@ -89,4 +89,12 @@ describe("raid resource cleanup", () => {
     expect(enemyCollision).not.toContain(".some(");
     expect(enemyCollision).not.toContain("{ x, z }");
   });
+
+  it("refreshes the HUD below render cadence without throttling simulation", () => {
+    const update = gameSource.slice(gameSource.indexOf("private update(delta"), gameSource.indexOf("private phaseElapsed"));
+    expect(gameSource).toContain("const HUD_REFRESH_SECONDS = 1 / 20");
+    expect(gameSource).toContain("private hudRefreshTimer = 0");
+    expect(update).toMatch(/this\.hudRefreshTimer = Math\.max\(0, this\.hudRefreshTimer - delta\);[\s\S]+if \(this\.hudRefreshTimer === 0\)[\s\S]+this\.updateHud\(\)/);
+    expect(update.indexOf("this.updateEnemies(delta)")).toBeLessThan(update.indexOf("this.hudRefreshTimer"));
+  });
 });
