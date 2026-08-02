@@ -9,7 +9,7 @@ import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEq
 import { SingleFlightGate, lobbyOperationCurrent } from "./game/lifecycle";
 import { PREFERENCES_KEY, loadPreferences, savePreferences } from "./game/preferences";
 import { browserStorageWritable, persistBeforeClearingEscrow } from "./game/persistence";
-import { BONE_BOUNTY_TARGET, PROFILE_KEY, RAID_ESCROW_KEY, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidEscrowOwnedBy, raidThreatKillLedger, raidXpBreakdown, renewRaidEscrow, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
+import { BONE_BOUNTY_TARGET, PROFILE_KEY, RAID_ESCROW_KEY, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearOwnedRaidEscrow, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidEscrowOwnedBy, raidThreatKillLedger, raidXpBreakdown, renewRaidEscrow, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
 import { rarityMark } from "./game/rarity";
 import { QUIET_KNIVES_REWARD, QUIET_KNIVES_TARGET } from "./game/stealth";
@@ -111,6 +111,12 @@ function queueRaidLeaseLoss(): void {
     lobbyEpoch += 1;
     renderForeignRaidLease();
   });
+}
+
+function activeRaidJournalOwned(): boolean {
+  if (activeRaidStartedAt <= 0) return false;
+  const journal = loadRaidEscrowState();
+  return journal.status === "loaded" && raidEscrowOwnedBy(journal.escrow, raidOwnerId, activeRaidStartedAt);
 }
 
 function loadGameModule(): Promise<typeof import("./game/game")> {
@@ -845,10 +851,12 @@ function renderLobby(): void {
 
 function refundFailedRaidStart(goldBeforeEntry: number): boolean {
   stopRaidHeartbeat();
+  const canceledRaidStartedAt = activeRaidStartedAt;
+  if (!activeRaidJournalOwned()) return false;
   profile.gold = goldBeforeEntry;
   if (activeRaidStartedAt > 0) profile.lastSettledRaidStartedAt = activeRaidStartedAt;
   if (!saveProfile(profile)) return false;
-  const cleared = clearRaidEscrow();
+  const cleared = clearOwnedRaidEscrow(raidOwnerId, canceledRaidStartedAt);
   if (cleared) activeRaidStartedAt = 0;
   return cleared;
 }
@@ -1041,7 +1049,10 @@ function finishRaid(result: RaidResult): void {
   });
   profile = settlement.profile;
   if (activeRaidStartedAt > 0) profile.lastSettledRaidStartedAt = activeRaidStartedAt;
-  let verdictSecured = persistBeforeClearingEscrow(persistProfile, clearRaidEscrow);
+  let verdictSecured = persistBeforeClearingEscrow(
+    () => activeRaidJournalOwned() && persistProfile(),
+    () => clearOwnedRaidEscrow(raidOwnerId, activeRaidStartedAt),
+  );
   if (verdictSecured) activeRaidStartedAt = 0;
   const recordedItems = extracted
     ? [
@@ -1111,8 +1122,13 @@ function finishRaid(result: RaidResult): void {
   app.querySelector<HTMLElement>("#raid-verdict-heading")?.focus({ preventScroll: true });
   app.querySelector<HTMLButtonElement>(".return-button")?.addEventListener("click", () => {
     if (!verdictSecured) {
-      verdictSecured = persistBeforeClearingEscrow(persistProfile, clearRaidEscrow);
+      verdictSecured = persistBeforeClearingEscrow(
+        () => activeRaidJournalOwned() && persistProfile(),
+        () => clearOwnedRaidEscrow(raidOwnerId, activeRaidStartedAt),
+      );
       if (!verdictSecured) {
+        const journal = loadRaidEscrowState();
+        if (journal.status === "loaded" && !raidEscrowOwnedBy(journal.escrow, raidOwnerId, activeRaidStartedAt)) queueRaidLeaseLoss();
         const notice = app.querySelector<HTMLElement>(".result-persistence");
         if (notice) notice.textContent = "The browser still refused the verdict. Keep this page open, check private-browsing or storage settings, then retry.";
         return;

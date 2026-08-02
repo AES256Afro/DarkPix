@@ -77,6 +77,8 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain("raidEscrowOwnedBy(journal.escrow, raidOwnerId, activeRaidStartedAt)");
     expect(mainSource).toContain('renewal === "ownership_lost"');
     expect(mainSource).toContain("lostRaidLeaseStartedAt === claimedRaidStartedAt");
+    expect(mainSource).toContain("() => activeRaidJournalOwned() && persistProfile()");
+    expect(mainSource).toContain("clearOwnedRaidEscrow(raidOwnerId, activeRaidStartedAt)");
     expect(mainSource).toContain("activeGame?.destroy()");
     const leaseLoss = mainSource.slice(mainSource.indexOf("function queueRaidLeaseLoss"), mainSource.indexOf("function loadGameModule"));
     expect(leaseLoss).not.toContain("clearRaidEscrow");
@@ -121,7 +123,8 @@ describe("lobby accessibility contracts", () => {
     const entryWriteStart = mainSource.indexOf("profile.gold = escrow.goldAfterEntry");
     const entryWriteFailure = mainSource.slice(entryWriteStart, mainSource.indexOf("app.innerHTML = `<main class=\"game-mount\"", entryWriteStart));
     expect(refund.indexOf("stopRaidHeartbeat()")).toBeLessThan(refund.indexOf("saveProfile(profile)"));
-    expect(refund.indexOf("saveProfile(profile)")).toBeLessThan(refund.indexOf("clearRaidEscrow()"));
+    expect(refund.indexOf("activeRaidJournalOwned()")).toBeLessThan(refund.indexOf("saveProfile(profile)"));
+    expect(refund.indexOf("saveProfile(profile)")).toBeLessThan(refund.indexOf("clearOwnedRaidEscrow"));
     expect(entryWriteFailure).toContain("const canceled = refundFailedRaidStart(goldBeforeEntry)");
     expect(entryWriteFailure).not.toContain("const canceled = clearRaidEscrow()");
   });

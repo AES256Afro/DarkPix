@@ -314,6 +314,10 @@ interface ProfileStorageTarget {
   setItem(key: string, value: string): void;
 }
 
+interface RaidEscrowStorageTarget extends ProfileStorageTarget {
+  removeItem(key: string): void;
+}
+
 export interface ProfileLoadResult {
   profile: Profile;
   status: "loaded" | "missing" | "corrupt" | "incompatible" | "unavailable";
@@ -540,6 +544,19 @@ export function clearRaidEscrow(): boolean {
     return localStorage.getItem(RAID_ESCROW_KEY) === null;
   } catch {
     // The normal profile warning already explains unavailable browser storage.
+    return false;
+  }
+}
+
+export function clearOwnedRaidEscrow(ownerId: string, startedAt: number, storage?: RaidEscrowStorageTarget): boolean {
+  try {
+    const target = storage ?? globalThis.localStorage;
+    const current = loadRaidEscrowState(target);
+    if (current.status === "missing") return true;
+    if (current.status !== "loaded" || !raidEscrowOwnedBy(current.escrow, ownerId, startedAt)) return false;
+    target.removeItem(RAID_ESCROW_KEY);
+    return target.getItem(RAID_ESCROW_KEY) === null;
+  } catch {
     return false;
   }
 }

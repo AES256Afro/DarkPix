@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createItemId, createLoot, createSigil, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
-import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, MAX_RAID_LOOT_ITEMS, RAID_ESCROW_KEY, RAID_ESCROW_LEASE_MS, RAID_HISTORY_LIMIT, applyRaidResult, beginRaidEscrow, contractRecordSummary, craftItem, createProfile, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeProfile, normalizeRaidEscrow, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidEscrowOwnedBy, raidThreatKillLedger, raidXpBreakdown, renewRaidEscrow, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
+import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, MAX_RAID_LOOT_ITEMS, RAID_ESCROW_KEY, RAID_ESCROW_LEASE_MS, RAID_HISTORY_LIMIT, applyRaidResult, beginRaidEscrow, clearOwnedRaidEscrow, contractRecordSummary, craftItem, createProfile, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeProfile, normalizeRaidEscrow, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidEscrowOwnedBy, raidThreatKillLedger, raidXpBreakdown, renewRaidEscrow, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, firstRunPreferences, normalizePreferences } from "../src/game/preferences";
 import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, damageImpactAccepted, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, safeDamageAmount, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat } from "../src/game/combat";
 import type { RaidResult } from "../src/game/types";
@@ -496,6 +496,23 @@ describe("persistent raid consequences", () => {
     };
     expect(renewRaidEscrow(renewed, storage)).toBe("ownership_lost");
     expect(stored).toBe(JSON.stringify(rival));
+  });
+
+  it("clears only the expected page owner's raid journal", () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+      removeItem: (key: string) => { values.delete(key); },
+    };
+    const owned = createRaidEscrow("vanguard", "standard", [], 123, 1, 0, 75, {}, 0, 0, "page-a", 123);
+    values.set(RAID_ESCROW_KEY, JSON.stringify(owned));
+    expect(clearOwnedRaidEscrow("page-b", 123, storage)).toBe(false);
+    expect(values.get(RAID_ESCROW_KEY)).toBe(JSON.stringify(owned));
+    expect(clearOwnedRaidEscrow("page-a", 124, storage)).toBe(false);
+    expect(clearOwnedRaidEscrow("page-a", 123, storage)).toBe(true);
+    expect(values.has(RAID_ESCROW_KEY)).toBe(false);
+    expect(clearOwnedRaidEscrow("page-a", 123, storage)).toBe(true);
   });
 
   it("allocates a raid marker distinct from the last settled journal in the same millisecond", () => {

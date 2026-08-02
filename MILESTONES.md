@@ -32,6 +32,7 @@ Status: Complete for local-first play
 - Malformed or future active-raid journals stay quarantined behind raw download and explicit two-step discard instead of silently bypassing the raid's risk
 - A 12-second page-owner lease heartbeats every three seconds, preventing another tab from treating a live raid as an interruption or overwriting its escrow
 - Initial page-owner claims are read-back verified, renewals refuse to overwrite another owner, and a losing concurrent descent destroys only its local simulation before entering the non-destructive foreign-raid lock
+- Live cancellation and terminal settlement recheck their owner immediately before profile persistence, while owned removal refuses to clear a replacement journal from another tab
 - Already-open idle tabs observe the shared journal, invalidate pending lobby imports, and enter the same non-destructive lock as soon as another tab begins a leased raid
 - A quarantined idle tab reloads into the durable profile as soon as the owning tab safely removes its settled journal
 - Idle tabs adopt durable profile writes from one another, discard stale sale intent, and keep only packed selections that still exist in the refreshed stash
