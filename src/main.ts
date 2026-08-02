@@ -1,12 +1,12 @@
 import "./style.css";
 import { escapeHtml } from "./html";
-import { createSaveBackup, parseSaveBackup } from "./game/backup";
+import { createSaveBackup, parseSaveBackup, persistSaveImport } from "./game/backup";
 import { merchantCommission } from "./game/commission";
 import { RAID_VARIATION_COUNT, raidVariationSeal, validRaidVariationSeed } from "./game/contract";
 import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, createItemId, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses } from "./game/data";
 import { itemValueTotal, raidValueSummary } from "./game/economy";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
-import { SingleFlightGate } from "./game/lifecycle";
+import { SingleFlightGate, lobbyOperationCurrent } from "./game/lifecycle";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { browserStorageWritable, persistBeforeClearingEscrow } from "./game/persistence";
 import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfileState, loadRaidEscrow, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
@@ -44,7 +44,9 @@ let reloadForUpdate = false;
 let activeRaidStartedAt = 0;
 let interruptedSettlementPending = false;
 let interruptedSettlementNotice = "";
+let lobbyEpoch = 0;
 const raidLaunchGate = new SingleFlightGate();
+const saveImportGate = new SingleFlightGate();
 
 const interruptedRaid = loadRaidEscrow();
 if (interruptedRaid) {
@@ -104,6 +106,10 @@ function showUpdatePrompt(registration: ServiceWorkerRegistration): void {
     }
     if (interruptedSettlementPending) {
       button.textContent = "SECURE THE VERDICT FIRST";
+      return;
+    }
+    if (saveImportGate.busy) {
+      button.textContent = "FINISH THE SAVE IMPORT FIRST";
       return;
     }
     if (activeGame) {
@@ -191,6 +197,8 @@ function renderLobby(): void {
   }
   activeGame?.destroy();
   activeGame = undefined;
+  lobbyEpoch += 1;
+  const renderedLobbyEpoch = lobbyEpoch;
   if (raidEntryStatus(selectedRaidMode, profile.extracts, profile.gold, profile.ashenExtracts) !== "ready") selectedRaidMode = "standard";
   const chosen = CLASSES[selectedClass];
   const selectedRaidRules = raidRules(selectedRaidMode);
@@ -579,34 +587,53 @@ function renderLobby(): void {
   const saveFileInput = app.querySelector<HTMLInputElement>("[data-save-file]");
   app.querySelector<HTMLButtonElement>('[data-save-action="import"]')?.addEventListener("click", () => saveFileInput?.click());
   saveFileInput?.addEventListener("change", () => void (async () => {
-    const file = saveFileInput.files?.[0];
-    if (!file) return;
-    if (file.size > 1_000_000) {
-      merchantNotice = "That save file is too large to be a DarkPix backup.";
-      renderLobby();
-      return;
-    }
-    let imported: ReturnType<typeof parseSaveBackup>;
+    const importTicket = saveImportGate.begin();
+    if (importTicket === undefined) return;
     try {
-      imported = parseSaveBackup(await file.text());
-    } catch {
-      imported = undefined;
-    }
-    saveFileInput.value = "";
-    if (!imported) {
-      merchantNotice = "That file is not a valid DarkPix save backup.";
+      const file = saveFileInput.files?.[0];
+      if (!file) return;
+      if (file.size > 1_000_000) {
+        merchantNotice = "That save file is too large to be a DarkPix backup.";
+        renderLobby();
+        return;
+      }
+      app.querySelectorAll<HTMLButtonElement>('[data-save-action="import"], .descend-button').forEach((button) => { button.disabled = true; });
+      let imported: ReturnType<typeof parseSaveBackup>;
+      try {
+        imported = parseSaveBackup(await file.text());
+      } catch {
+        imported = undefined;
+      }
+      saveFileInput.value = "";
+      if (!lobbyOperationCurrent(renderedLobbyEpoch, lobbyEpoch, raidLaunchGate.busy, Boolean(activeGame))) return;
+      if (!imported) {
+        merchantNotice = "That file is not a valid DarkPix save backup.";
+        renderLobby();
+        return;
+      }
+      if (!window.confirm("Replace this browser's DarkPix profile and settings with the selected backup?")) {
+        renderLobby();
+        return;
+      }
+      const importPersistence = persistSaveImport(imported, saveProfile, savePreferences);
+      if (importPersistence === "rejected") {
+        persistenceWarning = "The browser refused the imported profile. The existing durable save was left unchanged.";
+        merchantNotice = "Save import was not applied.";
+        renderLobby();
+        return;
+      }
+      profile = imported.profile;
+      preferences = imported.preferences;
+      selectedClass = profile.preferredClass;
+      equippedIds = new Set();
+      persistenceWarning = importPersistence === "complete" ? "" : "The profile was imported, but its settings will last only until the page closes.";
+      merchantNotice = importPersistence === "complete"
+        ? "Save imported. The Last Lantern remembers you again."
+        : "Profile imported. The browser refused its settings.";
       renderLobby();
-      return;
+    } finally {
+      saveImportGate.finish(importTicket);
     }
-    if (!window.confirm("Replace this browser's DarkPix profile and settings with the selected backup?")) return;
-    profile = imported.profile;
-    preferences = imported.preferences;
-    selectedClass = profile.preferredClass;
-    equippedIds = new Set();
-    merchantNotice = "Save imported. The Last Lantern remembers you again.";
-    persistProfile();
-    persistPreferences();
-    renderLobby();
   })());
   const descendButton = app.querySelector<HTMLButtonElement>(".descend-button");
   descendButton?.addEventListener("pointerenter", () => void loadGameModule());
@@ -625,6 +652,11 @@ function refundFailedRaidStart(goldBeforeEntry: number): boolean {
 }
 
 async function startRaid(): Promise<void> {
+  if (saveImportGate.busy) {
+    merchantNotice = "Finish or cancel the save import before descending.";
+    renderLobby();
+    return;
+  }
   const launchTicket = raidLaunchGate.begin();
   if (launchTicket === undefined) return;
   let securedGoldBeforeEntry: number | undefined;

@@ -66,6 +66,13 @@ export class SingleFlightGate {
   }
 }
 
+export function lobbyOperationCurrent(startedEpoch: number, currentEpoch: number, raidLaunching: boolean, raidActive: boolean): boolean {
+  return Number.isInteger(startedEpoch)
+    && startedEpoch === currentEpoch
+    && !raidLaunching
+    && !raidActive;
+}
+
 export function raidDeadlineReached(elapsed: number, duration: number): boolean {
   if (!Number.isFinite(elapsed) || !Number.isFinite(duration) || duration <= 0) return true;
   return elapsed >= duration;

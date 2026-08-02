@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LifecycleTimers, SingleFlightGate, pointerLockRequestAllowed, pointerLockResumesRaid, pointerLockTimeoutOutcome, raidDeadlineReached, raidFrameLoopActive } from "../src/game/lifecycle";
+import { LifecycleTimers, SingleFlightGate, lobbyOperationCurrent, pointerLockRequestAllowed, pointerLockResumesRaid, pointerLockTimeoutOutcome, raidDeadlineReached, raidFrameLoopActive } from "../src/game/lifecycle";
 
 afterEach(() => vi.useRealTimers());
 
@@ -60,6 +60,14 @@ describe("raid lifecycle", () => {
     gate.finish(first ?? 0);
     expect(gate.busy).toBe(false);
     expect(gate.begin()).toBe(2);
+  });
+
+  it("accepts an asynchronous lobby result only in its originating idle render", () => {
+    expect(lobbyOperationCurrent(4, 4, false, false)).toBe(true);
+    expect(lobbyOperationCurrent(4, 5, false, false)).toBe(false);
+    expect(lobbyOperationCurrent(4, 4, true, false)).toBe(false);
+    expect(lobbyOperationCurrent(4, 4, false, true)).toBe(false);
+    expect(lobbyOperationCurrent(Number.NaN, Number.NaN, false, false)).toBe(false);
   });
 
   it("ends the terminal frame at the exact floor deadline", () => {

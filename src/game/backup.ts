@@ -67,3 +67,14 @@ export function parseSaveBackup(serialized: string): Pick<SaveBackup, "profile" 
     return undefined;
   }
 }
+
+export type SaveImportPersistence = "rejected" | "complete" | "profile_only";
+
+export function persistSaveImport(
+  imported: Pick<SaveBackup, "profile" | "preferences">,
+  persistProfile: (profile: Profile) => boolean,
+  persistPreferences: (preferences: GamePreferences) => boolean,
+): SaveImportPersistence {
+  if (!persistProfile(imported.profile)) return "rejected";
+  return persistPreferences(imported.preferences) ? "complete" : "profile_only";
+}

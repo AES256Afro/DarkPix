@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createSaveBackup, parseSaveBackup, SAVE_BACKUP_FORMAT } from "../src/game/backup";
+import { createSaveBackup, parseSaveBackup, persistSaveImport, SAVE_BACKUP_FORMAT } from "../src/game/backup";
 import { DEFAULT_PREFERENCES } from "../src/game/preferences";
 import { createProfile } from "../src/game/profile";
 
@@ -27,5 +27,16 @@ describe("save backups", () => {
       profile: { version: 14, gold: 75, xp: {}, stash: "not-an-array", preferredClass: "vanguard" },
       preferences: DEFAULT_PREFERENCES,
     }))).toBeUndefined();
+  });
+
+  it("stores an imported profile before settings and rejects memory replacement when profile storage fails", () => {
+    const imported = { profile: createProfile(), preferences: DEFAULT_PREFERENCES };
+    const order: string[] = [];
+    expect(persistSaveImport(imported, () => { order.push("profile"); return true; }, () => { order.push("preferences"); return true; })).toBe("complete");
+    expect(order).toEqual(["profile", "preferences"]);
+
+    const settings = () => { throw new Error("settings must not run"); };
+    expect(persistSaveImport(imported, () => false, settings)).toBe("rejected");
+    expect(persistSaveImport(imported, () => true, () => false)).toBe("profile_only");
   });
 });
