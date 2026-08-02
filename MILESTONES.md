@@ -95,6 +95,7 @@ Status: Complete
 - Immutable hashed assets with non-cacheable release identity and service worker
 - Release-isolated worker caches recover old hashed chunks from real asset 404s instead of accepting the HTML shell
 - Install and runtime cache writes reject response types that do not match their navigation, script, style, image, font, or manifest key, including every fixed shell entry staged by `addAll`
+- The public manifest is served as JSON, while the unversioned app icon and title image revalidate instead of inheriting a stale edge or one-year immutable response
 - CI-enforced compressed JavaScript, CSS, and entry-HTML performance budgets
 - CI rejects high or critical dependency advisories before building the release image
 - Every deploy rejects a dirty source tree, snapshots the prior image, inspects effective runtime hardening, verifies Cloudflare-uncached live health and release identity, real missing-asset 404s, executable MIME types and immutable caching for every HTML-referenced build asset, and the exact commit through both `ne-gro.com` and `www.ne-gro.com`; rollback must prove the restored constraints and both public routes before discarding its snapshot

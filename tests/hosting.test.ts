@@ -10,6 +10,18 @@ describe("production asset routing", () => {
     expect(nginx).toMatch(/healthz\|version\\\.txt\|sw\\\.js\|manifest\\\.webmanifest/);
   });
 
+  it("serves the install manifest as JSON and keeps unversioned shell art revalidatable", () => {
+    expect(nginx).toMatch(/location = \/manifest\.webmanifest\s*\{\s*default_type application\/manifest\+json;/);
+    expect(nginx).toMatch(/sw\\\.js\|manifest\\\.webmanifest\|darkpix-icon\\\.svg/);
+    expect(nginx).toContain('~^/assets/darkpix-title\\.jpg$ "no-cache";');
+    expect(deployScript).toContain('content-type:.*json');
+    expect(deployScript).toContain('content-type:.*image/svg+xml');
+    expect(deployScript).toContain('content-type:.*image/jpeg');
+    expect(deployScript).toContain('"$public_url/manifest.webmanifest"');
+    expect(deployScript).toContain('"$public_url/darkpix-icon.svg"');
+    expect(deployScript).toContain('"$public_url/assets/darkpix-title.jpg"');
+  });
+
   it("rejects a public rollout whose missing release chunk does not return 404", () => {
     expect(deployScript).toContain('"$public_url/assets/missing-$darkpix_release.js"');
     expect(deployScript).toContain('[[ "$missing_asset_status" == "404" ]] || return 1');
