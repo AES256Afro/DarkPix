@@ -141,6 +141,7 @@ Status: Complete
 - CI rejects high or critical dependency advisories before building the release image
 - CI executes official checkout and Node setup actions by immutable commit identity while retaining their audited major-version annotations
 - CI and production image dependency installation suppress third-party package lifecycle scripts before tests and compilation
+- CI scans interface copy, source, documentation, configuration, and tests for the project's prohibited U+2014 character before building
 - Every deploy rejects a dirty source tree, snapshots the prior image, inspects effective runtime hardening, verifies Cloudflare-uncached live health and release identity, real missing-asset 404s, executable MIME types and immutable caching for every HTML-referenced build asset, and the exact commit through both `ne-gro.com` and `www.ne-gro.com`; rollback must prove the restored constraints, read-only method gate, version, HTML release marker, and both public routes before discarding its snapshot
 - Public write-method rejection is enforced by both curl and wget deployment-verification paths, including rollback recovery
 - The release script rejects any environment override that differs from the checked-out Git commit, preventing a clean image from carrying a false version marker

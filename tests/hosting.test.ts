@@ -96,6 +96,11 @@ describe("production asset routing", () => {
     expect(dockerfile).not.toMatch(/^RUN npm ci\s*$/m);
   });
 
+  it("enforces the project copy-style constraint in CI", () => {
+    expect(workflow).toContain("npm run test:copy");
+    expect(workflow.indexOf("npm run test:copy")).toBeLessThan(workflow.indexOf("npm run build"));
+  });
+
   it("bounds public access-log growth inside the DarkPix service", () => {
     expect(compose).toMatch(/logging:\s+driver: json-file\s+options:\s+max-size: "10m"\s+max-file: "3"/);
   });

@@ -25,6 +25,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run test:security
       - run: npm test
+      - run: npm run test:copy
       - run: npm run build
       - run: npm run test:budget
       - run: bash -n scripts/deploy-bigbox.sh
