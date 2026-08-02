@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createItemId, createLoot, createSigil, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
+import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MAX_CLASS_LEVEL, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createItemId, createLoot, createSigil, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
 import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, MAX_RAID_LOOT_ITEMS, RAID_ESCROW_KEY, RAID_ESCROW_LEASE_MS, RAID_HISTORY_LIMIT, applyRaidResult, beginRaidEscrow, clearOwnedRaidEscrow, contractRecordSummary, craftItem, createProfile, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeProfile, normalizeRaidEscrow, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidEscrowOwnedBy, raidThreatKillLedger, raidXpBreakdown, renewRaidEscrow, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, firstRunPreferences, normalizePreferences, savePreferences } from "../src/game/preferences";
 import { FLOOR_TRAP_WINDUP_SECONDS, RIPOSTE_DURATION_SECONDS, advanceFloorTrapWindup, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, damageImpactAccepted, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, safeDamageAmount, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat, trapTargetPrecedes } from "../src/game/combat";
@@ -982,6 +982,8 @@ describe("display helpers", () => {
     expect(formatTime(-3)).toBe("0:00");
     expect(levelForXp(699)).toBe(2);
     expect(levelForXp(700)).toBe(3);
+    expect(levelForXp(99_999)).toBe(MAX_CLASS_LEVEL);
+    expect(levelForXp(Number.NaN)).toBe(1);
     expect(progressionBonuses(1)).toEqual({ health: 0, damage: 0 });
     expect(progressionBonuses(4)).toEqual({ health: 12, damage: 1 });
     expect(progressionBonuses(99)).toEqual({ health: 24, damage: 3 });

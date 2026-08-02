@@ -17,6 +17,8 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain('aria-valuenow="${ironmongerStanding.progress}"');
     expect(mainSource).toContain('role="progressbar" aria-label="${chosen.name} level progress"');
     expect(mainSource).toContain('aria-valuenow="${levelProgress}"');
+    expect(mainSource).toContain("const levelProgress = levelMaxed ? 100");
+    expect(mainSource).toContain('`${classXp} XP · MAX`');
   });
 
   it("keeps every native control visibly focused and preserves selection in forced colors", () => {

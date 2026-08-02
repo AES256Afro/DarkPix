@@ -3,7 +3,7 @@ import { escapeHtml } from "./html";
 import { createSaveBackup, parseSaveBackup, persistSaveImport } from "./game/backup";
 import { merchantCommission } from "./game/commission";
 import { RAID_VARIATION_COUNT, raidVariationSeal, validRaidVariationSeed } from "./game/contract";
-import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, createItemId, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses } from "./game/data";
+import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MAX_CLASS_LEVEL, MERCHANT_OFFERS, RARITY_COLOR, createItemId, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses } from "./game/data";
 import { itemValueTotal, raidValueSummary } from "./game/economy";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
 import { SingleFlightGate, lobbyOperationCurrent } from "./game/lifecycle";
@@ -422,8 +422,9 @@ function renderLobby(): void {
   const classXp = profile.xp[selectedClass];
   const level = levelForXp(classXp);
   const bonuses = progressionBonuses(level);
+  const levelMaxed = level >= MAX_CLASS_LEVEL;
   const nextLevelXp = level * 350;
-  const levelProgress = ((classXp % 350) / 350) * 100;
+  const levelProgress = levelMaxed ? 100 : ((classXp % 350) / 350) * 100;
   const stashValue = profile.stash.reduce((sum, item) => sum + item.value, 0);
   const displayedStash = sortStash(profile.stash, preferences.stashSort);
   const previewLoadout = profile.stash.filter((item) => equippedIds.has(item.id));
@@ -549,7 +550,7 @@ function renderLobby(): void {
             <section class="delver-sheet">
               <div class="panel-heading"><span><small>ACTIVE DELVER</small><strong>${chosen.name}</strong></span><b>LV ${level}</b></div>
               <div class="level-track" role="progressbar" aria-label="${chosen.name} level progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${levelProgress}"><i style="width:${levelProgress}%"></i></div>
-              <div class="sheet-line"><span>Experience</span><strong>${classXp} / ${nextLevelXp}</strong></div>
+              <div class="sheet-line"><span>Experience</span><strong>${levelMaxed ? `${classXp} XP · MAX` : `${classXp} / ${nextLevelXp}`}</strong></div>
               <div class="sheet-line"><span>Raid weapon</span><strong>${chosen.weapon}</strong></div>
               <div class="sheet-line"><span>Class art</span><strong>${chosen.ability}</strong></div>
               <div class="sheet-line"><span>Active skill</span><strong>Q · ${CLASS_ABILITIES[selectedClass].name}</strong></div>

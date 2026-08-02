@@ -576,8 +576,11 @@ export function createSigil(random = Math.random): Item {
   };
 }
 
+export const MAX_CLASS_LEVEL = 7;
+
 export function levelForXp(xp: number): number {
-  return 1 + Math.floor(Math.max(0, xp) / 350);
+  const safeXp = Number.isFinite(xp) ? Math.max(0, xp) : 0;
+  return Math.min(MAX_CLASS_LEVEL, 1 + Math.floor(safeXp / 350));
 }
 
 export function progressionBonuses(level: number): { health: number; damage: number } {
