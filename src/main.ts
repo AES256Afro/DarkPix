@@ -7,7 +7,7 @@ import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERC
 import { itemValueTotal, raidValueSummary } from "./game/economy";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
 import { SingleFlightGate, lobbyOperationCurrent } from "./game/lifecycle";
-import { loadPreferences, savePreferences } from "./game/preferences";
+import { PREFERENCES_KEY, loadPreferences, savePreferences } from "./game/preferences";
 import { browserStorageWritable, persistBeforeClearingEscrow } from "./game/persistence";
 import { BONE_BOUNTY_TARGET, PROFILE_KEY, RAID_ESCROW_KEY, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
@@ -281,7 +281,8 @@ function lockForForeignRaidJournal(): boolean {
 
 function refreshIdleProfileFromStorage(): void {
   if (
-    profileLoad.status === "incompatible"
+    !app.querySelector(".lobby")
+    || profileLoad.status === "incompatible"
     || activeGame
     || activeRaidStartedAt > 0
     || raidLaunchGate.busy
@@ -302,6 +303,23 @@ function refreshIdleProfileFromStorage(): void {
   equippedIds = new Set([...equippedIds].filter((id) => availableIds.has(id)));
   pendingSaleId = undefined;
   merchantNotice = "Another DarkPix tab updated the ledger. This lobby now reflects its latest durable profile.";
+  renderLobby();
+}
+
+function refreshIdlePreferencesFromStorage(): void {
+  if (
+    !app.querySelector(".lobby")
+    || profileLoad.status === "incompatible"
+    || activeGame
+    || activeRaidStartedAt > 0
+    || raidLaunchGate.busy
+    || interruptedSettlementPending
+    || damagedRaidJournal !== undefined
+    || foreignRaidLease
+  ) return;
+  if (lockForForeignRaidJournal()) return;
+  preferences = loadPreferences();
+  merchantNotice = "Another DarkPix tab updated settings. This lobby now reflects those durable preferences.";
   renderLobby();
 }
 
@@ -1026,5 +1044,6 @@ else renderLobby();
 window.addEventListener("storage", (event) => {
   if (event.key === RAID_ESCROW_KEY) lockForForeignRaidJournal();
   if (event.key === PROFILE_KEY) refreshIdleProfileFromStorage();
+  if (event.key === PREFERENCES_KEY) refreshIdlePreferencesFromStorage();
 });
 registerOfflineWorker();

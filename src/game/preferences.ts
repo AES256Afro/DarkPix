@@ -1,6 +1,6 @@
 import type { GamePreferences, StashSort } from "./types";
 
-const PREFERENCES_KEY = "darkpix-preferences-v1";
+export const PREFERENCES_KEY = "darkpix-preferences-v1";
 
 export const DEFAULT_PREFERENCES: GamePreferences = {
   mouseSensitivity: 1,

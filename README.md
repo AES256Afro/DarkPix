@@ -91,7 +91,7 @@ Save import requires recognizable profile, stash, progression, and preference fi
 - The bestiary persists bounded kills by threat type across every outcome. Twelve cryptborn kills and three rival-delver kills complete separate guild ledgers, each paid once on a later successful extraction.
 - Defeating a threat once reveals its name, persistent kill count, and a tactical note in the lobby bestiary; undiscovered pages remain obscured.
 
-Idle tabs also observe durable profile writes from one another, so gold, stash, class, merchant, and contract state refresh without a manual reload. Active raids and recovery screens never replace their in-memory state from that event, and a corrupt or newer incoming profile reloads into the existing safe recovery path instead of being normalized in place.
+Idle tabs also observe durable profile and preference writes from one another, so gold, stash, class, merchant, contract, accessibility, and control state refresh without a manual reload. These refreshes apply only while the lobby is visible, so active raids, verdicts, and recovery screens never replace their in-memory state from that event. A corrupt or newer incoming profile reloads into the existing safe recovery path instead of being normalized in place.
 
 The current vertical slice simulates the PvP side with a hostile AI rival. Server-authoritative solo, duo, and trio matchmaking, proximity voice, and additional maps are future systems, not part of this build.
 

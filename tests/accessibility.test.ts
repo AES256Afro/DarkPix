@@ -55,6 +55,13 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain("profile = refreshed.profile");
     expect(mainSource).toContain("availableIds.has(id)");
     expect(mainSource).toContain('refreshed.status === "corrupt" || refreshed.status === "incompatible"');
+    expect(mainSource).toContain('!app.querySelector(".lobby")');
+  });
+
+  it("refreshes durable settings across idle lobby tabs", () => {
+    expect(mainSource).toContain("event.key === PREFERENCES_KEY");
+    expect(mainSource).toContain("refreshIdlePreferencesFromStorage");
+    expect(mainSource).toContain("preferences = loadPreferences()");
   });
 
   it("recovers an update prompt after another tab activates its worker", () => {
