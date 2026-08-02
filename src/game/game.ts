@@ -14,7 +14,7 @@ import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./r
 import { disposeSceneResources } from "./resources";
 import { RAID_VARIATION_COUNT, raidVariationSeal, validRaidVariationSeed } from "./contract";
 import { rarityShape } from "./rarity";
-import { raidReadinessSummary } from "./readiness";
+import { raidHazardReadiness, raidReadinessSummary } from "./readiness";
 import { MAX_TORCH_FUEL_SECONDS, addTorchFuel, spendTorchFuel } from "./light";
 import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, pointerLockTimeoutOutcome, raidDeadlineReached, raidFrameLoopActive, simulationFrameDelta } from "./lifecycle";
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
@@ -1299,6 +1299,7 @@ export class DarkPixGame {
       torchLit: this.torchLit,
       torchFuel: this.torchFuel,
     });
+    const hazard = raidHazardReadiness(this.depth, this.phaseElapsed(), this.portalSite, this.camera.position);
     const itemRow = (item: Item, status: string): string => `<span class="pause-ledger-item" style="--rarity:${RARITY_COLOR[item.rarity]}"><i></i><b>${escapeHtml(item.name)}</b><small>${status} · ${item.value}g</small></span>`;
     this.pauseLedger.innerHTML = `
       <div class="pause-ledger-summary">
@@ -1306,6 +1307,8 @@ export class DarkPixGame {
         <span><small>STAMINA</small><strong>${readiness.stamina}</strong></span>
         <span><small>SPELL MEMORY</small><strong>${readiness.memory}</strong></span>
         <span><small>PASSAGE</small><strong>${readiness.passage}</strong></span>
+        <span><small>FLOOR CLOCK</small><strong>${formatTime(hazard.remainingSeconds)}</strong></span>
+        <span><small>DARK SAFETY</small><strong>${hazard.safety}</strong></span>
         <span><small>PACKED RISK</small><strong>${remainingPacked.length} ITEM${remainingPacked.length === 1 ? "" : "S"}</strong></span>
         <span><small>UNSECURED HAUL</small><strong>${ordinaryHaul.length} / ${HAUL_CAPACITY} · ${haulValue}G VALUE · ${coinValue}G COIN</strong></span>
         <span><small>RESERVES</small><strong>${this.availableConsumables().length} REMEDY · ${this.availableThrowables().length} THROW</strong></span>

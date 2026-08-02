@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { raidReadinessSummary } from "../src/game/readiness";
+import { raidHazardReadiness, raidReadinessSummary } from "../src/game/readiness";
 
 describe("paused raid readiness", () => {
   it("reports exact resources and unopened passage progress", () => {
@@ -28,5 +28,23 @@ describe("paused raid readiness", () => {
       campfire: "SPENT",
       torch: "SPENT",
     });
+  });
+
+  it("reports the paused floor clock and a direction back from darkness", () => {
+    expect(raidHazardReadiness(1, 2, { x: 16, z: -16 }, { x: 0, z: 0 })).toEqual({
+      remainingSeconds: 208,
+      safety: "WARDING VEIL · 6S",
+    });
+    const outside = raidHazardReadiness(1, 180, { x: 16, z: -16 }, { x: -30, z: 30 });
+    expect(outside.remainingSeconds).toBe(30);
+    expect(outside.safety).toMatch(/^DARK · \d+M OUT · NE TO SAFETY$/);
+  });
+
+  it("bounds malformed paused hazard evidence", () => {
+    expect(raidHazardReadiness(2, Number.NaN, { x: Number.NaN, z: Number.NaN }, { x: Number.NaN, z: Number.POSITIVE_INFINITY })).toEqual({
+      remainingSeconds: 135,
+      safety: "WARDING VEIL · 5S",
+    });
+    expect(raidHazardReadiness(2, 999, { x: 16, z: -16 }, { x: 16, z: -16 }).remainingSeconds).toBe(0);
   });
 });
