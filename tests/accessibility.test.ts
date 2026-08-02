@@ -49,6 +49,14 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain("if (lockForForeignRaidJournal()) return;");
   });
 
+  it("refreshes an idle lobby when another tab stores a durable profile", () => {
+    expect(mainSource).toContain("event.key === PROFILE_KEY");
+    expect(mainSource).toContain("refreshIdleProfileFromStorage");
+    expect(mainSource).toContain("profile = refreshed.profile");
+    expect(mainSource).toContain("availableIds.has(id)");
+    expect(mainSource).toContain('refreshed.status === "corrupt" || refreshed.status === "incompatible"');
+  });
+
   it("recovers an update prompt after another tab activates its worker", () => {
     expect(mainSource).toContain("const waitingWorker = updateRegistration?.waiting");
     expect(mainSource).toContain("RELOADING APPLIED UPDATE...");

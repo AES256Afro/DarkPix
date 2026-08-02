@@ -9,7 +9,7 @@ import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEq
 import { SingleFlightGate, lobbyOperationCurrent } from "./game/lifecycle";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { browserStorageWritable, persistBeforeClearingEscrow } from "./game/persistence";
-import { BONE_BOUNTY_TARGET, RAID_ESCROW_KEY, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
+import { BONE_BOUNTY_TARGET, PROFILE_KEY, RAID_ESCROW_KEY, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
 import { rarityMark } from "./game/rarity";
 import { QUIET_KNIVES_REWARD, QUIET_KNIVES_TARGET } from "./game/stealth";
@@ -277,6 +277,32 @@ function lockForForeignRaidJournal(): boolean {
   lobbyEpoch += 1;
   renderForeignRaidLease();
   return true;
+}
+
+function refreshIdleProfileFromStorage(): void {
+  if (
+    profileLoad.status === "incompatible"
+    || activeGame
+    || activeRaidStartedAt > 0
+    || raidLaunchGate.busy
+    || interruptedSettlementPending
+    || damagedRaidJournal !== undefined
+    || foreignRaidLease
+  ) return;
+  if (lockForForeignRaidJournal()) return;
+  const refreshed = loadProfileState();
+  if (refreshed.status === "corrupt" || refreshed.status === "incompatible") {
+    location.reload();
+    return;
+  }
+  if (refreshed.status !== "loaded") return;
+  profile = refreshed.profile;
+  selectedClass = profile.preferredClass;
+  const availableIds = new Set(profile.stash.map((item) => item.id));
+  equippedIds = new Set([...equippedIds].filter((id) => availableIds.has(id)));
+  pendingSaleId = undefined;
+  merchantNotice = "Another DarkPix tab updated the ledger. This lobby now reflects its latest durable profile.";
+  renderLobby();
 }
 
 function renderLobby(): void {
@@ -999,5 +1025,6 @@ if (profileLoad.status === "incompatible") renderIncompatibleProfileRecovery();
 else renderLobby();
 window.addEventListener("storage", (event) => {
   if (event.key === RAID_ESCROW_KEY) lockForForeignRaidJournal();
+  if (event.key === PROFILE_KEY) refreshIdleProfileFromStorage();
 });
 registerOfflineWorker();

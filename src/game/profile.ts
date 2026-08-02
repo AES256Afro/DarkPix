@@ -7,7 +7,7 @@ import { merchantCommission, validUtcDayKey } from "./commission";
 import { validRaidVariationSeed } from "./contract";
 import { MAX_UNSEEN_STRIKES, QUIET_KNIVES_REWARD, QUIET_KNIVES_TARGET } from "./stealth";
 
-const PROFILE_KEY = "darkpix-profile-v1";
+export const PROFILE_KEY = "darkpix-profile-v1";
 const PROFILE_RECOVERY_KEY = "darkpix-profile-recovery-v1";
 export const RAID_ESCROW_KEY = "darkpix-active-raid-v1";
 export const PROFILE_VERSION = 15;
