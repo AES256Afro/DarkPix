@@ -165,6 +165,46 @@ docker compose ps
 echo "Deployed release: $(docker compose exec -T darkpix wget -q -O - http://127.0.0.1:8080/version.txt)"
 echo "Cloudflare service target: http://darkpix:8080"
 
+check_public_build_assets() {
+  local public_url="$1"
+  local public_html
+  local references
+  local asset_path
+  local asset_url
+  local asset_headers
+  local verified_assets=0
+  if command -v curl >/dev/null 2>&1; then
+    public_html="$(curl -fsS --max-time 8 "$public_url/" 2>/dev/null)" || return 1
+  elif command -v wget >/dev/null 2>&1; then
+    public_html="$(wget -q -T 8 -O - "$public_url/" 2>/dev/null)" || return 1
+  else
+    return 1
+  fi
+  references="$(grep -oE '(src|href)="[^"]+\.(js|css)"' <<<"$public_html" | sed -E 's/^(src|href)="([^"]+)"$/\2/' | sort -u || true)"
+  [[ -n "$references" ]] || return 1
+  while IFS= read -r asset_path; do
+    [[ -n "$asset_path" ]] || continue
+    if [[ "$asset_path" == /* ]]; then
+      asset_url="${public_url}${asset_path}"
+    else
+      asset_url="${public_url}/${asset_path#./}"
+    fi
+    if command -v curl >/dev/null 2>&1; then
+      asset_headers="$(curl -fsSI --max-time 8 "$asset_url" 2>/dev/null)" || return 1
+    else
+      asset_headers="$(wget -q -T 8 --server-response --spider "$asset_url" 2>&1)" || return 1
+    fi
+    grep -qi 'cache-control:.*max-age=31536000.*immutable' <<<"$asset_headers" || return 1
+    case "$asset_path" in
+      *.js) grep -qi 'content-type:.*javascript' <<<"$asset_headers" || return 1 ;;
+      *.css) grep -qi 'content-type:.*text/css' <<<"$asset_headers" || return 1 ;;
+      *) return 1 ;;
+    esac
+    verified_assets=$((verified_assets + 1))
+  done <<<"$references"
+  [[ "$verified_assets" -ge 2 ]]
+}
+
 check_public_release() {
   local public_url="$1"
   local observed_release
@@ -208,6 +248,7 @@ check_public_release() {
   if command -v curl >/dev/null 2>&1; then [[ "$missing_asset_status" == "404" ]] || return 1; fi
   grep -qi 'cache-control:.*no-store' <<<"$health_headers" || return 1
   if grep -qi 'cf-cache-status: *HIT' <<<"$health_headers"; then return 1; fi
+  check_public_build_assets "$public_url" || return 1
   [[ "$observed_release" == "$darkpix_release" ]]
 }
 

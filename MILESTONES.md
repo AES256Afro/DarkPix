@@ -96,7 +96,7 @@ Status: Complete
 - Install and runtime cache writes reject response types that do not match their navigation, script, style, image, font, or manifest key, including every fixed shell entry staged by `addAll`
 - CI-enforced compressed JavaScript, CSS, and entry-HTML performance budgets
 - CI rejects high or critical dependency advisories before building the release image
-- Every deploy rejects a dirty source tree, snapshots the prior image, inspects effective runtime hardening, verifies Cloudflare-uncached live health and release identity, real missing-asset 404s, and the exact commit through both `ne-gro.com` and `www.ne-gro.com`; rollback must prove the restored constraints and both public routes before discarding its snapshot
+- Every deploy rejects a dirty source tree, snapshots the prior image, inspects effective runtime hardening, verifies Cloudflare-uncached live health and release identity, real missing-asset 404s, executable MIME types and immutable caching for every HTML-referenced build asset, and the exact commit through both `ne-gro.com` and `www.ne-gro.com`; rollback must prove the restored constraints and both public routes before discarding its snapshot
 
 Exit evidence: Docker build and smoke checks in CI plus container, host, apex, and `www` gates during deployment.
 

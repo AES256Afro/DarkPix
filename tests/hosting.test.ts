@@ -16,6 +16,15 @@ describe("production asset routing", () => {
     expect(deployScript).toContain("grep -Eq 'HTTP/[0-9.]+ 404'");
   });
 
+  it("verifies the public HTML points to immutable JavaScript and CSS with executable response types", () => {
+    expect(deployScript).toContain("check_public_build_assets()");
+    expect(deployScript).toContain("check_public_build_assets \"$public_url\" || return 1");
+    expect(deployScript).toContain("content-type:.*javascript");
+    expect(deployScript).toContain("content-type:.*text/css");
+    expect(deployScript).toContain("cache-control:.*max-age=31536000.*immutable");
+    expect(deployScript).toContain('[[ "$verified_assets" -ge 2 ]]');
+  });
+
   it("restores the prior image when a rollout gate fails", () => {
     expect(deployScript).toContain("rollback_previous_release()");
     expect(deployScript).toContain("docker image tag darkpix-web:rollback darkpix-web:local");
