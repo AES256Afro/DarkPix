@@ -122,6 +122,7 @@ Status: Complete for the current map
 - High contrast strengthens darkness and checkpoint state, navigation, combat warnings, threat vitals, resources, and interaction panels; lobby selection semantics, keyboard focus, and forced-color outlines do not rely on hover or color alone
 - Lobby rebuilds restore the logical keyboard control across class, contract, stash, merchant, crafting, settings, and idle cross-tab refreshes without forcing the viewport to jump
 - Terminal raid verdicts move focus to their labeled outcome heading, and a secured return places keyboard focus on the next-descent control
+- Incompatible-profile, unsecured-verdict, damaged-journal, and foreign-raid locks move focus to their first safe recovery action without selecting a destructive choice
 - The persistent raid control strip names the class ability binding, and held Space cannot leak repeated scroll input while sidestep remains single-fire
 - The Ash Tollkeeper begins its annulus phase at full vigor and uses a tighter second-floor cadence
 

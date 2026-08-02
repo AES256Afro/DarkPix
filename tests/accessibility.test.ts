@@ -45,6 +45,14 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain("DOWNLOAD RAW SAVE");
   });
 
+  it("moves keyboard focus to the first safe action on every locked recovery screen", () => {
+    expect(mainSource).toContain("function focusFirstRecoveryAction()");
+    expect(mainSource).toContain('querySelector<HTMLButtonElement>(".persistence-recovery button")?.focus({ preventScroll: true })');
+    expect(mainSource.match(/focusFirstRecoveryAction\(\);/g)).toHaveLength(4);
+    const damagedRecovery = mainSource.slice(mainSource.indexOf("function renderDamagedRaidJournalRecovery"), mainSource.indexOf("function renderForeignRaidLease"));
+    expect(damagedRecovery.indexOf("DOWNLOAD RAW JOURNAL")).toBeLessThan(damagedRecovery.indexOf("DISCARD DAMAGED JOURNAL"));
+  });
+
   it("locks a malformed raid journal behind recovery and explicit discard", () => {
     expect(mainSource).toContain("renderDamagedRaidJournalRecovery");
     expect(mainSource).toContain("DOWNLOAD RAW JOURNAL");

@@ -182,12 +182,17 @@ function downloadTextFile(contents: string, filename: string, type: string): voi
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
+function focusFirstRecoveryAction(): void {
+  app.querySelector<HTMLButtonElement>(".persistence-recovery button")?.focus({ preventScroll: true });
+}
+
 function renderIncompatibleProfileRecovery(): void {
   app.innerHTML = `<main class="game-mount" aria-label="DarkPix profile recovery"><section class="runtime-error persistence-recovery"><span>†</span><h1>A NEWER LEDGER IS SEALED HERE</h1><p role="alert">This DarkPix release cannot safely read the stored profile. Lobby actions are locked so unknown progress is not overwritten. Download the raw save, then update DarkPix or return to the newer release that created it.</p><button type="button">DOWNLOAD RAW SAVE</button></section></main>`;
   app.querySelector<HTMLButtonElement>("button")?.addEventListener("click", () => {
     if (profileRecovery === undefined) return;
     downloadTextFile(profileRecovery, `darkpix-newer-profile-${new Date().toISOString().slice(0, 10)}.json`, "application/json");
   });
+  focusFirstRecoveryAction();
 }
 
 function itemMarkup(item: Item, riskable = false): string {
@@ -229,6 +234,7 @@ function renderInterruptedSettlementRecovery(): void {
     merchantNotice = interruptedSettlementNotice;
     renderLobby();
   });
+  focusFirstRecoveryAction();
 }
 
 function renderDamagedRaidJournalRecovery(): void {
@@ -257,11 +263,13 @@ function renderDamagedRaidJournalRecovery(): void {
     persistenceWarning = "A damaged active-raid journal was discarded after explicit confirmation. No raid verdict was applied.";
     renderLobby();
   });
+  focusFirstRecoveryAction();
 }
 
 function renderForeignRaidLease(): void {
   app.innerHTML = `<main class="game-mount" aria-label="DarkPix raid active in another tab"><section class="runtime-error persistence-recovery"><span>⌛</span><h1>ANOTHER TORCH IS BELOW</h1><p role="alert">A live raid in another DarkPix tab owns the active journal. This tab is locked so it cannot settle, overwrite, clear, or mutate the shared stash behind that raid's gear risk. Finish or close the other raid, wait a few seconds, then check again.</p><button type="button">CHECK RAID JOURNAL AGAIN</button></section></main>`;
   app.querySelector<HTMLButtonElement>("button")?.addEventListener("click", () => location.reload());
+  focusFirstRecoveryAction();
 }
 
 function lockForForeignRaidJournal(): boolean {
