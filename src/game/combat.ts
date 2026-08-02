@@ -232,10 +232,10 @@ export function trapTargetPrecedes(candidateDistanceSquared: number, currentDist
 }
 
 export const FLOOR_TRAP_WINDUP_SECONDS = 0.32;
-export const FLOOR_TRAP_WARNING_RANGE = 13;
+export const TRAP_WARNING_RANGE = 13;
 
-export function floorTrapWarningAudible(distanceSquared: number): boolean {
-  return Number.isFinite(distanceSquared) && distanceSquared >= 0 && distanceSquared <= FLOOR_TRAP_WARNING_RANGE * FLOOR_TRAP_WARNING_RANGE;
+export function trapWarningAudible(distanceSquared: number): boolean {
+  return Number.isFinite(distanceSquared) && distanceSquared >= 0 && distanceSquared <= TRAP_WARNING_RANGE * TRAP_WARNING_RANGE;
 }
 
 export function advanceFloorTrapWindup(current: number, delta: number): { remaining: number; fires: boolean } {
