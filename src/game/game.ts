@@ -1773,6 +1773,7 @@ export class DarkPixGame {
       const distance = Math.hypot(this.camera.position.x - vent.group.position.x, this.camera.position.z - vent.group.position.z);
       if (distance <= 7) {
         this.feed("ASH CRACKS GLOW · clear the marked ring", "danger");
+        this.showDirectionalCue(vent.group.position, "ASH VENT", ASH_VENT_WINDUP_SECONDS + 0.1, "warning");
         this.audio.tone(96, 0.18, "sawtooth", 0.08);
       }
     }
@@ -2407,6 +2408,7 @@ export class DarkPixGame {
             enemy.tollRing.material.opacity = 0.08;
           }
           this.feed(`${this.depth === 2 ? "ASH RING" : "CHAIN RING"} MARKED · crowd the keeper or flee beyond the red band`, "danger");
+          this.showDirectionalCue(enemy.group.position, this.depth === 2 ? "ASH RING" : "CHAIN RING", enemy.tollWindupDuration + 0.1, "warning");
           this.audio.tone(82, 0.36, "sawtooth", 0.11);
           continue;
         }

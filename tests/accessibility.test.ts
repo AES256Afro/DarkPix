@@ -183,4 +183,11 @@ describe("lobby accessibility contracts", () => {
     expect(readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8")).toContain('class="sound-direction" role="status" aria-live="polite"');
     expect(styles).toContain(".raid-shell.high-contrast-hud .damage-direction, .raid-shell.high-contrast-hud .sound-direction");
   });
+
+  it("pairs ash vent and keeper ring windups with directional text cues", () => {
+    const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
+    expect(gameSource).toContain('this.showDirectionalCue(vent.group.position, "ASH VENT"');
+    expect(gameSource).toContain('this.depth === 2 ? "ASH RING" : "CHAIN RING"');
+    expect(gameSource).toContain('enemy.tollWindupDuration + 0.1, "warning"');
+  });
 });
