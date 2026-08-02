@@ -135,6 +135,12 @@ export function projectileTargetContact(headContact: number | undefined, bodyCon
   return { progress: body!, headshot: false };
 }
 
+export function projectileContactPrecedes(contact: number | undefined, competingContact: number | undefined): boolean {
+  const first = Number.isFinite(contact) && contact! >= 0 && contact! <= 1 ? contact : undefined;
+  const competing = Number.isFinite(competingContact) && competingContact! >= 0 && competingContact! <= 1 ? competingContact : undefined;
+  return first !== undefined && (competing === undefined || first <= competing);
+}
+
 export function projectileStoneOutcome(kind: PlayerProjectileKind | EnemyProjectileKind, thrownName?: string): ProjectileStoneOutcome {
   if (kind === "arrow") return { cue: "SHOT BLOCKED", message: "ARROW BROKEN · stone stops the shot." };
   if (kind === "spell") return { cue: "SHOT BLOCKED", message: "SPELL SPENT · stone grounds the bolt." };

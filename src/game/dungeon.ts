@@ -283,9 +283,22 @@ export function dungeonLineOfSight(start: Vec2, target: Vec2, radius = 0.06): bo
   return true;
 }
 
+export function dungeonProjectileStoneContact(start: Vec2, target: Vec2, radius = 0.04): number | undefined {
+  if (![start.x, start.z, target.x, target.z, radius].every(Number.isFinite) || radius < 0) return 0;
+  const distance = Math.hypot(target.x - start.x, target.z - start.z);
+  const samples = Math.max(1, Math.ceil(distance / 0.2));
+  for (let index = 0; index <= samples; index += 1) {
+    const progress = index / samples;
+    if (dungeonCollides({
+      x: start.x + (target.x - start.x) * progress,
+      z: start.z + (target.z - start.z) * progress,
+    }, radius)) return progress;
+  }
+  return undefined;
+}
+
 export function dungeonProjectilePathClear(start: Vec2, target: Vec2, radius = 0.04): boolean {
-  if (![start.x, start.z, target.x, target.z, radius].every(Number.isFinite) || radius < 0) return false;
-  return !dungeonCollides(start, radius) && !dungeonCollides(target, radius) && dungeonLineOfSight(start, target, radius);
+  return dungeonProjectileStoneContact(start, target, radius) === undefined;
 }
 
 export function dartTrapTargetDistance(origin: Vec2, direction: Vec2, range: number, target: Vec2, laneRadius = 0.5): number {

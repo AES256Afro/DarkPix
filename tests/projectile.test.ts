@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, enemyProjectileTargetsThreat, playerProjectileDuration, playerProjectilePosition, projectileImpactConnects, projectileSegmentConnects, projectileSegmentContact, projectileStoneOutcome, projectileTargetContact } from "../src/game/projectile";
+import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, enemyProjectileTargetsThreat, playerProjectileDuration, playerProjectilePosition, projectileContactPrecedes, projectileImpactConnects, projectileSegmentConnects, projectileSegmentContact, projectileStoneOutcome, projectileTargetContact } from "../src/game/projectile";
 
 describe("player projectile travel", () => {
   it("gives arrows and spells bounded nonzero travel time", () => {
@@ -94,5 +94,14 @@ describe("player projectile travel", () => {
     expect(projectileStoneOutcome("knife")).toEqual({ cue: "STONE HELD", message: "STONE HELD · the rival knife breaks against masonry." });
     expect(projectileStoneOutcome("chain").message).toContain("Tollkeeper chain");
     expect(projectileStoneOutcome("dart").message).toContain("dart volley");
+  });
+
+  it("resolves the physically first living or masonry contact", () => {
+    expect(projectileContactPrecedes(0.2, 0.7)).toBe(true);
+    expect(projectileContactPrecedes(0.7, 0.2)).toBe(false);
+    expect(projectileContactPrecedes(0.4, 0.4)).toBe(true);
+    expect(projectileContactPrecedes(0.4, undefined)).toBe(true);
+    expect(projectileContactPrecedes(undefined, 0.4)).toBe(false);
+    expect(projectileContactPrecedes(Number.NaN, 0.4)).toBe(false);
   });
 });

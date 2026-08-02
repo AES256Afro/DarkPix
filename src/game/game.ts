@@ -3,7 +3,7 @@ import { escapeHtml } from "../html";
 import { AudioDirector, footstepCadenceCrossed } from "./audio";
 import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, damageImpactAccepted, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat, type AttackDirection, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
-import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, dungeonProjectilePathClear, encounterPosition, selectRaidVariation } from "./dungeon";
+import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, dungeonProjectileStoneContact, encounterPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
 import { HAUL_CAPACITY, RIVAL_EXTRACTION_SECONDS, advanceRivalExtraction, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, rivalShouldExtract, treasureGoldTotal } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, pickupDecision, type LoadoutStats } from "./loadout";
@@ -20,7 +20,7 @@ import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, poi
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
 import { channelCommitmentLabel, channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
-import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, enemyProjectileTargetsThreat, playerProjectileDuration, playerProjectilePosition, projectileSegmentContact, projectileStoneOutcome, projectileTargetContact, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
+import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, enemyProjectileTargetsThreat, playerProjectileDuration, playerProjectilePosition, projectileContactPrecedes, projectileSegmentContact, projectileStoneOutcome, projectileTargetContact, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
 import { advanceJournalRetry } from "./persistence";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
 import { DARKNESS_PULSE_SECONDS, darknessPulseReady, directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "./zone";
@@ -1845,14 +1845,7 @@ export class DarkPixGame {
       projectile.mesh.position.set(position.x, position.y, position.z);
       const nextPosition = playerProjectilePosition(projectile.start, projectile.end, projectile.elapsed + 0.02, projectile.duration, projectile.kind);
       projectile.mesh.lookAt(nextPosition.x, nextPosition.y, nextPosition.z);
-      if (!dungeonProjectilePathClear({ x: previous.x, z: previous.z }, position, 0.04)) {
-        const outcome = projectileStoneOutcome(projectile.kind, projectile.thrownName);
-        this.removePlayerProjectile(index);
-        this.feed(outcome.message, "system");
-        this.showDirectionalCue(position, outcome.cue, 0.45, "impact");
-        this.audio.tone(projectile.kind === "spell" ? 130 : 210, 0.09, "square", 0.045);
-        continue;
-      }
+      const stoneContact = dungeonProjectileStoneContact({ x: previous.x, z: previous.z }, position, 0.04);
       const enemy = this.enemies
         .filter((candidate) => candidate.alive)
         .map((candidate) => {
@@ -1867,6 +1860,14 @@ export class DarkPixGame {
         })
         .filter((candidate): candidate is { enemy: Enemy; contact: NonNullable<typeof candidate.contact> } => candidate.contact !== undefined)
         .sort((left, right) => left.contact.progress - right.contact.progress)[0];
+      if (projectileContactPrecedes(stoneContact, enemy?.contact.progress)) {
+        const outcome = projectileStoneOutcome(projectile.kind, projectile.thrownName);
+        this.removePlayerProjectile(index);
+        this.feed(outcome.message, "system");
+        this.showDirectionalCue(position, outcome.cue, 0.45, "impact");
+        this.audio.tone(projectile.kind === "spell" ? 130 : 210, 0.09, "square", 0.045);
+        continue;
+      }
       if (enemy) {
         this.removePlayerProjectile(index);
         this.resolvePlayerProjectileHit(projectile, enemy.enemy, enemy.contact.headshot);
@@ -1976,14 +1977,7 @@ export class DarkPixGame {
       projectile.mesh.position.set(position.x, position.y, position.z);
       const next = enemyProjectilePosition(projectile.start, projectile.end, projectile.elapsed + 0.02, projectile.duration, projectile.kind);
       projectile.mesh.lookAt(next.x, next.y, next.z);
-      if (!dungeonProjectilePathClear({ x: previous.x, z: previous.z }, position, 0.04)) {
-        const outcome = projectileStoneOutcome(projectile.kind);
-        this.removeEnemyProjectile(index);
-        this.feed(outcome.message, "system");
-        this.showDirectionalCue(position, outcome.cue, 0.45, "impact");
-        this.audio.tone(150, 0.1, "square", 0.05);
-        continue;
-      }
+      const stoneContact = dungeonProjectileStoneContact({ x: previous.x, z: previous.z }, position, 0.04);
       const playerContact = projectileSegmentContact(previous, position, this.camera.position, PLAYER_RADIUS + 0.18);
       let enemyContact: { enemy: Enemy; progress: number } | undefined;
       for (const enemy of this.enemies) {
@@ -1993,7 +1987,16 @@ export class DarkPixGame {
         if (progress === undefined || (enemyContact && enemyContact.progress <= progress)) continue;
         enemyContact = { enemy, progress };
       }
-      if (enemyContact && (playerContact === undefined || enemyContact.progress <= playerContact)) {
+      const livingContact = Math.min(playerContact ?? Number.POSITIVE_INFINITY, enemyContact?.progress ?? Number.POSITIVE_INFINITY);
+      if (projectileContactPrecedes(stoneContact, Number.isFinite(livingContact) ? livingContact : undefined)) {
+        const outcome = projectileStoneOutcome(projectile.kind);
+        this.removeEnemyProjectile(index);
+        this.feed(outcome.message, "system");
+        this.showDirectionalCue(position, outcome.cue, 0.45, "impact");
+        this.audio.tone(150, 0.1, "square", 0.05);
+        continue;
+      }
+      if (enemyContact && projectileContactPrecedes(enemyContact.progress, playerContact)) {
         this.removeEnemyProjectile(index);
         const crossfireDamage = projectile.kind === "dart"
           ? trapDamageAgainstThreat(projectile.damage, enemyContact.enemy.kind)
