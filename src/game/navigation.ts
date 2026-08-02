@@ -45,7 +45,7 @@ export function directionalCue(yaw: number, origin: Vec2, source: Vec2, label: s
   return { direction, marker, text: `${marker} ${safeLabel} · ${direction}` };
 }
 
-export function movementOffset(yaw: number, strafe: number, forward: number, distance: number): Vec2 {
+export function movementOffset(yaw: number, strafe: number, forward: number, distance: number, target: Vec2 = { x: 0, z: 0 }): Vec2 {
   const safeYaw = Number.isFinite(yaw) ? yaw : 0;
   const safeStrafe = Number.isFinite(strafe) ? strafe : 0;
   const safeForward = Number.isFinite(forward) ? forward : 0;
@@ -53,10 +53,9 @@ export function movementOffset(yaw: number, strafe: number, forward: number, dis
   const scale = length > 0.001 && Number.isFinite(distance) ? Math.max(0, distance) / Math.max(1, length) : 0;
   const x = (safeStrafe * Math.cos(safeYaw) - safeForward * Math.sin(safeYaw)) * scale;
   const z = (-safeStrafe * Math.sin(safeYaw) - safeForward * Math.cos(safeYaw)) * scale;
-  return {
-    x: x === 0 ? 0 : x,
-    z: z === 0 ? 0 : z,
-  };
+  target.x = x === 0 ? 0 : x;
+  target.z = z === 0 ? 0 : z;
+  return target;
 }
 
 export function movementSubstepCount(distance: number, maximumStep = 0.2): number {

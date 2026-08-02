@@ -90,6 +90,7 @@ Status: Complete for the current map
 - Ordinary movement and class-specific dodges derive capped collision substeps from their actual travel distance instead of relying on a fixed sample count
 - Frame-hot darkness rendering uses cached shell and HUD nodes instead of repeating DOM selector walks throughout a raid
 - Frame-hot clock, objective, inventory, ritual, stealth, direction, and wayfinder copy skips unchanged text and ritual prompts commit only one final message per frame
+- Digital movement normalization writes into the raid's shared direction scratch record instead of constructing a Three.js vector every simulation frame
 - Threat awareness reuses targeting vectors, and Warden guidance finds the nearest living target in one allocation-free scan instead of filtering and sorting every frame
 - Player and hostile missiles reuse contact vectors, while player shots find the first living impact in one ordered scan instead of allocating and sorting threat arrays every frame
 - Reduced motion suppresses decorative loading, camera, enemy-step, loot, flame, and portal loops while retaining functional combat telegraphs; pause sleeps continuous rendering and cancels queued audio feedback before it can replay in a later raid state

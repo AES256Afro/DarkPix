@@ -246,6 +246,9 @@ describe("contract wayfinding", () => {
     expect(Math.hypot(...Object.values(movementOffset(0, 1, 1, 1.5)))).toBeCloseTo(1.5);
     expect(movementOffset(0, Number.NaN, 0, 2)).toEqual({ x: 0, z: 0 });
     expect(movementOffset(0, 1, 0, -2)).toEqual({ x: 0, z: 0 });
+    const target = { x: 99, z: 99 };
+    expect(movementOffset(0, 1, 1, 2, target)).toBe(target);
+    expect(Math.hypot(target.x, target.z)).toBeCloseTo(2);
   });
 
   it("derives bounded collision substeps from movement distance", () => {

@@ -1484,12 +1484,9 @@ export class DarkPixGame {
   }
 
   private updateMovement(delta: number): void {
-    const input = new THREE.Vector2(
-      Number(this.keys.has("KeyD")) - Number(this.keys.has("KeyA")),
-      Number(this.keys.has("KeyW")) - Number(this.keys.has("KeyS")),
-    );
-    const moving = input.lengthSq() > 0;
-    if (moving) input.normalize();
+    const strafe = Number(this.keys.has("KeyD")) - Number(this.keys.has("KeyA"));
+    const forward = Number(this.keys.has("KeyW")) - Number(this.keys.has("KeyS"));
+    const moving = strafe !== 0 || forward !== 0;
     const crouching = this.keys.has("ControlLeft") || this.keys.has("ControlRight");
     const sprinting = moving && !crouching && (this.keys.has("ShiftLeft") || this.keys.has("ShiftRight")) && this.stamina > 1 && !this.blocking && !this.remedyItemId;
     this.crouching = crouching;
@@ -1498,11 +1495,8 @@ export class DarkPixGame {
     const sprintMultiplier = sprinting ? (this.options.classId === "cutpurse" ? 1.65 : 1.48) : 1;
     const movementPenalty = (this.blocking ? 0.55 : this.guardBreakTimer > 0 ? 0.42 : this.remedyItemId ? 0.62 : 1) * (crouching ? 0.58 : 1);
     const speed = this.definition.speed * this.loadoutBonuses.movementMultiplier * classMovementMultiplier(this.options.classId, this.wildshapeTimer) * sprintMultiplier * movementPenalty;
-    const sin = Math.sin(this.yaw);
-    const cos = Math.cos(this.yaw);
-    const dx = (input.x * cos - input.y * sin) * speed * delta;
-    const dz = (-input.x * sin - input.y * cos) * speed * delta;
-    this.moveWithCollision(dx, dz);
+    const offset = movementOffset(this.yaw, strafe, forward, speed * delta, this.scratchDirection);
+    this.moveWithCollision(offset.x, offset.z);
     if (sprinting) {
       this.stamina = Math.max(0, this.stamina - delta * (this.options.classId === "cutpurse" ? 17 : 24) * this.perkBonuses.sprintCostMultiplier);
     } else if (this.blocking) {
