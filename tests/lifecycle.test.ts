@@ -49,6 +49,20 @@ describe("raid lifecycle", () => {
     expect(timers.pendingCount).toBe(0);
   });
 
+  it("cancels an individual lifecycle callback without disturbing its peers", () => {
+    vi.useFakeTimers();
+    const callbacks: string[] = [];
+    const timers = new LifecycleTimers();
+    const cancelVisual = timers.schedule(() => callbacks.push("visual"), 25);
+    timers.schedule(() => callbacks.push("verdict"), 50);
+    cancelVisual();
+    cancelVisual();
+    expect(timers.pendingCount).toBe(1);
+    vi.runAllTimers();
+    expect(callbacks).toEqual(["verdict"]);
+    expect(timers.pendingCount).toBe(0);
+  });
+
   it("admits only one asynchronous raid launch at a time", () => {
     const gate = new SingleFlightGate();
     const first = gate.begin();

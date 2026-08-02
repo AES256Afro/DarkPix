@@ -235,6 +235,7 @@ export class DarkPixGame {
   private readonly scratchZone: ZoneState = { progress: 0, center: { x: 0, z: 0 }, radius: 0 };
   private readonly audio: AudioDirector;
   private readonly lifecycleTimers = new LifecycleTimers();
+  private pointerLockTimeoutCancel?: () => void;
   private readonly keys = new Set<string>();
   private readonly walls: WallCollider[] = [];
   private readonly enemies: Enemy[] = [];
@@ -1178,6 +1179,7 @@ export class DarkPixGame {
       documentHidden: document.hidden,
       ended: this.ended,
     });
+    this.cancelPendingPointerLockTimeout();
     this.pointerLockPending = false;
     this.resumeButton.disabled = false;
     if (resumesRaid) {
@@ -1369,7 +1371,12 @@ export class DarkPixGame {
     try {
       const pointerLockRequest = this.renderer.domElement.requestPointerLock();
       void Promise.resolve(pointerLockRequest).catch(() => this.handlePointerLockFailure(epoch));
-      this.lifecycleTimers.schedule(() => this.settleTimedOutPointerLock(epoch), 1_800);
+      if (this.pointerLockPending && epoch === this.pointerLockEpoch) {
+        this.pointerLockTimeoutCancel = this.lifecycleTimers.schedule(() => {
+          this.pointerLockTimeoutCancel = undefined;
+          this.settleTimedOutPointerLock(epoch);
+        }, 1_800);
+      }
     } catch {
       this.handlePointerLockFailure(epoch);
     }
@@ -1390,10 +1397,16 @@ export class DarkPixGame {
   }
 
   private invalidatePointerLockRequest(): void {
+    this.cancelPendingPointerLockTimeout();
     this.pointerLockAllowed = false;
     this.pointerLockPending = false;
     this.pointerLockEpoch += 1;
     this.resumeButton.disabled = false;
+  }
+
+  private cancelPendingPointerLockTimeout(): void {
+    this.pointerLockTimeoutCancel?.();
+    this.pointerLockTimeoutCancel = undefined;
   }
 
   private settleTimedOutPointerLock(epoch: number): void {

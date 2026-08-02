@@ -28,12 +28,16 @@ export function pointerLockRequestAllowed(state: PointerLockRequestState): boole
 export class LifecycleTimers {
   private readonly timers = new Set<ReturnType<typeof globalThis.setTimeout>>();
 
-  schedule(callback: () => void, delay: number): void {
+  schedule(callback: () => void, delay: number): () => void {
     const timer = globalThis.setTimeout(() => {
       this.timers.delete(timer);
       callback();
     }, delay);
     this.timers.add(timer);
+    return () => {
+      if (!this.timers.delete(timer)) return;
+      globalThis.clearTimeout(timer);
+    };
   }
 
   cancelAll(): void {
