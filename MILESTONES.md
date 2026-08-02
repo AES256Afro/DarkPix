@@ -141,6 +141,7 @@ Status: Complete for the current map
 - Reduced motion also replaces the sliding event feed with a static timed message and removes combat-direction, prompt, threat, action, and resource-bar transitions
 - Saved and operating-system reduced-motion requests also remove smooth lobby jumps; changing the setting immediately suppresses lobby control transitions
 - The event feed relies on its presentation lifetime instead of advancing an unused timer in every active simulation frame
+- Lobby journals, class selection, and the raid portrait now share one exhaustive class-rune mapping instead of shipping a duplicate raid-only branch chain
 - Pause, teardown, and failed audio-context resume also stop and disconnect every active transient tone, preventing suspended combat audio from replaying after a later cursor rebind
 - Audio startup contains a disappearing context factory and explicitly stops and disconnects every partially created persistent node before closing a failed graph
 - High contrast strengthens darkness and checkpoint state, navigation, combat warnings, threat vitals, resources, and interaction panels; lobby selection semantics, keyboard focus, and forced-color outlines do not rely on hover or color alone

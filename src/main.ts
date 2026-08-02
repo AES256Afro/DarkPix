@@ -3,7 +3,7 @@ import { escapeHtml } from "./html";
 import { createSaveBackup, parseSaveBackup, persistSaveImport } from "./game/backup";
 import { merchantCommission } from "./game/commission";
 import { RAID_VARIATION_COUNT, raidVariationSeal, validRaidVariationSeed } from "./game/contract";
-import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MAX_CLASS_LEVEL, MERCHANT_OFFERS, RARITY_COLOR, createItemId, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses } from "./game/data";
+import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CLASS_RUNES, CRAFTING_RECIPES, MAX_CLASS_LEVEL, MERCHANT_OFFERS, RARITY_COLOR, createItemId, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses } from "./game/data";
 import { itemValueTotal, raidValueSummary } from "./game/economy";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
 import { SingleFlightGate, lobbyOperationCurrent, raidDepartureNeedsWarning, raidJournalContinuityLost } from "./game/lifecycle";
@@ -24,7 +24,6 @@ document.documentElement.style.setProperty("--title-art", `url("/assets/darkpix-
 const raidOwnerId = typeof globalThis.crypto?.randomUUID === "function"
   ? globalThis.crypto.randomUUID()
   : `page-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-const CLASS_RUNES: Record<ClassId, string> = { vanguard: "V", cutpurse: "C", hexbound: "H", reaver: "R", ranger: "A", cleric: "L", shapeshifter: "S", minstrel: "M" };
 const storageWritableAtStart = browserStorageWritable();
 const profileLoad = loadProfileState();
 

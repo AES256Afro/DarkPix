@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MAX_CLASS_LEVEL, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createItemId, createLoot, createSigil, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
+import { BESTIARY, CLASS_ABILITIES, CLASS_RUNES, CRAFTING_RECIPES, HEX_SPELLS, MAX_CLASS_LEVEL, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createItemId, createLoot, createSigil, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
 import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, MAX_RAID_LOOT_ITEMS, RAID_ESCROW_KEY, RAID_ESCROW_LEASE_MS, RAID_HISTORY_LIMIT, applyRaidResult, beginRaidEscrow, clearOwnedRaidEscrow, contractRecordSummary, craftItem, createProfile, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeProfile, normalizeRaidEscrow, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidEscrowOwnedBy, raidThreatKillLedger, raidXpBreakdown, renewRaidEscrow, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, firstRunPreferences, normalizePreferences, savePreferences } from "../src/game/preferences";
 import { FLOOR_TRAP_WINDUP_SECONDS, RIPOSTE_DURATION_SECONDS, TRAP_WARNING_RANGE, advanceFloorTrapWindup, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, damageImpactAccepted, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, safeDamageAmount, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat, trapTargetPrecedes, trapWarningAudible } from "../src/game/combat";
@@ -1308,6 +1308,10 @@ describe("directional combat damage", () => {
 });
 
 describe("class perk milestones", () => {
+  it("keeps one complete class-rune mapping across lobby and raid presentation", () => {
+    expect(CLASS_RUNES).toEqual({ vanguard: "V", cutpurse: "C", hexbound: "H", reaver: "R", ranger: "A", cleric: "L", shapeshifter: "S", minstrel: "M" });
+  });
+
   it("keeps level one neutral and unlocks class-specific bonuses", () => {
     expect(classPerkBonuses("vanguard", 1)).toEqual({
       health: 0,

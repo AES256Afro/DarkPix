@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { escapeHtml } from "../html";
 import { AudioDirector, footstepCadenceCrossed } from "./audio";
 import { FLOOR_TRAP_WINDUP_SECONDS, RIPOSTE_DURATION_SECONDS, advanceFloorTrapWindup, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, damageImpactAccepted, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, safeDamageAmount, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat, trapTargetPrecedes, trapWarningAudible, type AttackDirection, type RivalArchetype } from "./combat";
-import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
+import { CLASSES, CLASS_ABILITIES, CLASS_RUNES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, dungeonProjectileStoneContact, encounterPosition, safeDroppedLootPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
 import { HAUL_CAPACITY, RIVAL_EXTRACTION_SECONDS, advanceRivalExtraction, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, rivalShouldExtract, treasureGoldTotal } from "./haul";
@@ -480,7 +480,7 @@ export class DarkPixGame {
           <div class="extract-meter" role="progressbar" aria-label="Ritual channel" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i><span></span></div>
           <div class="hud-bottom">
             <section class="vitals" aria-label="Delver resources">
-              <div class="portrait-rune">${this.options.classId === "vanguard" ? "V" : this.options.classId === "cutpurse" ? "C" : this.options.classId === "hexbound" ? "H" : this.options.classId === "reaver" ? "R" : this.options.classId === "ranger" ? "A" : this.options.classId === "cleric" ? "L" : this.options.classId === "shapeshifter" ? "S" : "M"}</div>
+              <div class="portrait-rune">${CLASS_RUNES[this.options.classId]}</div>
               <div class="bars">
                 <div class="bar health" role="progressbar" aria-label="Vigor" aria-valuemin="0" aria-valuemax="${this.maxHealth}" aria-valuenow="${this.maxHealth}"><i></i><span>VIGOR</span></div>
                 <div class="bar stamina" role="progressbar" aria-label="Stamina" aria-valuemin="0" aria-valuemax="${this.definition.maxStamina}" aria-valuenow="${this.definition.maxStamina}"><i></i><span>STAMINA</span></div>

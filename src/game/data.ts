@@ -207,6 +207,11 @@ export const CLASSES: Record<ClassId, ClassDefinition> = {
   },
 };
 
+export const CLASS_RUNES: Record<ClassId, string> = {
+  vanguard: "V", cutpurse: "C", hexbound: "H", reaver: "R",
+  ranger: "A", cleric: "L", shapeshifter: "S", minstrel: "M",
+};
+
 export const CLASS_PERKS: Record<ClassId, ClassPerk[]> = {
   vanguard: [
     { level: 2, name: "Bulwark", description: "Guard upkeep costs 20% less stamina." },
