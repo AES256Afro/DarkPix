@@ -165,6 +165,7 @@ Status: Complete
 - Install and runtime cache writes reject response types that do not match their navigation, script, style, image, font, or manifest key, including every fixed shell entry staged by `addAll`
 - Runtime executable and style requests fail closed to a valid cached response or a network error when an upstream `200` carries the wrong content type, rather than returning an HTML fallback downstream
 - Runtime manifest, icon, and title requests canonicalize to one current-release key, preventing arbitrary query variants from multiplying fixed-shell cache entries
+- Install-time dependency discovery canonicalizes references and admits only same-origin `/assets/` URLs, preventing traversal-shaped or malformed source text from expanding cache ownership
 - The public manifest is served as JSON, while the unversioned app icon and title image revalidate instead of inheriting a stale edge or one-year immutable response
 - CI-enforced compressed JavaScript, CSS, and entry-HTML performance budgets
 - Compressed-asset budgets use an explicit gzip level instead of platform defaults, keeping local and Linux CI measurements comparable without raising their ceilings

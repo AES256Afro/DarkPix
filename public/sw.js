@@ -14,7 +14,16 @@ function assetReferences(source, baseUrl) {
   const references = new Set();
   for (const pattern of [QUOTED_ASSET_REFERENCE, CSS_ASSET_REFERENCE]) {
     for (const match of source.matchAll(pattern)) {
-      if (match[1]) references.add(new URL(match[1], baseUrl).href);
+      if (!match[1]) continue;
+      try {
+        const assetUrl = new URL(match[1], baseUrl);
+        if (assetUrl.origin !== self.location.origin || !assetUrl.pathname.startsWith("/assets/")) continue;
+        assetUrl.search = "";
+        assetUrl.hash = "";
+        references.add(assetUrl.href);
+      } catch {
+        // Malformed text references do not belong in the release cache graph.
+      }
     }
   }
   return [...references];

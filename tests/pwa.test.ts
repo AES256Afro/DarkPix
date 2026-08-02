@@ -59,6 +59,15 @@ describe("installable offline shell", () => {
     expect(runtimeCacheKey).toContain('if (url.pathname.startsWith("/assets/")) return url.pathname');
   });
 
+  it("bounds discovered install references to canonical same-origin build assets", () => {
+    const assetReferenceFunction = worker.slice(worker.indexOf("function assetReferences"), worker.indexOf("async function matchCurrentCache"));
+    expect(assetReferenceFunction).toContain("assetUrl.origin !== self.location.origin");
+    expect(assetReferenceFunction).toContain('!assetUrl.pathname.startsWith("/assets/")');
+    expect(assetReferenceFunction).toContain('assetUrl.search = ""');
+    expect(assetReferenceFunction).toContain('assetUrl.hash = ""');
+    expect(assetReferenceFunction).toContain("Malformed text references do not belong in the release cache graph.");
+  });
+
   it("claims a complete release even when obsolete cache cleanup fails", async () => {
     const handlers = new Map<string, (event: { waitUntil(promise: Promise<unknown>): void }) => void>();
     const claim = vi.fn(async () => undefined);
@@ -193,7 +202,7 @@ describe("installable offline shell", () => {
     const shell = {
       url: "https://darkpix.test/",
       headers: { get: (name: string) => name === "content-type" ? "text/html" : null },
-      clone: () => ({ text: async () => releaseShellHtml("complete-release", '<link href="/assets/app.css"><script src="/assets/app.js"></script>') }),
+      clone: () => ({ text: async () => releaseShellHtml("complete-release", '<link href="/assets/../outside.css"><link href="/assets/app.css"><script src="/assets/app.js"></script>') }),
     };
     const assetBodies = new Map([
       ["https://darkpix.test/assets/app.css", { type: "text/css", body: ".title{background:url(/assets/title.jpg)}" }],
