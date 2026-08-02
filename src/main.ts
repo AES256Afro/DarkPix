@@ -3,7 +3,7 @@ import { escapeHtml } from "./html";
 import { createSaveBackup, parseSaveBackup } from "./game/backup";
 import { merchantCommission } from "./game/commission";
 import { RAID_VARIATION_COUNT, raidVariationSeal, validRaidVariationSeed } from "./game/contract";
-import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses } from "./game/data";
+import { BESTIARY, CLASSES, CLASS_ABILITIES, CLASS_PERKS, CRAFTING_RECIPES, MERCHANT_OFFERS, RARITY_COLOR, createItemId, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses } from "./game/data";
 import { itemValueTotal, raidValueSummary } from "./game/economy";
 import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEquippedItem } from "./game/loadout";
 import { SingleFlightGate } from "./game/lifecycle";
@@ -471,10 +471,9 @@ function renderLobby(): void {
         renderLobby();
         return;
       }
-      const purchaseId = globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.floor(Math.random() * 1_000_000).toString(36)}`;
       const item: Item = {
         ...offer.item,
-        id: `merchant-${offer.sku}-${purchaseId}`,
+        id: createItemId(`merchant-${offer.sku}`),
       };
       const purchase = purchaseItem(profile, item, offer.price);
       profile = purchase.profile;
@@ -493,7 +492,7 @@ function renderLobby(): void {
     button.addEventListener("click", () => {
       const recipe = CRAFTING_RECIPES.find((candidate) => candidate.id === button.dataset.recipeId);
       if (!recipe) return;
-      const outputId = `crafted-${recipe.id}-${globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.floor(Math.random() * 1_000_000).toString(36)}`}`;
+      const outputId = createItemId(`crafted-${recipe.id}`);
       const craft = craftItem(profile, recipe, outputId);
       profile = craft.profile;
       merchantNotice = craft.outcome === "crafted"

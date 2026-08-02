@@ -480,6 +480,17 @@ const CONSUMABLE_EFFECTS: Record<string, ConsumableEffect> = {
   "Camp ember": { health: 20, stamina: 20, spellCharges: 2, torchFuel: 0, description: "Restores 20 vigor, 20 stamina, and 2 spell charges" },
 };
 
+let generatedItemSequence = 0;
+
+export function createItemId(prefix: string, random = Math.random, timestamp = Date.now()): string {
+  const safePrefix = prefix.replace(/[^a-z0-9-]/gi, "").slice(0, 48) || "item";
+  const safeTimestamp = Number.isFinite(timestamp) ? Math.max(0, Math.floor(timestamp)) : 0;
+  const roll = random();
+  const safeRoll = Number.isFinite(roll) ? Math.min(0.999999999, Math.max(0, roll)) : 0;
+  generatedItemSequence = generatedItemSequence >= Number.MAX_SAFE_INTEGER ? 1 : generatedItemSequence + 1;
+  return `${safePrefix}-${safeTimestamp.toString(36)}-${generatedItemSequence.toString(36)}-${Math.floor(safeRoll * 1_000_000_000).toString(36)}`;
+}
+
 export function consumableEffect(item: Pick<Item, "name" | "kind">): ConsumableEffect | undefined {
   if (item.kind !== "consumable") return undefined;
   return CONSUMABLE_EFFECTS[item.name] ?? {
@@ -519,7 +530,7 @@ export function createLoot(random = Math.random, depthBonus = 0): Item {
   const names = LOOT_NAMES[kind];
   const name = names[Math.floor(random() * names.length)] ?? names[0];
   const consumable = kind === "consumable" ? consumableEffect({ name, kind }) : undefined;
-  const id = `${Date.now().toString(36)}-${Math.floor(random() * 1_000_000).toString(36)}`;
+  const id = createItemId("loot", random);
   const power = 1 + rarityIndex * 3 + Math.floor(random() * 3);
   return {
     id,
@@ -553,9 +564,9 @@ export function createBossLoot(random = Math.random, depthBonus = 0): Item {
   };
 }
 
-export function createSigil(): Item {
+export function createSigil(random = Math.random): Item {
   return {
-    id: `sigil-${Date.now().toString(36)}-${Math.floor(Math.random() * 9999)}`,
+    id: createItemId("sigil", random),
     name: "Warden sigil",
     kind: "sigil",
     rarity: "Rare",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
+import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createItemId, createLoot, createSigil, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
 import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, MAX_RAID_LOOT_ITEMS, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, loadProfileState, normalizeProfile, normalizeRaidEscrow, normalizeRaidResult, purchaseItem, raidThreatKillLedger, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, firstRunPreferences, normalizePreferences } from "../src/game/preferences";
 import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat } from "../src/game/combat";
@@ -25,6 +25,16 @@ describe("loot generation", () => {
     expect(item.kind).toBe("treasure");
     expect(item.rarity).toBe("Uncommon");
     expect(item.value).toBeGreaterThan(0);
+  });
+
+  it("keeps generated identities unique with identical time and random input", () => {
+    const first = createItemId("loot", () => 0.25, 1_700_000_000_000);
+    const second = createItemId("loot", () => 0.25, 1_700_000_000_000);
+    expect(second).not.toBe(first);
+    const loot = [createLoot(() => 0.5), createLoot(() => 0.5)];
+    expect(new Set(loot.map((item) => item.id)).size).toBe(2);
+    const sigils = [createSigil(() => 0.5), createSigil(() => 0.5)];
+    expect(new Set(sigils.map((item) => item.id)).size).toBe(2);
   });
 
   it("gives recovered consumables explicit utility instead of gear enchantments", () => {

@@ -31,6 +31,7 @@ Status: Complete for local-first play
 - Paid-contract entry is single-flight, snapshots its launch state, retries a rejected renderer download, and reconciles the authoritative before/after gold balance when interrupted between storage writes
 - Consumed packed items remain consumed after extraction or failure
 - Treasure coin credit is derived from current haul contents instead of a separate mutable raid counter
+- Generated loot, sigils, purchases, and crafted outputs remain identity-distinct even under same-millisecond and repeated-random inputs
 - Boss victories, Ashen depth, and their rewards require a typed boss kill within the bounded total-kill ledger
 - Malformed runtime class, mode, outcome, or inventory identity fails closed to the saved class, Standard abandonment, and a validated haul bounded to the eight-item raid capacity
 - Pre-raid and verdict value ledgers derive loadout risk, fees, Iron Soul XP exposure, and net wealth change from actual contract state
