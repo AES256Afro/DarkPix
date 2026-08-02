@@ -46,6 +46,21 @@ describe("browser persistence readiness", () => {
       removeItem: () => undefined,
     })).toBe(false);
   });
+
+  it("restores prior probe data when verification throws after the marker write", () => {
+    const values = new Map([["darkpix-storage-probe-v1", "prior"]]);
+    let reads = 0;
+    expect(browserStorageWritable({
+      getItem: (key) => {
+        reads += 1;
+        if (reads === 2) throw new Error("verification read failed");
+        return values.get(key) ?? null;
+      },
+      setItem: (key, value) => { values.set(key, value); },
+      removeItem: (key) => { values.delete(key); },
+    })).toBe(false);
+    expect(values.get("darkpix-storage-probe-v1")).toBe("prior");
+  });
 });
 
 describe("raid verdict persistence ordering", () => {

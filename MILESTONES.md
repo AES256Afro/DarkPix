@@ -163,6 +163,7 @@ Status: Complete for the current map
 - Refreshing or closing an active raid, including an unsecured terminal verdict, requests the browser's native leave confirmation because the journal will settle the departure as an abandonment
 - An active raid now stops and locks its tab when cross-tab storage replaces, removes, or corrupts its risk journal; temporarily unreadable storage remains a visible retryable write failure
 - Every failed checkpoint or heartbeat rechecks journal continuity, covering same-context removal even when the browser emits no cross-tab storage event
+- The storage-readiness probe restores its prior internal value even when verification throws after a successful marker write
 - Initial entry, voluntary unlock, cursor rejection, focus loss, and renderer recovery keep keyboard focus on the visible Resume action while simulation remains paused
 - Settled and superseded cursor-binding requests cancel their owned deadline immediately instead of retaining stale lifecycle callbacks
 - The full-screen raid pause is exposed as a labeled modal, and cursor-binding work shares one semantic busy state with the disabled Resume action

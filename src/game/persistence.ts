@@ -7,18 +7,32 @@ interface StorageProbeTarget {
 const STORAGE_PROBE_KEY = "darkpix-storage-probe-v1";
 
 export function browserStorageWritable(storage?: StorageProbeTarget): boolean {
+  let target: StorageProbeTarget | undefined;
+  let previous: string | null | undefined;
+  let mutated = false;
+  let restored = false;
   try {
-    const target = storage ?? globalThis.localStorage;
-    const previous = target.getItem(STORAGE_PROBE_KEY);
+    target = storage ?? globalThis.localStorage;
+    previous = target.getItem(STORAGE_PROBE_KEY);
     const marker = `writable-${Date.now()}`;
     target.setItem(STORAGE_PROBE_KEY, marker);
+    mutated = true;
     const written = target.getItem(STORAGE_PROBE_KEY) === marker;
     if (previous === null) target.removeItem(STORAGE_PROBE_KEY);
     else target.setItem(STORAGE_PROBE_KEY, previous);
-    const restored = target.getItem(STORAGE_PROBE_KEY) === previous;
+    restored = target.getItem(STORAGE_PROBE_KEY) === previous;
     return written && restored;
   } catch {
     return false;
+  } finally {
+    if (target && mutated && !restored && previous !== undefined) {
+      try {
+        if (previous === null) target.removeItem(STORAGE_PROBE_KEY);
+        else target.setItem(STORAGE_PROBE_KEY, previous);
+      } catch {
+        // Persistence is already unavailable; the caller will lock risky actions.
+      }
+    }
   }
 }
 
