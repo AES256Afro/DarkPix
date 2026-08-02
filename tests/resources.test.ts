@@ -174,7 +174,8 @@ describe("raid resource cleanup", () => {
     expect(enemyLaunch).not.toContain("new THREE.Vector3");
     expect(projectileDefense).toContain("this.scratchForward.set(0, 0, -1)");
     expect(projectileDefense).not.toContain("new THREE.Vector3");
-    expect(dropHaul).toContain("this.scratchToTarget.copy(this.camera.position)");
+    expect(dropHaul).toContain("safeDroppedLootPosition(this.camera.position, this.scratchDirection");
+    expect(dropHaul).toContain("this.scratchInteractionTarget");
     expect(dropHaul).not.toContain("new THREE.Vector3");
   });
 

@@ -3,7 +3,7 @@ import { escapeHtml } from "../html";
 import { AudioDirector, footstepCadenceCrossed } from "./audio";
 import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, damageImpactAccepted, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, safeDamageAmount, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat, type AttackDirection, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
-import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, dungeonProjectileStoneContact, encounterPosition, selectRaidVariation } from "./dungeon";
+import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, dungeonProjectileStoneContact, encounterPosition, safeDroppedLootPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
 import { HAUL_CAPACITY, RIVAL_EXTRACTION_SECONDS, advanceRivalExtraction, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, rivalShouldExtract, treasureGoldTotal } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, pickupDecision, type LoadoutStats } from "./loadout";
@@ -3392,8 +3392,10 @@ export class DarkPixGame {
     }
     this.raidLoot.splice(0, this.raidLoot.length, ...kept);
     const forward = this.scratchForward.set(0, 0, -1).applyQuaternion(this.camera.quaternion).setY(0).normalize();
-    this.scratchToTarget.copy(this.camera.position).addScaledVector(forward, 1.15);
-    this.scratchToTarget.y = 0.55;
+    this.scratchDirection.x = forward.x;
+    this.scratchDirection.z = forward.z;
+    const dropPosition = safeDroppedLootPosition(this.camera.position, this.scratchDirection, 1.15, 0.18, !this.falseWallOpened, this.scratchInteractionTarget);
+    this.scratchToTarget.set(dropPosition.x, 0.55, dropPosition.z);
     this.spawnPickup(dropped, this.scratchToTarget);
     this.feed(`${dropped.name} dropped from the haul.`, "system");
   }

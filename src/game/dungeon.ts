@@ -287,6 +287,38 @@ export function dungeonLineOfSight(start: Vec2, target: Vec2, radius = 0.06, sec
   return true;
 }
 
+export function safeDroppedLootPosition(
+  origin: Vec2,
+  direction: Vec2,
+  preferredDistance = 1.15,
+  radius = 0.18,
+  secretPassageClosed = false,
+  target: Vec2 = { x: 0, z: 0 },
+): Vec2 {
+  const directionLength = Math.hypot(direction.x, direction.z);
+  if (!Number.isFinite(origin.x) || !Number.isFinite(origin.z)) {
+    target.x = 0;
+    target.z = 0;
+    return target;
+  }
+  if (!Number.isFinite(directionLength) || directionLength <= 0.001 || !Number.isFinite(preferredDistance) || preferredDistance <= 0 || !Number.isFinite(radius) || radius < 0) {
+    target.x = origin.x;
+    target.z = origin.z;
+    return target;
+  }
+  const unitX = direction.x / directionLength;
+  const unitZ = direction.z / directionLength;
+  const maximumDistance = Math.min(3, preferredDistance);
+  for (let distance = maximumDistance; distance >= 0.15; distance -= 0.15) {
+    target.x = origin.x + unitX * distance;
+    target.z = origin.z + unitZ * distance;
+    if (!dungeonCollides(target, radius, secretPassageClosed) && dungeonLineOfSight(origin, target, radius, secretPassageClosed)) return target;
+  }
+  target.x = origin.x;
+  target.z = origin.z;
+  return target;
+}
+
 export function dungeonProjectileStoneContact(start: Vec2, target: Vec2, radius = 0.04, secretPassageClosed = false): number | undefined {
   if (!Number.isFinite(start.x) || !Number.isFinite(start.z) || !Number.isFinite(target.x) || !Number.isFinite(target.z) || !Number.isFinite(radius) || radius < 0) return 0;
   const distance = Math.hypot(target.x - start.x, target.z - start.z);

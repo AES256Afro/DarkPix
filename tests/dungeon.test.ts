@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DUNGEON, dartTrapTargetDistance, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists, dungeonProjectilePathClear, dungeonProjectileStoneContact, encounterPosition, selectRaidVariation } from "../src/game/dungeon";
+import { DUNGEON, dartTrapTargetDistance, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists, dungeonProjectilePathClear, dungeonProjectileStoneContact, encounterPosition, safeDroppedLootPosition, selectRaidVariation } from "../src/game/dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES } from "../src/game/depth";
 import { channelCommitmentLabel, channelInterruptionReason, continuousHold, heldInteractionTargetMatches, targetDistanceInView } from "../src/game/targeting";
 import { cardinalDirection, circlesOverlap, directionalCue, movementOffset, movementSubstepCount, passiveAwarenessRange, recoveryNeed, relativeDirectionToSource } from "../src/game/navigation";
@@ -77,6 +77,22 @@ describe("Crypt of the Pale Toll topology", () => {
     expect(dungeonProjectileStoneContact({ x: -9, z: 14 }, { x: -11, z: 14 })).toBeCloseTo(0.3);
     expect(dungeonProjectileStoneContact(DUNGEON.playerStart, { x: -5, z: 12 })).toBeUndefined();
     expect(dungeonProjectileStoneContact({ x: Number.NaN, z: 0 }, { x: 0, z: 0 })).toBe(0);
+  });
+
+  it("keeps discarded haul on the delver's side of masonry", () => {
+    const openDrop = safeDroppedLootPosition(DUNGEON.playerStart, { x: 1, z: 0 });
+    expect(openDrop).toEqual({ x: 1.15, z: DUNGEON.playerStart.z });
+    const nearWall = { x: -9, z: 14 };
+    const blockedDrop = safeDroppedLootPosition(nearWall, { x: -1, z: 0 });
+    expect(blockedDrop.x).toBeGreaterThan(-9.5);
+    expect(dungeonCollides(blockedDrop, 0.18)).toBe(false);
+    expect(dungeonLineOfSight(nearWall, blockedDrop, 0.18)).toBe(true);
+    const outsideSecret = { x: -16.8, z: DUNGEON.secretPassage.z };
+    const sealedDrop = safeDroppedLootPosition(outsideSecret, { x: -1, z: 0 }, 2, 0.18, true);
+    const openedDrop = safeDroppedLootPosition(outsideSecret, { x: -1, z: 0 }, 2, 0.18, false);
+    expect(sealedDrop.x).toBeGreaterThan(DUNGEON.secretPassage.x);
+    expect(openedDrop.x).toBeLessThan(DUNGEON.secretPassage.x);
+    expect(safeDroppedLootPosition(nearWall, { x: Number.NaN, z: 0 })).toEqual(nearWall);
   });
 
   it("places both readable trap layouts in open corridors", () => {
