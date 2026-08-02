@@ -37,6 +37,7 @@ Status: Complete for local-first play
 - Durable preferences also refresh across tabs only while the lobby is visible, leaving active raids, verdicts, and recovery screens undisturbed
 - An unsecured live or recovered verdict locks mutable lobby state behind a storage retry, while the settled-journal high-water mark prevents an exact or older retained escrow from being applied twice
 - Retained settled journals reconcile before their stale page-owner leases are considered, so a durable verdict cannot leave another lobby quarantined
+- A journal that appears in the final pre-descent race window is also checked against the durable settlement marker before it can block or be overwritten by the new raid
 - A future-dated heartbeat is trusted only within one 12-second lease window, preventing malformed or clock-shifted journals from indefinitely locking other tabs
 - Each new journal receives a marker beyond the last settled raid even when the system clock repeats a millisecond
 - Failed live checkpoints retry every three active seconds, expose a storage-only pause action, and announce durable recovery

@@ -58,6 +58,8 @@ Save import requires recognizable profile, stash, progression, and preference fi
 
 A retained settled journal is reconciled before its old page-owner lease is considered, so stale lease metadata cannot quarantine a lobby after the verdict is already durable.
 
+The final pre-descent journal check applies the same rule. It removes an already-settled journal before writing the next raid, while a removal failure blocks descent rather than overwriting recovery evidence.
+
 ## Extraction loop
 
 - Choose Vanguard, Cutpurse, Hexbound, Reaver, Ranger, Cleric, Shapeshifter, or Minstrel. Class XP and levels persist across every outcome outside the optional Iron Soul contract.

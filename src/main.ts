@@ -827,10 +827,25 @@ async function startRaid(): Promise<void> {
       return;
     }
     if (existingJournal.status === "loaded") {
-      foreignRaidLease = true;
-      merchantNotice = "Another raid journal appeared before descent. Reload to reconcile it before risking gear.";
-      renderLobby();
-      return;
+      const pendingEscrow = existingJournal.escrow;
+      if (!pendingEscrow) {
+        persistenceWarning = "The active raid journal changed while descent was being secured. Reload before risking gear.";
+        renderLobby();
+        return;
+      }
+      if (raidEscrowAlreadySettled(profile, pendingEscrow)) {
+        if (!clearRaidEscrow()) {
+          persistenceWarning = "A completed raid journal could not be removed, so a new raid will not overwrite its recovery evidence.";
+          renderLobby();
+          return;
+        }
+        merchantNotice = "A completed raid journal was reconciled before the next descent.";
+      } else {
+        foreignRaidLease = true;
+        merchantNotice = "Another raid journal appeared before descent. Reload to reconcile it before risking gear.";
+        renderLobby();
+        return;
+      }
     }
     const descendButton = app.querySelector<HTMLButtonElement>(".descend-button");
     if (descendButton) {
