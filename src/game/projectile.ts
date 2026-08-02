@@ -18,6 +18,11 @@ export interface ProjectileTargetContact {
   headshot: boolean;
 }
 
+export interface ProjectileStoneOutcome {
+  cue: "SHOT BLOCKED" | "STONE HELD";
+  message: string;
+}
+
 export function playerProjectileDuration(distance: number, kind: PlayerProjectileKind): number {
   const safeDistance = Number.isFinite(distance) ? Math.max(0, distance) : 0;
   const speed = kind === "arrow" ? 18 : kind === "throwable" ? 15 : 13;
@@ -124,4 +129,13 @@ export function projectileTargetContact(headContact: number | undefined, bodyCon
   if (head === undefined && body === undefined) return undefined;
   if (head !== undefined && (body === undefined || head <= body)) return { progress: head, headshot: true };
   return { progress: body!, headshot: false };
+}
+
+export function projectileStoneOutcome(kind: PlayerProjectileKind | EnemyProjectileKind, thrownName?: string): ProjectileStoneOutcome {
+  if (kind === "arrow") return { cue: "SHOT BLOCKED", message: "ARROW BROKEN · stone stops the shot." };
+  if (kind === "spell") return { cue: "SHOT BLOCKED", message: "SPELL SPENT · stone grounds the bolt." };
+  if (kind === "throwable") return { cue: "SHOT BLOCKED", message: `${thrownName?.trim() || "Thrown weapon"} strikes the stone and is lost.` };
+  if (kind === "chain") return { cue: "STONE HELD", message: "STONE HELD · the Tollkeeper chain breaks against masonry." };
+  if (kind === "dart") return { cue: "STONE HELD", message: "STONE HELD · the dart volley splinters against masonry." };
+  return { cue: "STONE HELD", message: "STONE HELD · the rival knife breaks against masonry." };
 }

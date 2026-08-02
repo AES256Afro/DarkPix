@@ -20,7 +20,7 @@ import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, poi
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
 import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
-import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileSegmentContact, projectileTargetContact, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
+import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileSegmentContact, projectileStoneOutcome, projectileTargetContact, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
 import { DARKNESS_PULSE_SECONDS, darknessPulseReady, directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "./zone";
 
@@ -1833,8 +1833,11 @@ export class DarkPixGame {
       const nextPosition = playerProjectilePosition(projectile.start, projectile.end, projectile.elapsed + 0.02, projectile.duration, projectile.kind);
       projectile.mesh.lookAt(nextPosition.x, nextPosition.y, nextPosition.z);
       if (!dungeonProjectilePathClear({ x: previous.x, z: previous.z }, position, 0.04)) {
+        const outcome = projectileStoneOutcome(projectile.kind, projectile.thrownName);
         this.removePlayerProjectile(index);
-        if (projectile.kind === "throwable") this.feed(`${projectile.thrownName ?? "Thrown weapon"} strikes the stone and is lost.`, "system");
+        this.feed(outcome.message, "system");
+        this.showDirectionalCue(position, outcome.cue, 0.45, "impact");
+        this.audio.tone(projectile.kind === "spell" ? 130 : 210, 0.09, "square", 0.045);
         continue;
       }
       const enemy = this.enemies
@@ -1961,7 +1964,11 @@ export class DarkPixGame {
       const next = enemyProjectilePosition(projectile.start, projectile.end, projectile.elapsed + 0.02, projectile.duration, projectile.kind);
       projectile.mesh.lookAt(next.x, next.y, next.z);
       if (!dungeonProjectilePathClear({ x: previous.x, z: previous.z }, position, 0.04)) {
+        const outcome = projectileStoneOutcome(projectile.kind);
         this.removeEnemyProjectile(index);
+        this.feed(outcome.message, "system");
+        this.showDirectionalCue(position, outcome.cue, 0.45, "impact");
+        this.audio.tone(150, 0.1, "square", 0.05);
         continue;
       }
       const playerContact = projectileSegmentContact(previous, position, this.camera.position, PLAYER_RADIUS + 0.18);

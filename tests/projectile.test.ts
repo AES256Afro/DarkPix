@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileImpactConnects, projectileSegmentConnects, projectileSegmentContact, projectileTargetContact } from "../src/game/projectile";
+import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileImpactConnects, projectileSegmentConnects, projectileSegmentContact, projectileStoneOutcome, projectileTargetContact } from "../src/game/projectile";
 
 describe("player projectile travel", () => {
   it("gives arrows and spells bounded nonzero travel time", () => {
@@ -77,5 +77,14 @@ describe("player projectile travel", () => {
     expect(projectileTargetContact(0.4, 0.4)).toEqual({ progress: 0.4, headshot: true });
     expect(projectileTargetContact(undefined, 0.5)).toEqual({ progress: 0.5, headshot: false });
     expect(projectileTargetContact(Number.NaN, undefined)).toBeUndefined();
+  });
+
+  it("gives every masonry-stopped missile an explicit safe verdict", () => {
+    expect(projectileStoneOutcome("arrow")).toEqual({ cue: "SHOT BLOCKED", message: "ARROW BROKEN · stone stops the shot." });
+    expect(projectileStoneOutcome("spell").message).toContain("stone grounds");
+    expect(projectileStoneOutcome("throwable", "Tin knife").message).toBe("Tin knife strikes the stone and is lost.");
+    expect(projectileStoneOutcome("knife")).toEqual({ cue: "STONE HELD", message: "STONE HELD · the rival knife breaks against masonry." });
+    expect(projectileStoneOutcome("chain").message).toContain("Tollkeeper chain");
+    expect(projectileStoneOutcome("dart").message).toContain("dart volley");
   });
 });
