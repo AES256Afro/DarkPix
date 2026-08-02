@@ -17,4 +17,10 @@ describe("lobby accessibility contracts", () => {
     expect(styles).toContain("@media (forced-colors: active)");
     expect(styles).toContain(".class-card.selected, .raid-mode-picker button.selected, .stash-item.selected");
   });
+
+  it("keeps an unsecured raid verdict visible and blocks lobby return until retry succeeds", () => {
+    expect(mainSource).toContain('class="result-persistence" role="alert"');
+    expect(mainSource).toContain('if (!verdictSecured) {');
+    expect(mainSource).toContain('"RETRY SECURING VERDICT"');
+  });
 });

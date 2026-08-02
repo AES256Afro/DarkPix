@@ -44,7 +44,7 @@ const STARTER_STASH: Item[] = [
 
 export function createProfile(): Profile {
   return {
-    version: 14,
+    version: 15,
     gold: 75,
     xp: { vanguard: 0, cutpurse: 0, hexbound: 0, reaver: 0, ranger: 0, cleric: 0, shapeshifter: 0, minstrel: 0 },
     stash: STARTER_STASH.map((item) => ({ ...item })),
@@ -59,6 +59,7 @@ export function createProfile(): Profile {
     streakBountyPaid: false,
     quietKnivesPaid: false,
     lastCommissionDay: "",
+    lastSettledRaidStartedAt: 0,
     preferredClass: "vanguard",
     raidHistory: [],
   };
@@ -166,7 +167,7 @@ export function normalizeProfile(value: unknown): Profile {
     ? candidate.raidHistory.map(normalizeRaidJournalEntry).filter((entry): entry is RaidJournalEntry => Boolean(entry)).slice(0, RAID_HISTORY_LIMIT)
     : [];
   return {
-    version: 14,
+    version: 15,
     gold: nonnegativeInteger(candidate.gold, MAX_GOLD),
     xp: {
       vanguard: nonnegativeInteger(xp.vanguard, MAX_CLASS_XP),
@@ -197,6 +198,7 @@ export function normalizeProfile(value: unknown): Profile {
     streakBountyPaid: typeof candidate.streakBountyPaid === "boolean" ? candidate.streakBountyPaid : false,
     quietKnivesPaid: typeof candidate.quietKnivesPaid === "boolean" ? candidate.quietKnivesPaid : false,
     lastCommissionDay: validUtcDayKey(candidate.lastCommissionDay) ? candidate.lastCommissionDay : "",
+    lastSettledRaidStartedAt: nonnegativeInteger(candidate.lastSettledRaidStartedAt),
     preferredClass: validClass(candidate.preferredClass) ? candidate.preferredClass : fallback.preferredClass,
     raidHistory,
   };
@@ -453,12 +455,18 @@ export function loadRaidEscrow(): RaidEscrow | undefined {
   }
 }
 
-export function clearRaidEscrow(): void {
+export function clearRaidEscrow(): boolean {
   try {
     localStorage.removeItem(RAID_ESCROW_KEY);
+    return localStorage.getItem(RAID_ESCROW_KEY) === null;
   } catch {
     // The normal profile warning already explains unavailable browser storage.
+    return false;
   }
+}
+
+export function raidEscrowAlreadySettled(profile: Pick<Profile, "lastSettledRaidStartedAt">, escrow: RaidEscrow): boolean {
+  return escrow.startedAt > 0 && profile.lastSettledRaidStartedAt === escrow.startedAt;
 }
 
 export function settleInterruptedRaid(profile: Profile, escrow: RaidEscrow): RaidSettlement {

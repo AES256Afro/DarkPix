@@ -9,7 +9,7 @@ import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEq
 import { SingleFlightGate } from "./game/lifecycle";
 import { loadPreferences, savePreferences } from "./game/preferences";
 import { browserStorageWritable, persistBeforeClearingEscrow } from "./game/persistence";
-import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfileState, loadRaidEscrow, normalizeRaidResult, purchaseItem, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
+import { BONE_BOUNTY_TARGET, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfileState, loadRaidEscrow, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
 import { rarityMark } from "./game/rarity";
 import { QUIET_KNIVES_REWARD, QUIET_KNIVES_TARGET } from "./game/stealth";
@@ -41,19 +41,30 @@ let persistenceWarning = profileLoad.status === "corrupt"
 let gameModulePromise: Promise<typeof import("./game/game")> | undefined;
 let updateRegistration: ServiceWorkerRegistration | undefined;
 let reloadForUpdate = false;
+let activeRaidStartedAt = 0;
+let interruptedSettlementPending = false;
+let interruptedSettlementNotice = "";
 const raidLaunchGate = new SingleFlightGate();
 
 const interruptedRaid = loadRaidEscrow();
 if (interruptedRaid) {
-  const recovered = settleInterruptedRaid(profile, interruptedRaid);
-  profile = recovered.profile;
-  selectedClass = profile.preferredClass;
-  if (persistBeforeClearingEscrow(() => saveProfile(profile), clearRaidEscrow)) {
-    merchantNotice = recovered.classXpLost > 0
+  if (raidEscrowAlreadySettled(profile, interruptedRaid)) {
+    if (clearRaidEscrow()) merchantNotice = "A completed raid journal was reconciled without repeating its verdict.";
+    else persistenceWarning = "A completed raid journal could not be removed, but its verdict marker prevents repeat settlement.";
+  } else {
+    const recovered = settleInterruptedRaid(profile, interruptedRaid);
+    profile = recovered.profile;
+    profile.lastSettledRaidStartedAt = interruptedRaid.startedAt;
+    selectedClass = profile.preferredClass;
+    interruptedSettlementNotice = recovered.classXpLost > 0
       ? `Interrupted Iron Soul raid forfeited ${recovered.classXpLost} class XP and all risked gear.`
       : "Interrupted raid settled as an abandonment. Risked gear was left below.";
-  } else {
-    persistenceWarning = "The interrupted raid was settled in memory, but this browser refused to save the result.";
+    if (persistBeforeClearingEscrow(() => saveProfile(profile), clearRaidEscrow)) {
+      merchantNotice = interruptedSettlementNotice;
+    } else {
+      interruptedSettlementPending = true;
+      persistenceWarning = "The interrupted raid verdict is not durable yet. Lobby actions are locked to prevent duplicate settlement.";
+    }
   }
 }
 
@@ -89,6 +100,10 @@ function showUpdatePrompt(registration: ServiceWorkerRegistration): void {
   button?.addEventListener("click", () => {
     if (raidLaunchGate.busy) {
       button.textContent = "WAIT FOR DESCENT";
+      return;
+    }
+    if (interruptedSettlementPending) {
+      button.textContent = "SECURE THE VERDICT FIRST";
       return;
     }
     if (activeGame) {
@@ -151,7 +166,29 @@ function journalDate(completedAt: number): string {
   return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(date).toUpperCase();
 }
 
+function renderInterruptedSettlementRecovery(): void {
+  activeGame?.destroy();
+  activeGame = undefined;
+  app.innerHTML = `<main class="game-mount" aria-label="DarkPix raid recovery"><section class="runtime-error persistence-recovery"><span>†</span><h1>THE LEDGER IS NOT SECURE</h1><p role="alert">The raid transaction was resolved in memory, but the browser has not stored and cleared it. The Last Lantern remains locked so this journal cannot be applied twice.</p><button type="button">RETRY SECURING VERDICT</button></section></main>`;
+  app.querySelector<HTMLButtonElement>("button")?.addEventListener("click", () => {
+    const secured = persistBeforeClearingEscrow(() => saveProfile(profile), clearRaidEscrow);
+    if (!secured) {
+      const notice = app.querySelector<HTMLElement>("[role=alert]");
+      if (notice) notice.textContent = "The browser still refused the verdict. Keep this page open, check private-browsing or storage settings, then retry.";
+      return;
+    }
+    interruptedSettlementPending = false;
+    persistenceWarning = "";
+    merchantNotice = interruptedSettlementNotice;
+    renderLobby();
+  });
+}
+
 function renderLobby(): void {
+  if (interruptedSettlementPending) {
+    renderInterruptedSettlementRecovery();
+    return;
+  }
   activeGame?.destroy();
   activeGame = undefined;
   if (raidEntryStatus(selectedRaidMode, profile.extracts, profile.gold, profile.ashenExtracts) !== "ready") selectedRaidMode = "standard";
@@ -580,9 +617,11 @@ function renderLobby(): void {
 
 function refundFailedRaidStart(goldBeforeEntry: number): boolean {
   profile.gold = goldBeforeEntry;
+  if (activeRaidStartedAt > 0) profile.lastSettledRaidStartedAt = activeRaidStartedAt;
   if (!saveProfile(profile)) return false;
-  clearRaidEscrow();
-  return true;
+  const cleared = clearRaidEscrow();
+  if (cleared) activeRaidStartedAt = 0;
+  return cleared;
 }
 
 async function startRaid(): Promise<void> {
@@ -628,11 +667,20 @@ async function startRaid(): Promise<void> {
       renderLobby();
       return;
     }
+    activeRaidStartedAt = escrow.startedAt;
     profile.gold = escrow.goldAfterEntry ?? Math.max(0, goldBeforeEntry - rules.entryFee);
     if (!saveProfile(profile)) {
       profile.gold = goldBeforeEntry;
-      clearRaidEscrow();
-      persistenceWarning = "The browser could not persist the raid entry. No fee was charged and the raid did not start.";
+      const canceled = clearRaidEscrow();
+      if (canceled) activeRaidStartedAt = 0;
+      else {
+        profile.lastSettledRaidStartedAt = activeRaidStartedAt;
+        interruptedSettlementPending = true;
+        interruptedSettlementNotice = "Canceled raid entry reconciled without charging its fee.";
+      }
+      persistenceWarning = canceled
+        ? "The browser could not persist the raid entry. No fee was charged and the raid did not start."
+        : "The browser could not remove the canceled raid journal. Lobby actions are locked until its cancellation marker is durable.";
       renderLobby();
       return;
     }
@@ -704,7 +752,9 @@ function finishRaid(result: RaidResult): void {
     entryFee: rules.entryFee,
   });
   profile = settlement.profile;
-  persistBeforeClearingEscrow(persistProfile, clearRaidEscrow);
+  if (activeRaidStartedAt > 0) profile.lastSettledRaidStartedAt = activeRaidStartedAt;
+  let verdictSecured = persistBeforeClearingEscrow(persistProfile, clearRaidEscrow);
+  if (verdictSecured) activeRaidStartedAt = 0;
   const recordedItems = extracted
     ? [
         ...returnedItems.map((item) => ({ item, outcome: "GEAR RETURNED" })),
@@ -766,10 +816,21 @@ function finishRaid(result: RaidResult): void {
           </div>
         </div>
         <p class="result-next"><small>NEXT DESCENT</small><span>${nextStep}</span></p>
-        <button class="return-button" type="button">RETURN TO THE LAST LANTERN</button>
+        ${verdictSecured ? "" : `<p class="result-persistence" role="alert">This verdict is not stored yet. The Last Lantern remains locked so the raid cannot be settled twice.</p>`}
+        <button class="return-button" type="button">${verdictSecured ? "RETURN TO THE LAST LANTERN" : "RETRY SECURING VERDICT"}</button>
       </section>
     </main>`;
   app.querySelector<HTMLButtonElement>(".return-button")?.addEventListener("click", () => {
+    if (!verdictSecured) {
+      verdictSecured = persistBeforeClearingEscrow(persistProfile, clearRaidEscrow);
+      if (!verdictSecured) {
+        const notice = app.querySelector<HTMLElement>(".result-persistence");
+        if (notice) notice.textContent = "The browser still refused the verdict. Keep this page open, check private-browsing or storage settings, then retry.";
+        return;
+      }
+      activeRaidStartedAt = 0;
+      persistenceWarning = "";
+    }
     equippedIds = new Set();
     renderLobby();
   });

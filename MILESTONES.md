@@ -26,7 +26,8 @@ Exit evidence: automated domain tests, production TypeScript build, container he
 Status: Complete for local-first play
 
 - Risked equipment leaves the stash only after a failed verdict
-- Active-raid escrow checkpoints the layout seal, depth, unseen marks, and bounded total and per-threat kills, settles refreshes and interrupted tabs as abandonment, and clears only after the verdict is durably saved
+- Active-raid escrow checkpoints the layout seal, depth, unseen marks, and bounded total and per-threat kills, settles refreshes and interrupted tabs as abandonment, and clears only after the verdict and its idempotency marker are durably saved
+- An unsecured live or recovered verdict locks mutable lobby state behind a storage retry, while an exact settled-journal marker prevents a retained escrow from being applied twice
 - The live HUD exposes checkpoint storage failure instead of silently leaving refresh recovery stale
 - Paid-contract entry is single-flight, snapshots its launch state, retries a rejected renderer download, and reconciles the authoritative before/after gold balance when interrupted between storage writes
 - Consumed packed items remain consumed after extraction or failure
@@ -38,7 +39,7 @@ Status: Complete for local-first play
 - Verdicts itemize the bounded per-threat kill evidence used by bestiary, commission, and boss settlement
 - Future-dated verdicts cannot pre-claim a later daily commission or poison the contract journal clock
 - The exact floor deadline and first lethal source stop the terminal simulation frame before later systems can mutate a captured verdict
-- Version 14 migrates older profiles into the Quiet Knives contract without changing prior progress
+- Version 15 migrates older profiles into the Quiet Knives contract and settled-journal marker without changing prior progress
 - Class XP, contracts, bestiary ledgers, survival streaks, raid history, settings, and backup import/export survive compatible profile migrations
 - Iron Soul failure clears the selected discipline's XP while preserving the rest of the profile
 

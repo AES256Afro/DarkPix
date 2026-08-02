@@ -33,7 +33,7 @@ describe("raid verdict persistence ordering", () => {
     const order: string[] = [];
     const persisted = persistBeforeClearingEscrow(
       () => { order.push("persist"); return true; },
-      () => { order.push("clear"); },
+      () => { order.push("clear"); return true; },
     );
     expect(persisted).toBe(true);
     expect(order).toEqual(["persist", "clear"]);
@@ -43,5 +43,9 @@ describe("raid verdict persistence ordering", () => {
     const clear = vi.fn();
     expect(persistBeforeClearingEscrow(() => false, clear)).toBe(false);
     expect(clear).not.toHaveBeenCalled();
+  });
+
+  it("reports an unsecured verdict when escrow removal cannot be verified", () => {
+    expect(persistBeforeClearingEscrow(() => true, () => false)).toBe(false);
   });
 });

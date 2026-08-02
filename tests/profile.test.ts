@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createItemId, createLoot, createSigil, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
-import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, MAX_RAID_LOOT_ITEMS, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, loadProfileState, normalizeProfile, normalizeRaidEscrow, normalizeRaidResult, purchaseItem, raidThreatKillLedger, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
+import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, MAX_RAID_LOOT_ITEMS, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, loadProfileState, normalizeProfile, normalizeRaidEscrow, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidThreatKillLedger, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, firstRunPreferences, normalizePreferences } from "../src/game/preferences";
 import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat } from "../src/game/combat";
 import type { RaidResult } from "../src/game/types";
@@ -285,7 +285,7 @@ describe("persistent raid consequences", () => {
     expect(result.extracts).toBe(0);
     expect(result.highTollExtracts).toBe(0);
     expect(result.ashenExtracts).toBe(0);
-    expect(result.version).toBe(14);
+    expect(result.version).toBe(15);
     expect(result.xp.reaver).toBe(0);
     expect(result.xp.ranger).toBe(0);
     expect(result.xp.cleric).toBe(0);
@@ -297,6 +297,7 @@ describe("persistent raid consequences", () => {
     expect(result.streakBountyPaid).toBe(false);
     expect(result.quietKnivesPaid).toBe(false);
     expect(result.lastCommissionDay).toBe("");
+    expect(result.lastSettledRaidStartedAt).toBe(0);
     expect(result.preferredClass).toBe("vanguard");
     expect(result.raidHistory).toEqual([]);
   });
@@ -338,7 +339,7 @@ describe("persistent raid consequences", () => {
     legacy.version = 7;
     legacy.xp = { vanguard: 700, cutpurse: 350, hexbound: 0, reaver: 0, ranger: 0, cleric: 0 };
     const migrated = normalizeProfile(legacy);
-    expect(migrated.version).toBe(14);
+    expect(migrated.version).toBe(15);
     expect(migrated.xp.vanguard).toBe(700);
     expect(migrated.xp.cutpurse).toBe(350);
     expect(migrated.xp.shapeshifter).toBe(0);
@@ -348,7 +349,7 @@ describe("persistent raid consequences", () => {
   it("migrates pre-bestiary profiles with empty bounded ledgers", () => {
     const legacy = { ...createProfile(), version: 8, threatKills: undefined, boneBountyPaid: undefined, rivalBountyPaid: undefined };
     const migrated = normalizeProfile(legacy);
-    expect(migrated.version).toBe(14);
+    expect(migrated.version).toBe(15);
     expect(migrated.threatKills).toEqual({ skeleton: 0, crawler: 0, mimic: 0, warden: 0, rival: 0, boss: 0 });
     expect(migrated.boneBountyPaid).toBe(false);
     expect(migrated.rivalBountyPaid).toBe(false);
@@ -360,7 +361,7 @@ describe("persistent raid consequences", () => {
     const legacy = { ...createProfile(), version: 11, streakBountyPaid: undefined };
     legacy.raidHistory = [{ completedAt: 1, classId: "vanguard", raidMode: "standard", reason: "extracted", depthReached: 1, kills: 0, elapsed: 40, goldDelta: 10, xpDelta: 170, gearLost: 0, bossKilled: false }];
     const migrated = normalizeProfile(legacy);
-    expect(migrated.version).toBe(14);
+    expect(migrated.version).toBe(15);
     expect(migrated.streakBountyPaid).toBe(false);
     expect(migrated.raidHistory).toHaveLength(1);
   });
@@ -368,15 +369,24 @@ describe("persistent raid consequences", () => {
   it("migrates version 12 profiles into an unclaimed daily commission", () => {
     const legacy = { ...createProfile(), version: 12, lastCommissionDay: undefined };
     const migrated = normalizeProfile(legacy);
-    expect(migrated.version).toBe(14);
+    expect(migrated.version).toBe(15);
     expect(migrated.lastCommissionDay).toBe("");
   });
 
   it("migrates version 13 profiles into an unpaid Quiet Knives contract", () => {
     const legacy = { ...createProfile(), version: 13, quietKnivesPaid: undefined };
     const migrated = normalizeProfile(legacy);
-    expect(migrated.version).toBe(14);
+    expect(migrated.version).toBe(15);
     expect(migrated.quietKnivesPaid).toBe(false);
+  });
+
+  it("recognizes only the exact durable raid escrow settlement marker", () => {
+    const profile = createProfile();
+    const escrow = createRaidEscrow("vanguard", "standard", [], 1_700_000_000_000);
+    expect(raidEscrowAlreadySettled(profile, escrow)).toBe(false);
+    profile.lastSettledRaidStartedAt = escrow.startedAt;
+    expect(raidEscrowAlreadySettled(profile, escrow)).toBe(true);
+    expect(raidEscrowAlreadySettled(profile, { ...escrow, startedAt: 0 })).toBe(false);
   });
 
   it("records a bounded newest-first contract journal", () => {

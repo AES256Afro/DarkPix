@@ -21,8 +21,7 @@ export function browserStorageWritable(storage?: StorageProbeTarget): boolean {
   }
 }
 
-export function persistBeforeClearingEscrow(persist: () => boolean, clearEscrow: () => void): boolean {
+export function persistBeforeClearingEscrow(persist: () => boolean, clearEscrow: () => boolean): boolean {
   if (!persist()) return false;
-  clearEscrow();
-  return true;
+  return clearEscrow();
 }
