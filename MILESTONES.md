@@ -28,7 +28,7 @@ Status: Complete for local-first play
 - Risked equipment leaves the stash only after a failed verdict
 - Active-raid escrow checkpoints the layout seal, depth, unseen marks, and bounded total and per-threat kills, settles refreshes and interrupted tabs as abandonment, and clears only after the verdict is durably saved
 - The live HUD exposes checkpoint storage failure instead of silently leaving refresh recovery stale
-- Paid-contract escrow reconciles the authoritative before/after gold balance when entry is interrupted between storage writes
+- Paid-contract entry is single-flight, snapshots its launch state, retries a rejected renderer download, and reconciles the authoritative before/after gold balance when interrupted between storage writes
 - Consumed packed items remain consumed after extraction or failure
 - Treasure coin credit is derived from current haul contents instead of a separate mutable raid counter
 - Boss victories, Ashen depth, and their rewards require a typed boss kill within the bounded total-kill ledger

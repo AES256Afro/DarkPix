@@ -45,3 +45,23 @@ export class LifecycleTimers {
     return this.timers.size;
   }
 }
+
+export class SingleFlightGate {
+  private activeTicket?: number;
+  private nextTicket = 0;
+
+  begin(): number | undefined {
+    if (this.activeTicket !== undefined) return undefined;
+    this.nextTicket += 1;
+    this.activeTicket = this.nextTicket;
+    return this.activeTicket;
+  }
+
+  finish(ticket: number): void {
+    if (this.activeTicket === ticket) this.activeTicket = undefined;
+  }
+
+  get busy(): boolean {
+    return this.activeTicket !== undefined;
+  }
+}

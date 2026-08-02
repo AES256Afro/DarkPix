@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid } from "../src/game/lifecycle";
+import { LifecycleTimers, SingleFlightGate, pointerLockRequestAllowed, pointerLockResumesRaid } from "../src/game/lifecycle";
 
 afterEach(() => vi.useRealTimers());
 
@@ -47,5 +47,18 @@ describe("raid lifecycle", () => {
     vi.runAllTimers();
     expect(callbacks).toEqual(["visual"]);
     expect(timers.pendingCount).toBe(0);
+  });
+
+  it("admits only one asynchronous raid launch at a time", () => {
+    const gate = new SingleFlightGate();
+    const first = gate.begin();
+    expect(first).toBe(1);
+    expect(gate.busy).toBe(true);
+    expect(gate.begin()).toBeUndefined();
+    gate.finish(999);
+    expect(gate.busy).toBe(true);
+    gate.finish(first ?? 0);
+    expect(gate.busy).toBe(false);
+    expect(gate.begin()).toBe(2);
   });
 });
