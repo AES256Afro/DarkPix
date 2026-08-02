@@ -9,6 +9,9 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain('aria-current="page"');
     expect(mainSource).toContain('<span class="active" aria-current="page">Delve</span>');
     expect(mainSource).not.toContain('<button class="active" type="button" aria-current="page">Delve</button>');
+    expect(mainSource).toContain('<main class="lobby" id="top">');
+    expect(mainSource).toContain('class="brand" href="#top" aria-label="DarkPix home"');
+    expect(mainSource).not.toContain('addEventListener("click", (event) => event.preventDefault())');
     expect(mainSource).toContain('aria-pressed="${entry.id === selectedClass}"');
     expect(mainSource).toContain('aria-pressed="${selectedRaidMode === "standard"}"');
     expect(mainSource).toContain('aria-pressed="${selected}"');

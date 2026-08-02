@@ -448,9 +448,9 @@ function renderLobby(): void {
   const todaysCommission = merchantCommission(Date.now());
   const commissionClaimed = profile.lastCommissionDay === todaysCommission.day;
   app.innerHTML = `
-    <main class="lobby">
+    <main class="lobby" id="top">
       <header class="lobby-header">
-        <a class="brand" href="#" aria-label="DarkPix home"><span>DP</span><strong>DARKPIX</strong></a>
+        <a class="brand" href="#top" aria-label="DarkPix home"><span>DP</span><strong>DARKPIX</strong></a>
         <nav class="lobby-nav" aria-label="Game sections">
           <span class="active" aria-current="page">Delve</span>
           <button type="button" data-jump="stash">Stash <b>${profile.stash.length}</b></button>
@@ -871,7 +871,6 @@ function renderLobby(): void {
   descendButton?.addEventListener("pointerenter", warmGameModule);
   descendButton?.addEventListener("focus", warmGameModule);
   descendButton?.addEventListener("click", () => void startRaid());
-  app.querySelector<HTMLAnchorElement>(".brand")?.addEventListener("click", (event) => event.preventDefault());
   if (focusSelector) app.querySelector<HTMLElement>(focusSelector)?.focus({ preventScroll: true });
 }
 
