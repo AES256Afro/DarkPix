@@ -409,6 +409,7 @@ function renderLobby(): void {
     renderInterruptedSettlementRecovery();
     return;
   }
+  document.documentElement.classList.toggle("reduced-motion", preferences.reducedMotion);
   activeGame?.destroy();
   activeGame = undefined;
   const focusSelector = focusedLobbySelector();
@@ -685,7 +686,7 @@ function renderLobby(): void {
     });
   });
   app.querySelectorAll<HTMLElement>("[data-jump]").forEach((button) => {
-    button.addEventListener("click", () => document.querySelector(`#${button.dataset.jump}`)?.scrollIntoView({ behavior: "smooth" }));
+    button.addEventListener("click", () => document.querySelector(`#${button.dataset.jump}`)?.scrollIntoView({ behavior: preferences.reducedMotion ? "auto" : "smooth" }));
   });
   app.querySelectorAll<HTMLButtonElement>(".risk-item").forEach((button) => {
     button.addEventListener("click", () => {
@@ -774,6 +775,7 @@ function renderLobby(): void {
       const key = input.dataset.preference as keyof GamePreferences;
       if (key === "muted" || key === "reducedMotion" || key === "reducedFlashes" || key === "highContrastHud" || key === "invertY") preferences = { ...preferences, [key]: input.checked };
       else preferences = { ...preferences, [key]: Number(input.value) };
+      if (key === "reducedMotion") document.documentElement.classList.toggle("reduced-motion", preferences.reducedMotion);
       persistPreferences();
       const output = app.querySelector<HTMLOutputElement>(`[data-output="${key}"]`);
       if (output) output.textContent = key === "brightness" || key === "volume" || key === "crosshairScale"
@@ -925,7 +927,7 @@ async function startRaid(): Promise<void> {
     if (typeof HTMLCanvasElement.prototype.requestPointerLock !== "function") {
       merchantNotice = "DarkPix raids require pointer lock. Use a current desktop browser to descend.";
       renderLobby();
-      document.querySelector("#stash")?.scrollIntoView({ behavior: "smooth" });
+      document.querySelector("#stash")?.scrollIntoView({ behavior: preferences.reducedMotion ? "auto" : "smooth" });
       return;
     }
     const classId = selectedClass;
@@ -941,7 +943,7 @@ async function startRaid(): Promise<void> {
           : `${rules.name} requires its ${rules.entryFee}g entry fee.`;
       selectedRaidMode = "standard";
       renderLobby();
-      document.querySelector("#stash")?.scrollIntoView({ behavior: "smooth" });
+      document.querySelector("#stash")?.scrollIntoView({ behavior: preferences.reducedMotion ? "auto" : "smooth" });
       return;
     }
     const equipped = profile.stash.filter((item) => equippedIds.has(item.id));

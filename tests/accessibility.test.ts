@@ -214,6 +214,14 @@ describe("lobby accessibility contracts", () => {
     expect(styles).toContain(".raid-shell.reduced-motion .bar i { transition: none; }");
   });
 
+  it("removes smooth lobby navigation for saved and system reduced-motion requests", () => {
+    expect(mainSource).toContain('classList.toggle("reduced-motion", preferences.reducedMotion)');
+    expect(mainSource.match(/behavior: preferences\.reducedMotion \? "auto" : "smooth"/g)).toHaveLength(3);
+    expect(styles).toContain("html.reduced-motion { scroll-behavior: auto; }");
+    expect(styles).toContain("@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }");
+    expect(styles).toContain("html.reduced-motion .lobby button");
+  });
+
   it("exposes held ritual progress and its committed destination semantically", () => {
     const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
     expect(gameSource).toContain('class="extract-meter" role="progressbar"');
