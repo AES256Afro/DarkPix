@@ -54,6 +54,16 @@ export function enemyProjectileFlightCue(kind: EnemyProjectileKind, duration: nu
   };
 }
 
+export function enemyProjectilePauseSummary(kinds: readonly EnemyProjectileKind[]): string {
+  const knives = kinds.filter((kind) => kind === "knife").length;
+  const chains = kinds.filter((kind) => kind === "chain").length;
+  if (knives === 0 && chains === 0) return "CLEAR";
+  return [
+    knives > 0 ? `${knives} ${knives === 1 ? "KNIFE" : "KNIVES"}` : "",
+    chains > 0 ? `${chains} CHAIN${chains === 1 ? "" : "S"}` : "",
+  ].filter(Boolean).join(" · ");
+}
+
 export function playerProjectilePosition(
   start: ProjectilePoint,
   end: ProjectilePoint,

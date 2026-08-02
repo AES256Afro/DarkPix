@@ -20,7 +20,7 @@ import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, poi
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
 import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
-import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileSegmentConnects, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
+import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileSegmentConnects, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
 import { DARKNESS_PULSE_SECONDS, darknessPulseReady, directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "./zone";
 
@@ -1230,6 +1230,7 @@ export class DarkPixGame {
         <span><small>CAMPFIRE</small><strong>${readiness.campfire}</strong></span>
         <span><small>TORCH</small><strong>${readiness.torch}</strong></span>
         <span><small>UNSEEN MARKS</small><strong>${Math.min(QUIET_KNIVES_TARGET, this.unseenStrikes)} / ${QUIET_KNIVES_TARGET}</strong></span>
+        <span><small>IN FLIGHT</small><strong>${enemyProjectilePauseSummary(this.enemyProjectiles.map((projectile) => projectile.kind))}</strong></span>
       </div>
       <div class="pause-ledger-items">
         ${remainingPacked.map((item) => itemRow(item, "PACKED")).join("")}
