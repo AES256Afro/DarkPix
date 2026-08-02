@@ -496,7 +496,7 @@ export class DarkPixGame {
             <button class="retry-journal hidden" type="button">RETRY JOURNAL WRITE</button>
             <button class="abandon-raid" type="button">ABANDON RAID</button>
           </span>
-          <span class="control-line">WASD move · mouse look · LMB strike · RMB guard · Space sidestep · Ctrl crouch · 1/2 spells · E interact · R red descent · F use remedy · C cycle remedy · V throw · B cycle throw · G drop · T torch · Shift sprint</span>
+          <span class="control-line">WASD move · mouse look · LMB strike · RMB guard · Space sidestep · Ctrl crouch · Q ability · 1/2 spells · E interact · R red descent · F use remedy · C cycle remedy · V throw · B cycle throw · G drop · T torch · Shift sprint</span>
         </div>
       </div>`;
     const host = this.mount.querySelector<HTMLElement>(".render-host");
@@ -1084,6 +1084,7 @@ export class DarkPixGame {
 
   private onKeyDown = (event: KeyboardEvent): void => {
     if (this.paused || this.ended) return;
+    if (event.code === "Space") event.preventDefault();
     this.keys.add(event.code);
     if (event.code === "KeyE" && !event.repeat && !this.remedyBlocks("INTERACT")) this.interactHeld = true;
     if (event.code === "KeyR" && !event.repeat && !this.remedyBlocks("INTERACT")) this.descendHeld = true;
@@ -1097,7 +1098,6 @@ export class DarkPixGame {
     if ((event.code === "ControlLeft" || event.code === "ControlRight") && !event.repeat) this.feed("CROUCH · slower steps reduce passive detection", "system");
     if ((event.code === "ShiftLeft" || event.code === "ShiftRight") && !event.repeat) this.feed("SPRINT · fast steps carry farther through the crypt", "system");
     if (event.code === "Space" && !event.repeat) {
-      event.preventDefault();
       this.dodge();
     }
     if (event.code === "Digit1" && !event.repeat) this.selectSpell("ash_bolt");

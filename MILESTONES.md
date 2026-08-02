@@ -108,6 +108,7 @@ Status: Complete for the current map
 - Player and hostile missiles reuse contact vectors, while player shots find the first living impact in one ordered scan instead of allocating and sorting threat arrays every frame
 - Reduced motion suppresses decorative loading, camera, enemy-step, loot, flame, and portal loops while retaining functional combat telegraphs; pause sleeps continuous rendering and cancels queued audio feedback before it can replay in a later raid state
 - High contrast strengthens darkness and checkpoint state, navigation, combat warnings, threat vitals, resources, and interaction panels; lobby selection semantics, keyboard focus, and forced-color outlines do not rely on hover or color alone
+- The persistent raid control strip names the class ability binding, and held Space cannot leak repeated scroll input while sidestep remains single-fire
 - The Ash Tollkeeper begins its annulus phase at full vigor and uses a tighter second-floor cadence
 
 Exit evidence: topology, collision, sightline, pathfinding, variation, combat-rule, and depth tests.

@@ -89,6 +89,12 @@ describe("lobby accessibility contracts", () => {
     expect(styles).toContain(".lock-actions .retry-journal.hidden { display: none; }");
   });
 
+  it("keeps ability discovery visible and suppresses repeated space scrolling", () => {
+    const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
+    expect(gameSource).toContain("Ctrl crouch · Q ability · 1/2 spells");
+    expect(gameSource).toMatch(/if \(event\.code === "Space"\) event\.preventDefault\(\);[\s\S]+if \(event\.code === "Space" && !event\.repeat\)/);
+  });
+
   it("exposes held ritual progress and its committed destination semantically", () => {
     const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
     expect(gameSource).toContain('class="extract-meter" role="progressbar"');
