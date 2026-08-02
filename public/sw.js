@@ -14,6 +14,22 @@ function assetReferences(source, baseUrl) {
   return references;
 }
 
+async function matchCurrentCache(request) {
+  try {
+    return await (await caches.open(CACHE_NAME)).match(request);
+  } catch {
+    return undefined;
+  }
+}
+
+async function updateCurrentCache(request, response) {
+  try {
+    await (await caches.open(CACHE_NAME)).put(request, response);
+  } catch {
+    // A full or unavailable cache must never replace a valid network response.
+  }
+}
+
 async function cacheBuildAssets() {
   const cache = await caches.open(CACHE_NAME);
   await cache.addAll(SHELL_URLS);
@@ -57,22 +73,21 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
-  if (url.origin !== self.location.origin || url.pathname === "/version.txt" || url.pathname === "/healthz") return;
+  if (url.origin !== self.location.origin || url.pathname === "/sw.js" || url.pathname === "/version.txt" || url.pathname === "/healthz") return;
   event.respondWith(
     (async () => {
       try {
         const response = await fetch(request);
         if (response.ok) {
-          const cache = await caches.open(CACHE_NAME);
-          await cache.put(request, response.clone());
+          await updateCurrentCache(request, response.clone());
           return response;
         }
-        const cached = await caches.match(request);
+        const cached = await matchCurrentCache(request);
         return cached ?? response;
       } catch {
-        const cached = await caches.match(request);
+        const cached = await matchCurrentCache(request);
         if (cached) return cached;
-        if (request.mode === "navigate") return caches.match("/");
+        if (request.mode === "navigate") return (await matchCurrentCache("/")) ?? Response.error();
         return Response.error();
       }
     })(),

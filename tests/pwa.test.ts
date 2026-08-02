@@ -12,11 +12,15 @@ describe("installable offline shell", () => {
   it("keeps release identity online while caching the playable shell", () => {
     expect(worker).toContain('url.pathname === "/version.txt"');
     expect(worker).toContain('url.pathname === "/healthz"');
+    expect(worker).toContain('url.pathname === "/sw.js"');
     expect(worker).toContain('request.mode === "navigate"');
     expect(worker).toContain('event.data?.type === "SKIP_WAITING"');
     expect(worker).toContain("cacheBuildAssets");
     expect(worker).toContain("visited.size < 24");
     expect(worker).toContain("return cached ?? response");
+    expect(worker).toContain("await updateCurrentCache(request, response.clone())");
+    expect(worker).toContain("A full or unavailable cache must never replace a valid network response.");
+    expect(worker).not.toContain("await caches.match(request)");
     const installHandler = worker.slice(worker.indexOf('addEventListener("install"'), worker.indexOf('addEventListener("activate"'));
     expect(installHandler).not.toContain("skipWaiting");
   });
