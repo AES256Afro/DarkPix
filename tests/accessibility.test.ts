@@ -73,6 +73,7 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toMatch(/interruptedRaid[\s\S]+!raidEscrowAlreadySettled\(profile, interruptedRaid\)[\s\S]+raidEscrowLeaseHeldByOther/);
     expect(mainSource).toMatch(/if \(raidEscrowAlreadySettled\(profile, journal\.escrow\)\)[\s\S]+clearRaidEscrow\(\)[\s\S]+return false;/);
     expect(mainSource).toMatch(/const pendingEscrow = existingJournal\.escrow;[\s\S]+if \(raidEscrowAlreadySettled\(profile, pendingEscrow\)\)[\s\S]+if \(!clearRaidEscrow\(\)\)[\s\S]+new raid will not overwrite its recovery evidence/);
+    expect(mainSource).not.toContain("The active raid journal changed while descent was being secured");
   });
 
   it("recovers an update prompt after another tab activates its worker", () => {

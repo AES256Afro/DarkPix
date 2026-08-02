@@ -57,7 +57,7 @@ let lobbyEpoch = 0;
 const raidLaunchGate = new SingleFlightGate();
 const saveImportGate = new SingleFlightGate();
 
-const interruptedRaid = raidEscrowLoad?.escrow;
+const interruptedRaid = raidEscrowLoad?.status === "loaded" ? raidEscrowLoad.escrow : undefined;
 let foreignRaidLease = Boolean(
   interruptedRaid
   && !raidEscrowAlreadySettled(profile, interruptedRaid)
@@ -275,7 +275,7 @@ function lockForForeignRaidJournal(): boolean {
     || damagedRaidJournal !== undefined
   ) return false;
   const journal = loadRaidEscrowState();
-  if (journal.status !== "loaded" || !journal.escrow) return false;
+  if (journal.status !== "loaded") return false;
   if (raidEscrowAlreadySettled(profile, journal.escrow)) {
     if (clearRaidEscrow()) merchantNotice = "A completed raid journal was reconciled without repeating its verdict.";
     else persistenceWarning = "A completed raid journal could not be removed, but its verdict marker prevents repeat settlement.";
@@ -828,11 +828,6 @@ async function startRaid(): Promise<void> {
     }
     if (existingJournal.status === "loaded") {
       const pendingEscrow = existingJournal.escrow;
-      if (!pendingEscrow) {
-        persistenceWarning = "The active raid journal changed while descent was being secured. Reload before risking gear.";
-        renderLobby();
-        return;
-      }
       if (raidEscrowAlreadySettled(profile, pendingEscrow)) {
         if (!clearRaidEscrow()) {
           persistenceWarning = "A completed raid journal could not be removed, so a new raid will not overwrite its recovery evidence.";

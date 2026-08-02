@@ -472,11 +472,10 @@ export function beginRaidEscrow(escrow: RaidEscrow): boolean {
   }
 }
 
-export interface RaidEscrowLoadResult {
-  status: "loaded" | "missing" | "corrupt" | "unavailable";
-  escrow?: RaidEscrow;
-  recovery?: string;
-}
+export type RaidEscrowLoadResult =
+  | { status: "loaded"; escrow: RaidEscrow }
+  | { status: "corrupt"; recovery: string }
+  | { status: "missing" | "unavailable" };
 
 export function loadRaidEscrowState(storage?: Pick<ProfileStorageTarget, "getItem">): RaidEscrowLoadResult {
   let serialized: string | null;
@@ -495,7 +494,8 @@ export function loadRaidEscrowState(storage?: Pick<ProfileStorageTarget, "getIte
 }
 
 export function loadRaidEscrow(): RaidEscrow | undefined {
-  return loadRaidEscrowState().escrow;
+  const loaded = loadRaidEscrowState();
+  return loaded.status === "loaded" ? loaded.escrow : undefined;
 }
 
 export function clearRaidEscrow(): boolean {

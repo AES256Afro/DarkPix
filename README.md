@@ -60,6 +60,8 @@ A retained settled journal is reconciled before its old page-owner lease is cons
 
 The final pre-descent journal check applies the same rule. It removes an already-settled journal before writing the next raid, while a removal failure blocks descent rather than overwriting recovery evidence.
 
+Active-journal loading uses disjoint state records, so a `loaded` result always carries its validated escrow and recovery text exists only for a damaged result.
+
 ## Extraction loop
 
 - Choose Vanguard, Cutpurse, Hexbound, Reaver, Ranger, Cleric, Shapeshifter, or Minstrel. Class XP and levels persist across every outcome outside the optional Iron Soul contract.
