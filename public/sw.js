@@ -37,7 +37,9 @@ async function updateCurrentCache(request, response) {
 
 function runtimeCacheKey(request, url) {
   if (request.mode === "navigate") return "/";
-  if (SHELL_PATHS.has(url.pathname)) return url.pathname === "/" ? "/" : `${url.pathname}${url.search}`;
+  if (SHELL_PATHS.has(url.pathname)) return url.pathname === "/"
+    ? "/"
+    : `${url.pathname}?v=${encodeURIComponent(RELEASE_ID)}`;
   if (url.pathname.startsWith("/assets/")) return url.pathname;
   return undefined;
 }

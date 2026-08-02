@@ -136,6 +136,7 @@ The public service accepts only `GET` and `HEAD`; write methods are rejected bef
 - Canvas-generated nearest-neighbor dungeon textures
 - Web Audio synthesis for the dungeon drone and action feedback
 - Consent-driven service-worker updates and a network-first offline shell
+- Release-canonical cache keys for fixed manifest, icon, and title requests
 - Multi-tab update recovery with an idle-only reload and bounded activation fallback
 - Local storage for class progression, gold, and stash persistence
 - Safe WebGL context-loss pause and click-to-resume recovery during a raid

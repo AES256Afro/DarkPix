@@ -52,6 +52,13 @@ describe("installable offline shell", () => {
     expect(worker).not.toContain('const CACHE_NAME = "darkpix-runtime-v1"');
   });
 
+  it("canonicalizes fixed shell queries to one current-release cache key", () => {
+    const runtimeCacheKey = worker.slice(worker.indexOf("function runtimeCacheKey"), worker.indexOf("function responseMatchesCacheKey"));
+    expect(runtimeCacheKey).toContain('`${url.pathname}?v=${encodeURIComponent(RELEASE_ID)}`');
+    expect(runtimeCacheKey).not.toContain("`${url.pathname}${url.search}`");
+    expect(runtimeCacheKey).toContain('if (url.pathname.startsWith("/assets/")) return url.pathname');
+  });
+
   it("claims a complete release even when obsolete cache cleanup fails", async () => {
     const handlers = new Map<string, (event: { waitUntil(promise: Promise<unknown>): void }) => void>();
     const claim = vi.fn(async () => undefined);
@@ -332,6 +339,14 @@ describe("installable offline shell", () => {
     fetchNetwork.mockResolvedValueOnce(iconResponse);
     fetchHandler?.({
       request: { method: "GET", mode: "cors", url: "https://darkpix.test/darkpix-icon.svg?v=bounded-release" },
+      respondWith: (promise: Promise<unknown>) => { responsePromise = promise; },
+    });
+    await responsePromise;
+    expect(put.mock.calls.at(-1)?.[0]).toBe("/darkpix-icon.svg?v=bounded-release");
+
+    fetchNetwork.mockResolvedValueOnce(iconResponse);
+    fetchHandler?.({
+      request: { method: "GET", mode: "cors", url: "https://darkpix.test/darkpix-icon.svg?v=attacker-variant" },
       respondWith: (promise: Promise<unknown>) => { responsePromise = promise; },
     });
     await responsePromise;

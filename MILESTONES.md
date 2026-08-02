@@ -128,6 +128,7 @@ Status: Complete
 - Release-isolated worker caches recover old hashed chunks from real asset 404s instead of accepting the HTML shell
 - A complete current worker still claims clients when obsolete-cache enumeration or deletion is unavailable; cleanup failure cannot invalidate its staged shell
 - Install and runtime cache writes reject response types that do not match their navigation, script, style, image, font, or manifest key, including every fixed shell entry staged by `addAll`
+- Runtime manifest, icon, and title requests canonicalize to one current-release key, preventing arbitrary query variants from multiplying fixed-shell cache entries
 - The public manifest is served as JSON, while the unversioned app icon and title image revalidate instead of inheriting a stale edge or one-year immutable response
 - CI-enforced compressed JavaScript, CSS, and entry-HTML performance budgets
 - CI rejects high or critical dependency advisories before building the release image
