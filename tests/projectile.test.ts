@@ -5,6 +5,7 @@ describe("player projectile travel", () => {
   it("gives arrows and spells bounded nonzero travel time", () => {
     expect(playerProjectileDuration(9, "arrow")).toBe(0.5);
     expect(playerProjectileDuration(13, "spell")).toBe(1);
+    expect(playerProjectileDuration(7.5, "throwable")).toBe(0.5);
     expect(playerProjectileDuration(Number.NaN, "arrow")).toBe(0.12);
     expect(playerProjectileDuration(999, "spell")).toBe(1.25);
   });
@@ -14,6 +15,7 @@ describe("player projectile travel", () => {
     const end = { x: 10, y: 1, z: -2 };
     expect(playerProjectilePosition(start, end, 0.5, 1, "arrow")).toEqual({ x: 5, y: 1.34, z: -1 });
     expect(playerProjectilePosition(start, end, 0.5, 1, "spell")).toEqual({ x: 5, y: 1, z: -1 });
+    expect(playerProjectilePosition(start, end, 0.5, 1, "throwable")).toEqual({ x: 5, y: 1.2, z: -1 });
     expect(playerProjectilePosition(start, end, 2, 1, "arrow")).toMatchObject(end);
   });
 

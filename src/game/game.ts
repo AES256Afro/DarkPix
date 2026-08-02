@@ -82,7 +82,9 @@ interface PlayerProjectile {
   end: THREE.Vector3;
   elapsed: number;
   duration: number;
-  strike: PendingStrike;
+  strike?: PendingStrike;
+  thrownDamage?: number;
+  thrownName?: string;
 }
 
 interface Pickup {
@@ -1858,6 +1860,7 @@ export class DarkPixGame {
       projectile.mesh.lookAt(nextPosition.x, nextPosition.y, nextPosition.z);
       if (!dungeonLineOfSight({ x: previous.x, z: previous.z }, position, 0.04)) {
         this.removePlayerProjectile(index);
+        if (projectile.kind === "throwable") this.feed(`${projectile.thrownName ?? "Thrown weapon"} strikes the stone and is lost.`, "system");
         continue;
       }
       const enemy = this.enemies
@@ -1880,28 +1883,43 @@ export class DarkPixGame {
         this.resolvePlayerProjectileHit(projectile, enemy.enemy, headshot);
         continue;
       }
-      if (projectile.elapsed >= projectile.duration) this.removePlayerProjectile(index);
+      if (projectile.elapsed >= projectile.duration) {
+        this.removePlayerProjectile(index);
+        if (projectile.kind === "throwable") this.feed(`${projectile.thrownName ?? "Thrown weapon"} vanishes into the dark.`, "system");
+      }
     }
   }
 
   private resolvePlayerProjectileHit(projectile: PlayerProjectile, enemy: Enemy, headshot: boolean): void {
+    if (projectile.kind === "throwable") {
+      const damage = Math.round(
+        Math.max(0, projectile.thrownDamage ?? 0)
+        * (headshot ? 1.35 : 1)
+        * (enemy.kind === "rival" ? 1 : this.loadoutBonuses.undeadDamageMultiplier),
+      );
+      const unseenStrike = this.recordUnseenStrike(enemy);
+      this.damageEnemy(enemy, damage, headshot, false, false, false, true, true, true, unseenStrike);
+      return;
+    }
+    const strike = projectile.strike;
+    if (!strike) return;
     const weaponPower = equippedPower(this.options.equipped, "weapon");
     const baseDamage = attackDamage({
       baseDamage: this.definition.damage,
       weaponPower,
       progressionBonus: this.damageBonus,
-      direction: projectile.strike.direction,
+      direction: strike.direction,
       ambush: false,
       headshot,
     });
-    const spell = projectile.kind === "spell" ? HEX_SPELLS[projectile.strike.spellId] : undefined;
-    const riposte = projectile.strike.riposteMultiplier > 1;
+    const spell = projectile.kind === "spell" ? HEX_SPELLS[strike.spellId] : undefined;
+    const riposte = strike.riposteMultiplier > 1;
     const damage = Math.round(
       baseDamage
       * (enemy.kind === "rival" ? 1 : this.loadoutBonuses.undeadDamageMultiplier)
-      * projectile.strike.abilityDamageMultiplier
+      * strike.abilityDamageMultiplier
       * (spell?.damageMultiplier ?? 1)
-      * projectile.strike.riposteMultiplier,
+      * strike.riposteMultiplier,
     );
     const unseenStrike = this.recordUnseenStrike(enemy);
     this.damageEnemy(enemy, damage, headshot, false, Boolean(spell?.cripples && !headshot), riposte, true, true, true, unseenStrike);
@@ -2711,22 +2729,14 @@ export class DarkPixGame {
         bestDistance = distance;
       }
     }
-    this.spawnThrowableTrail(cameraPosition, forward, bestDistance);
-    if (!best) {
-      this.feed(`${thrown.name} vanishes into the dark.`, "system");
-      return;
-    }
-
-    const headHeight = best.kind === "crawler" || best.kind === "mimic" ? 0.72 : best.kind === "boss" ? 2.35 : 1.82;
-    const toHead = best.group.position.clone().add(new THREE.Vector3(0, headHeight, 0)).sub(cameraPosition).normalize();
-    const headshot = toHead.dot(forward) > 0.991;
-    const damage = Math.round(
-      throwableDamage(thrown)
-      * (headshot ? 1.35 : 1)
-      * (best.kind === "rival" ? 1 : this.loadoutBonuses.undeadDamageMultiplier),
-    );
-    const unseenStrike = this.recordUnseenStrike(best);
-    this.damageEnemy(best, damage, headshot, false, false, false, true, true, true, unseenStrike);
+    const thrownHeadHeight = best?.kind === "crawler" || best?.kind === "mimic" ? 0.72 : best?.kind === "boss" ? 2.35 : 1.82;
+    const thrownHeadshot = best
+      ? best.group.position.clone().add(new THREE.Vector3(0, thrownHeadHeight, 0)).sub(cameraPosition).normalize().dot(forward) > 0.991
+      : false;
+    const endpoint = best
+      ? best.group.position.clone().add(new THREE.Vector3(0, thrownHeadshot ? thrownHeadHeight : best.kind === "crawler" || best.kind === "mimic" ? 0.38 : best.kind === "boss" ? 1.55 : 1.1, 0))
+      : cameraPosition.clone().add(forward.multiplyScalar(bestDistance));
+    this.launchThrowableProjectile(thrown, cameraPosition, endpoint);
   }
 
   private availableThrowables(): Item[] {
@@ -2741,17 +2751,24 @@ export class DarkPixGame {
     this.feed(selected ? `Throw readied · ${selected.name} · ${throwableDamage(selected)} damage` : "No throwing weapon to ready.", selected ? "system" : "danger");
   }
 
-  private spawnThrowableTrail(start: THREE.Vector3, forward: THREE.Vector3, distance: number): void {
-    const knifeMaterial = material(0xb7aea1, 0x34231d);
-    const knife = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.055, Math.max(0.3, distance)), knifeMaterial);
-    knife.position.copy(start).add(forward.clone().multiplyScalar(distance / 2));
-    knife.quaternion.copy(this.camera.quaternion);
-    this.scene.add(knife);
-    this.lifecycleTimers.schedule(() => {
-      this.scene.remove(knife);
-      knife.geometry.dispose();
-      knifeMaterial.dispose();
-    }, 85);
+  private launchThrowableProjectile(item: Item, start: THREE.Vector3, end: THREE.Vector3): void {
+    const projectileMaterial = material(0xb7aea1, 0x34231d);
+    const projectile = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.055, 0.36), projectileMaterial);
+    const origin = start.clone().add(new THREE.Vector3(0, -0.12, 0));
+    projectile.position.copy(origin);
+    projectile.lookAt(end);
+    this.scene.add(projectile);
+    this.playerProjectiles.push({
+      mesh: projectile,
+      material: projectileMaterial,
+      kind: "throwable",
+      start: origin,
+      end: end.clone(),
+      elapsed: 0,
+      duration: playerProjectileDuration(origin.distanceTo(end), "throwable"),
+      thrownDamage: throwableDamage(item),
+      thrownName: item.name,
+    });
   }
 
   private useClassAbility(): void {

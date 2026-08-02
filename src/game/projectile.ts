@@ -1,4 +1,4 @@
-export type PlayerProjectileKind = "arrow" | "spell";
+export type PlayerProjectileKind = "arrow" | "spell" | "throwable";
 
 export interface ProjectilePoint {
   x: number;
@@ -8,7 +8,7 @@ export interface ProjectilePoint {
 
 export function playerProjectileDuration(distance: number, kind: PlayerProjectileKind): number {
   const safeDistance = Number.isFinite(distance) ? Math.max(0, distance) : 0;
-  const speed = kind === "arrow" ? 18 : 13;
+  const speed = kind === "arrow" ? 18 : kind === "throwable" ? 15 : 13;
   return Math.min(1.25, Math.max(0.12, safeDistance / speed));
 }
 
@@ -21,7 +21,7 @@ export function playerProjectilePosition(
 ): ProjectilePoint {
   const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0.12;
   const progress = Math.min(1, Math.max(0, Number.isFinite(elapsed) ? elapsed / safeDuration : 0));
-  const arc = kind === "arrow" ? Math.sin(progress * Math.PI) * 0.34 : 0;
+  const arc = kind === "arrow" ? Math.sin(progress * Math.PI) * 0.34 : kind === "throwable" ? Math.sin(progress * Math.PI) * 0.2 : 0;
   return {
     x: start.x + (end.x - start.x) * progress,
     y: start.y + (end.y - start.y) * progress + arc,
