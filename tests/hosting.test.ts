@@ -4,6 +4,7 @@ import deployScript from "../scripts/deploy-bigbox.sh?raw";
 import dockerfile from "../Dockerfile?raw";
 import compose from "../compose.yml?raw";
 import workflow from "../.github/workflows/ci.yml?raw";
+import copyStyleScript from "../scripts/check-copy-style.mjs?raw";
 
 describe("production asset routing", () => {
   it("returns a real 404 for missing hashed assets instead of the HTML shell", () => {
@@ -99,6 +100,9 @@ describe("production asset routing", () => {
   it("enforces the project copy-style constraint in CI", () => {
     expect(workflow).toContain("npm run test:copy");
     expect(workflow.indexOf("npm run test:copy")).toBeLessThan(workflow.indexOf("npm run build"));
+    expect(copyStyleScript).toContain('"package-lock.json"');
+    expect(copyStyleScript).toContain("textExtensions.has(extname(entry.name))");
+    expect(copyStyleScript).not.toContain('".jpg"');
   });
 
   it("bounds public access-log growth inside the DarkPix service", () => {

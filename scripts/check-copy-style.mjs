@@ -1,8 +1,9 @@
 import { readFile, readdir } from "node:fs/promises";
-import { join } from "node:path";
+import { extname, join } from "node:path";
 
 const scannedDirectories = [".github", "deploy", "scripts", "public", "src", "tests"];
-const scannedFiles = ["README.md", "MILESTONES.md", "DEPLOY_BIGBOX.md", "package.json", "Dockerfile", "compose.yml", ".env", "index.html"];
+const scannedFiles = ["README.md", "MILESTONES.md", "DEPLOY_BIGBOX.md", "package.json", "package-lock.json", "Dockerfile", "compose.yml", ".env", "index.html"];
+const textExtensions = new Set([".conf", ".css", ".html", ".js", ".json", ".md", ".mjs", ".sh", ".svg", ".ts", ".webmanifest", ".yaml", ".yml"]);
 const forbiddenCharacter = String.fromCodePoint(0x2014);
 
 async function filesBelow(directory) {
@@ -10,7 +11,7 @@ async function filesBelow(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) files.push(...await filesBelow(path));
-    else if (entry.isFile()) files.push(path);
+    else if (entry.isFile() && textExtensions.has(extname(entry.name))) files.push(path);
   }
   return files;
 }
