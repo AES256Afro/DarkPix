@@ -445,7 +445,8 @@ describe("persistent raid consequences", () => {
     expect(nextRaidStartedAt(1_700_000_000_100, 1_700_000_000_000)).toBe(1_700_000_000_100);
     expect(nextRaidStartedAt(1_699_999_999_999, 1_700_000_000_000)).toBe(1_700_000_000_001);
     expect(nextRaidStartedAt(Number.NaN, 0)).toBe(1);
-    expect(nextRaidStartedAt(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)).toBe(Number.MAX_SAFE_INTEGER - 1);
+    expect(nextRaidStartedAt(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER - 1)).toBe(Number.MAX_SAFE_INTEGER);
+    expect(nextRaidStartedAt(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)).toBeUndefined();
   });
 
   it("records a bounded newest-first contract journal", () => {

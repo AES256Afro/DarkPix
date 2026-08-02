@@ -76,6 +76,12 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).not.toContain("The active raid journal changed while descent was being secured");
   });
 
+  it("blocks descent when the durable raid marker cannot advance", () => {
+    expect(mainSource).toContain("if (startedAt === undefined)");
+    expect(mainSource).toContain("The settled-raid marker is exhausted");
+    expect(mainSource.indexOf("if (startedAt === undefined)")).toBeLessThan(mainSource.indexOf("let escrow = createRaidEscrow"));
+  });
+
   it("recovers an update prompt after another tab activates its worker", () => {
     expect(mainSource).toContain("const waitingWorker = updateRegistration?.waiting");
     expect(mainSource).toContain("RELOADING APPLIED UPDATE...");

@@ -512,10 +512,10 @@ export function raidEscrowAlreadySettled(profile: Pick<Profile, "lastSettledRaid
   return escrow.startedAt > 0 && profile.lastSettledRaidStartedAt >= escrow.startedAt;
 }
 
-export function nextRaidStartedAt(currentTimestamp: number, lastSettledRaidStartedAt: number): number {
+export function nextRaidStartedAt(currentTimestamp: number, lastSettledRaidStartedAt: number): number | undefined {
   const current = nonnegativeInteger(currentTimestamp);
   const lastSettled = nonnegativeInteger(lastSettledRaidStartedAt);
-  if (lastSettled >= Number.MAX_SAFE_INTEGER) return current > 0 && current !== lastSettled ? current : Number.MAX_SAFE_INTEGER - 1;
+  if (lastSettled >= Number.MAX_SAFE_INTEGER) return undefined;
   return Math.max(1, current, lastSettled + 1);
 }
 

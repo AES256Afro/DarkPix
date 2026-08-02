@@ -874,6 +874,11 @@ async function startRaid(): Promise<void> {
     securedGoldBeforeEntry = goldBeforeEntry;
     const variationSeed = Math.floor(Math.random() * RAID_VARIATION_COUNT);
     const startedAt = nextRaidStartedAt(Date.now(), profile.lastSettledRaidStartedAt);
+    if (startedAt === undefined) {
+      persistenceWarning = "The settled-raid marker is exhausted. Export this save for recovery before attempting another descent.";
+      renderLobby();
+      return;
+    }
     let escrow = createRaidEscrow(classId, raidMode, equipped.map((item) => item.id), startedAt, 1, 0, goldBeforeEntry, {}, variationSeed, 0, raidOwnerId, Date.now());
     if (!beginRaidEscrow(escrow)) {
       persistenceWarning = "The browser could not secure a raid escrow. No fee was charged and the raid did not start.";
