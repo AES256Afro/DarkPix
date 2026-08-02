@@ -488,10 +488,10 @@ export class DarkPixGame {
             </section>
           </div>
         </div>
-        <div class="lock-overlay">
+        <div class="lock-overlay" role="dialog" aria-modal="true" aria-labelledby="raid-lock-title" aria-describedby="raid-lock-detail" aria-busy="false">
           <span class="sigil-mark">DP</span>
-          <strong data-lock-title>ENTER THE CRYPT</strong>
-          <small data-lock-detail>Bind the cursor when you are ready</small>
+          <strong id="raid-lock-title" role="heading" aria-level="1" data-lock-title>ENTER THE CRYPT</strong>
+          <small id="raid-lock-detail" data-lock-detail>Bind the cursor when you are ready</small>
           <section class="pause-ledger" aria-label="Current raid risk ledger"></section>
           <span class="lock-actions">
             <button class="resume-raid" type="button">BIND CURSOR / RESUME</button>
@@ -1180,8 +1180,7 @@ export class DarkPixGame {
       ended: this.ended,
     });
     this.cancelPendingPointerLockTimeout();
-    this.pointerLockPending = false;
-    this.resumeButton.disabled = false;
+    this.setPointerLockPending(false);
     if (resumesRaid) {
       this.paused = false;
       this.lockOverlay.classList.add("hidden");
@@ -1360,11 +1359,10 @@ export class DarkPixGame {
     }
     const epoch = ++this.pointerLockEpoch;
     this.pointerLockAllowed = true;
-    this.pointerLockPending = true;
+    this.setPointerLockPending(true);
     this.paused = true;
     this.clearHeldInputs();
     this.audio.pause();
-    this.resumeButton.disabled = true;
     this.setLockOverlayCopy("BINDING THE CURSOR", "The raid remains paused until the browser confirms first-person control.");
     this.updatePauseLedger();
     this.lockOverlay.classList.remove("hidden");
@@ -1399,14 +1397,19 @@ export class DarkPixGame {
   private invalidatePointerLockRequest(): void {
     this.cancelPendingPointerLockTimeout();
     this.pointerLockAllowed = false;
-    this.pointerLockPending = false;
+    this.setPointerLockPending(false);
     this.pointerLockEpoch += 1;
-    this.resumeButton.disabled = false;
   }
 
   private cancelPendingPointerLockTimeout(): void {
     this.pointerLockTimeoutCancel?.();
     this.pointerLockTimeoutCancel = undefined;
+  }
+
+  private setPointerLockPending(pending: boolean): void {
+    this.pointerLockPending = pending;
+    this.resumeButton.disabled = pending;
+    this.lockOverlay.setAttribute("aria-busy", String(pending));
   }
 
   private settleTimedOutPointerLock(epoch: number): void {

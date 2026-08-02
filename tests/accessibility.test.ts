@@ -157,6 +157,15 @@ describe("lobby accessibility contracts", () => {
     expect(gameSource.slice(gameSource.indexOf("private requestPointerLock"), gameSource.indexOf("private handlePointerLockFailure"))).not.toContain("this.focusResumeAction()");
   });
 
+  it("exposes the paused raid and cursor-binding progress as a modal state", () => {
+    const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
+    expect(gameSource).toContain('class="lock-overlay" role="dialog" aria-modal="true"');
+    expect(gameSource).toContain('aria-labelledby="raid-lock-title" aria-describedby="raid-lock-detail" aria-busy="false"');
+    expect(gameSource).toContain('id="raid-lock-title" role="heading" aria-level="1"');
+    expect(gameSource).toContain('this.lockOverlay.setAttribute("aria-busy", String(pending))');
+    expect(gameSource).toContain("this.resumeButton.disabled = pending");
+  });
+
   it("keeps ability discovery visible and suppresses repeated space scrolling", () => {
     const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
     expect(gameSource).toContain("Ctrl crouch · Q ability · 1/2 spells");
