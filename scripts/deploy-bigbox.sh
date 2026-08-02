@@ -53,6 +53,13 @@ public_body_sha() {
   fi
 }
 
+container_file_sha() {
+  local relative_path="$1"
+  [[ "$relative_path" =~ ^[A-Za-z0-9._/-]+$ ]] || return 1
+  [[ "$relative_path" != *".."* ]] || return 1
+  docker compose exec -T darkpix sha256sum "/usr/share/nginx/html/$relative_path" </dev/null 2>/dev/null | awk '{print $1}'
+}
+
 check_darkpix_health() {
   if command -v curl >/dev/null 2>&1; then
     curl -fsS http://127.0.0.1:8092/healthz >/dev/null
@@ -79,10 +86,16 @@ previous_container_id="$(docker compose ps -q darkpix 2>/dev/null || true)"
 previous_image_id=""
 previous_release=""
 previous_worker_sha=""
+previous_manifest_sha=""
+previous_icon_sha=""
+previous_title_sha=""
 if [[ -n "$previous_container_id" ]]; then
   previous_image_id="$(docker inspect --format '{{.Image}}' "$previous_container_id" 2>/dev/null || true)"
   previous_release="$(docker compose exec -T darkpix wget -q -O - http://127.0.0.1:8080/version.txt 2>/dev/null || true)"
   previous_worker_sha="$(docker compose exec -T darkpix sha256sum /usr/share/nginx/html/sw.js 2>/dev/null | awk '{print $1}' || true)"
+  previous_manifest_sha="$(container_file_sha manifest.webmanifest || true)"
+  previous_icon_sha="$(container_file_sha darkpix-icon.svg || true)"
+  previous_title_sha="$(container_file_sha assets/darkpix-title.jpg || true)"
   if [[ -n "$previous_image_id" ]]; then docker image tag "$previous_image_id" darkpix-web:rollback; fi
 fi
 
@@ -113,6 +126,15 @@ check_restored_public_routes() {
     grep -Fq "<meta name=\"darkpix-release\" content=\"$previous_release\"" <<<"$restored_html" || return 1
     if [[ -n "$previous_worker_sha" ]]; then
       [[ "$(public_body_sha "$public_url/sw.js?v=rollback-$previous_release")" == "$previous_worker_sha" ]] || return 1
+    fi
+    if [[ "$previous_manifest_sha" =~ ^[0-9a-f]{64}$ ]]; then
+      [[ "$(public_body_sha "$public_url/manifest.webmanifest?v=rollback-$previous_release")" == "$previous_manifest_sha" ]] || return 1
+    fi
+    if [[ "$previous_icon_sha" =~ ^[0-9a-f]{64}$ ]]; then
+      [[ "$(public_body_sha "$public_url/darkpix-icon.svg?v=rollback-$previous_release")" == "$previous_icon_sha" ]] || return 1
+    fi
+    if [[ "$previous_title_sha" =~ ^[0-9a-f]{64}$ ]]; then
+      [[ "$(public_body_sha "$public_url/assets/darkpix-title.jpg?v=rollback-$previous_release")" == "$previous_title_sha" ]] || return 1
     fi
   done
 }
@@ -200,11 +222,16 @@ fi
 echo "DarkPix container hardening and resource limits verified from Docker runtime state."
 
 current_worker_sha="$(docker compose exec -T darkpix sha256sum /usr/share/nginx/html/sw.js | awk '{print $1}')"
-if [[ ! "$current_worker_sha" =~ ^[0-9a-f]{64}$ ]]; then
-  echo "The running container did not expose a valid service-worker checksum." >&2
-  rollback_previous_release || true
-  exit 1
-fi
+current_manifest_sha="$(container_file_sha manifest.webmanifest)"
+current_icon_sha="$(container_file_sha darkpix-icon.svg)"
+current_title_sha="$(container_file_sha assets/darkpix-title.jpg)"
+for current_fixed_sha in "$current_worker_sha" "$current_manifest_sha" "$current_icon_sha" "$current_title_sha"; do
+  if [[ ! "$current_fixed_sha" =~ ^[0-9a-f]{64}$ ]]; then
+    echo "The running container did not expose a valid fixed-shell checksum." >&2
+    rollback_previous_release || true
+    exit 1
+  fi
+done
 
 docker compose ps
 echo "Deployed release: $(docker compose exec -T darkpix wget -q -O - http://127.0.0.1:8080/version.txt)"
@@ -330,6 +357,9 @@ check_public_release() {
   grep -qi 'content-type:.*javascript' <<<"$worker_headers" || return 1
   grep -qi 'cache-control:.*no-store' <<<"$worker_headers" || return 1
   [[ "$(public_body_sha "$public_url/sw.js?v=$darkpix_release")" == "$current_worker_sha" ]] || return 1
+  [[ "$(public_body_sha "$public_url/manifest.webmanifest?v=$darkpix_release")" == "$current_manifest_sha" ]] || return 1
+  [[ "$(public_body_sha "$public_url/darkpix-icon.svg?v=$darkpix_release")" == "$current_icon_sha" ]] || return 1
+  [[ "$(public_body_sha "$public_url/assets/darkpix-title.jpg?v=$darkpix_release")" == "$current_title_sha" ]] || return 1
   for fixed_headers in "$manifest_headers" "$icon_headers" "$title_headers" "$worker_headers"; do
     if grep -qi 'cf-cache-status: *HIT' <<<"$fixed_headers"; then return 1; fi
   done

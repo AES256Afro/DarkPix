@@ -47,6 +47,19 @@ describe("production asset routing", () => {
     expect(deployScript).toContain("sha256sum is required to verify public release bytes");
   });
 
+  it("requires exact fixed-shell asset bytes for rollout and rollback", () => {
+    expect(deployScript).toContain("container_file_sha()");
+    expect(deployScript).toContain("current_manifest_sha=");
+    expect(deployScript).toContain("current_icon_sha=");
+    expect(deployScript).toContain("current_title_sha=");
+    expect(deployScript).toContain('public_body_sha "$public_url/manifest.webmanifest?v=$darkpix_release"');
+    expect(deployScript).toContain('public_body_sha "$public_url/darkpix-icon.svg?v=$darkpix_release"');
+    expect(deployScript).toContain('public_body_sha "$public_url/assets/darkpix-title.jpg?v=$darkpix_release"');
+    expect(deployScript).toContain('public_body_sha "$public_url/manifest.webmanifest?v=rollback-$previous_release"');
+    expect(deployScript).toContain('public_body_sha "$public_url/darkpix-icon.svg?v=rollback-$previous_release"');
+    expect(deployScript).toContain('public_body_sha "$public_url/assets/darkpix-title.jpg?v=rollback-$previous_release"');
+  });
+
   it("keeps the HTML shell out of Cloudflare edge storage", () => {
     expect(nginx).toContain('~^/(?:index\\.html)?$ "no-store";');
     expect(deployScript).toContain('cf-cache-status: *HIT');
