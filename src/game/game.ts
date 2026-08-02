@@ -2837,7 +2837,7 @@ export class DarkPixGame {
 
   private updateEnemyFootsteps(): void {
     let nearestEnemy: Enemy | undefined;
-    let nearestDistance = Number.POSITIVE_INFINITY;
+    let nearestDistanceSquared = Number.POSITIVE_INFINITY;
     for (const enemy of this.enemies) {
       const currentX = enemy.group.position.x;
       const currentZ = enemy.group.position.z;
@@ -2849,15 +2849,21 @@ export class DarkPixGame {
       enemy.footstepDistance += moved;
       const stride = enemy.kind === "crawler" ? 0.9 : enemy.kind === "boss" ? 2.1 : 1.55;
       if (!footstepCadenceCrossed(previousDistance, enemy.footstepDistance, stride)) continue;
-      const distance = Math.hypot(currentX - this.camera.position.x, currentZ - this.camera.position.z);
+      const distanceX = currentX - this.camera.position.x;
+      const distanceZ = currentZ - this.camera.position.z;
+      const distanceSquared = distanceX * distanceX + distanceZ * distanceZ;
       this.scratchDirection.x = this.camera.position.x;
       this.scratchDirection.z = this.camera.position.z;
-      if (distance > 13 || this.hasDungeonSight(enemy.footstepPosition, this.scratchDirection, 0.12)) continue;
-      if (distance >= nearestDistance) continue;
+      if (
+        distanceSquared > 13 * 13
+        || distanceSquared >= nearestDistanceSquared
+        || this.hasDungeonSight(enemy.footstepPosition, this.scratchDirection, 0.12)
+      ) continue;
       nearestEnemy = enemy;
-      nearestDistance = distance;
+      nearestDistanceSquared = distanceSquared;
     }
     if (!nearestEnemy || this.enemyFootstepCooldown > 0) return;
+    const nearestDistance = Math.sqrt(nearestDistanceSquared);
     this.enemyFootstepCooldown = 0.34;
     this.audio.threatFootstep(nearestEnemy.kind, nearestDistance);
     const label = nearestEnemy.kind === "boss"

@@ -83,7 +83,9 @@ describe("adaptive raid resolution", () => {
     const footstepsStart = gameSource.indexOf("private updateEnemyFootsteps");
     const footsteps = gameSource.slice(footstepsStart, gameSource.indexOf("private hurt(", footstepsStart));
     expect(footsteps).toContain("enemy.footstepPosition.x = currentX");
-    expect(footsteps).toContain("let nearestDistance = Number.POSITIVE_INFINITY");
+    expect(footsteps).toContain("let nearestDistanceSquared = Number.POSITIVE_INFINITY");
+    expect(footsteps).toContain("distanceX * distanceX + distanceZ * distanceZ");
+    expect(footsteps).toContain("const nearestDistance = Math.sqrt(nearestDistanceSquared)");
     expect(footsteps).not.toContain("enemy.footstepPosition =");
     expect(footsteps).not.toContain("let nearest:");
   });
