@@ -294,7 +294,7 @@ export const CLASS_ABILITIES: Record<ClassId, ClassAbilityDefinition> = {
 };
 
 export function classPerkBonuses(classId: ClassId, level: number): ClassPerkBonuses {
-  const safeLevel = Math.max(1, Math.floor(level));
+  const safeLevel = Number.isFinite(level) ? Math.max(1, Math.floor(level)) : 1;
   return {
     health: safeLevel >= 6 && classId !== "vanguard" ? 8 : safeLevel >= 4 && classId === "vanguard" ? 8 : 0,
     damage: safeLevel >= 4 && (classId === "cutpurse" || classId === "cleric" || classId === "minstrel") ? 3 : safeLevel >= 4 && (classId === "hexbound" || classId === "reaver" || classId === "ranger" || classId === "shapeshifter") ? 4 : safeLevel >= 6 && classId === "vanguard" ? 3 : 0,
@@ -584,7 +584,7 @@ export function levelForXp(xp: number): number {
 }
 
 export function progressionBonuses(level: number): { health: number; damage: number } {
-  const earnedLevels = Math.max(0, Math.min(6, Math.floor(level) - 1));
+  const earnedLevels = Number.isFinite(level) ? Math.max(0, Math.min(MAX_CLASS_LEVEL - 1, Math.floor(level) - 1)) : 0;
   return {
     health: earnedLevels * 4,
     damage: Math.floor(earnedLevels / 2),
@@ -592,6 +592,6 @@ export function progressionBonuses(level: number): { health: number; damage: num
 }
 
 export function formatTime(totalSeconds: number): string {
-  const safe = Math.max(0, Math.floor(totalSeconds));
+  const safe = Number.isFinite(totalSeconds) ? Math.max(0, Math.floor(totalSeconds)) : 0;
   return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, "0")}`;
 }

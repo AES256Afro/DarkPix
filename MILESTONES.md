@@ -145,6 +145,7 @@ Status: Complete for the current map
 - Vigor, stamina, and Hexbound memory expose bounded semantic progress values; non-casters do not encounter the inactive memory decoration, and transient event text is explicitly polite and atomic
 - Class-level and Ironmonger-reputation tracks also expose their labels and bounded advancement instead of relying on fill width alone
 - Level 7 is now the explicit veterancy cap: accumulated XP remains durable, while the lobby reports `MAX` and a complete track instead of inventing unrewarded higher levels
+- Invalid or non-finite time and class-level inputs fail closed to a level-one, zero-time presentation instead of leaking `NaN` into raid statistics or combat bonuses
 - Lobby rebuilds restore the logical keyboard control across class, contract, stash, merchant, crafting, settings, and idle cross-tab refreshes without forcing the viewport to jump
 - Terminal raid verdicts move focus to their labeled outcome heading, and a secured return places keyboard focus on the next-descent control
 - Initial entry, voluntary unlock, cursor rejection, focus loss, and renderer recovery keep keyboard focus on the visible Resume action while simulation remains paused

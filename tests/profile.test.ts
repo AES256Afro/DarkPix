@@ -980,6 +980,8 @@ describe("display helpers", () => {
   it("formats raid time and persistent levels", () => {
     expect(formatTime(209.9)).toBe("3:29");
     expect(formatTime(-3)).toBe("0:00");
+    expect(formatTime(Number.NaN)).toBe("0:00");
+    expect(formatTime(Number.POSITIVE_INFINITY)).toBe("0:00");
     expect(levelForXp(699)).toBe(2);
     expect(levelForXp(700)).toBe(3);
     expect(levelForXp(99_999)).toBe(MAX_CLASS_LEVEL);
@@ -987,6 +989,7 @@ describe("display helpers", () => {
     expect(progressionBonuses(1)).toEqual({ health: 0, damage: 0 });
     expect(progressionBonuses(4)).toEqual({ health: 12, damage: 1 });
     expect(progressionBonuses(99)).toEqual({ health: 24, damage: 3 });
+    expect(progressionBonuses(Number.NaN)).toEqual({ health: 0, damage: 0 });
   });
 });
 
@@ -1313,6 +1316,7 @@ describe("class perk milestones", () => {
     expect(classPerkBonuses("cleric", 6)).toMatchObject({ health: 8, damage: 3, guardUpkeepMultiplier: 0.9 });
     expect(classPerkBonuses("shapeshifter", 6)).toMatchObject({ health: 8, damage: 4, sprintCostMultiplier: 0.9 });
     expect(classPerkBonuses("minstrel", 6)).toMatchObject({ health: 8, damage: 3, sprintCostMultiplier: 0.9 });
+    expect(classPerkBonuses("vanguard", Number.NaN)).toEqual(classPerkBonuses("vanguard", 1));
   });
 
   it("gives every class a bounded active-skill cooldown", () => {
