@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { AudioDirector } from "../src/game/audio";
+import { AudioDirector, footstepCadenceCrossed } from "../src/game/audio";
 
 function audioHarness() {
   const master = { gain: { value: 0 }, connect: vi.fn(), disconnect: vi.fn() };
@@ -30,6 +30,13 @@ function audioHarness() {
 }
 
 describe("raid audio lifecycle", () => {
+  it("emits one movement cue only when accumulated distance crosses a stride", () => {
+    expect(footstepCadenceCrossed(1.2, 1.7, 1.6)).toBe(true);
+    expect(footstepCadenceCrossed(1.7, 2.9, 1.6)).toBe(false);
+    expect(footstepCadenceCrossed(3.1, 3.3, 1.6)).toBe(true);
+    expect(footstepCadenceCrossed(2, 1, 1.6)).toBe(false);
+  });
+
   it("quietly disables audio when no browser context is available", () => {
     const audio = new AudioDirector(true, 1, () => undefined);
     expect(() => {
@@ -70,6 +77,17 @@ describe("raid audio lifecycle", () => {
     const fallback = audioHarness();
     new AudioDirector(true, Number.NaN, () => fallback.context as unknown as AudioContext).start();
     expect(fallback.master.gain.value).toBe(0.18);
+  });
+
+  it("makes crouched steps quieter and armored sprint steps heavier", () => {
+    const harness = audioHarness();
+    const audio = new AudioDirector(true, 1, () => harness.context as unknown as AudioContext);
+    audio.start();
+    harness.context.state = "running";
+    audio.footstep(true, false, 0);
+    expect(harness.oscillator.frequency.setValueAtTime).toHaveBeenLastCalledWith(112, 4);
+    audio.footstep(false, true, 20);
+    expect(harness.oscillator.frequency.setValueAtTime).toHaveBeenLastCalledWith(48, 4);
   });
 
   it("cancels queued feedback when the raid pauses or stops", () => {

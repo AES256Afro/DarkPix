@@ -1,5 +1,10 @@
 export type AudioContextFactory = () => AudioContext | undefined;
 
+export function footstepCadenceCrossed(previousDistance: number, currentDistance: number, strideLength: number): boolean {
+  if (![previousDistance, currentDistance, strideLength].every(Number.isFinite) || previousDistance < 0 || currentDistance < previousDistance || strideLength <= 0) return false;
+  return Math.floor(previousDistance / strideLength) < Math.floor(currentDistance / strideLength);
+}
+
 function createBrowserAudioContext(): AudioContext | undefined {
   if (typeof window === "undefined" || typeof window.AudioContext !== "function") return undefined;
   try {
@@ -98,6 +103,13 @@ export class AudioDirector {
 
   attack(): void {
     this.tone(115, 0.12, "sawtooth", 0.1);
+  }
+
+  footstep(crouching: boolean, sprinting: boolean, armorWeight: number): void {
+    const safeArmor = Number.isFinite(armorWeight) ? Math.min(30, Math.max(0, armorWeight)) : 0;
+    const frequency = (crouching ? 112 : sprinting ? 62 : 82) - safeArmor * 0.7;
+    const volume = (crouching ? 0.018 : sprinting ? 0.05 : 0.03) + safeArmor * 0.0012;
+    this.tone(Math.max(35, frequency), crouching ? 0.045 : 0.065, "triangle", Math.min(0.075, volume));
   }
 
   hit(): void {

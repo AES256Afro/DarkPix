@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { escapeHtml } from "../html";
-import { AudioDirector } from "./audio";
+import { AudioDirector, footstepCadenceCrossed } from "./audio";
 import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat, type AttackDirection, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
@@ -1449,8 +1449,14 @@ export class DarkPixGame {
     }
 
     const stanceHeight = crouching ? CROUCH_HEIGHT : PLAYER_HEIGHT;
-    if (moving && !this.options.preferences.reducedMotion) {
+    if (moving) {
+      const previousFootstepDistance = this.footstepClock;
       this.footstepClock += delta * speed;
+      if (footstepCadenceCrossed(previousFootstepDistance, this.footstepClock, 1.6)) {
+        this.audio.footstep(crouching, sprinting, equippedPower(this.options.equipped, "armor"));
+      }
+    }
+    if (moving && !this.options.preferences.reducedMotion) {
       this.camera.position.y = stanceHeight + Math.sin(this.footstepClock * 2.25) * 0.035;
     } else {
       this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, stanceHeight, delta * 7);
