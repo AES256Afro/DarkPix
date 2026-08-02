@@ -252,7 +252,7 @@ check_public_build_assets() {
       *.css) grep -qi 'content-type:.*text/css' <<<"$asset_headers" || return 1 ;;
       *) return 1 ;;
     esac
-    container_asset_sha="$(docker compose exec -T darkpix sha256sum "/usr/share/nginx/html/$normalized_asset_path" 2>/dev/null | awk '{print $1}')" || return 1
+    container_asset_sha="$(docker compose exec -T darkpix sha256sum "/usr/share/nginx/html/$normalized_asset_path" </dev/null 2>/dev/null | awk '{print $1}')" || return 1
     public_asset_sha="$(public_body_sha "$asset_url")" || return 1
     [[ "$container_asset_sha" =~ ^[0-9a-f]{64}$ ]] || return 1
     [[ "$public_asset_sha" == "$container_asset_sha" ]] || return 1
@@ -348,7 +348,7 @@ for darkpix_public_url in "${darkpix_public_urls[@]}"; do
     sleep 1
   done
   if [[ "$public_verified" != true ]]; then
-    echo "The public route did not serve release $darkpix_release from $darkpix_public_url/version.txt." >&2
+    echo "The public route did not pass the release gate for $darkpix_release at $darkpix_public_url." >&2
     rollback_previous_release || true
     exit 1
   fi

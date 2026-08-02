@@ -74,8 +74,10 @@ describe("production asset routing", () => {
     expect(deployScript).toContain('normalized_asset_path="${normalized_asset_path#/}"');
     expect(deployScript).toContain('^assets/[A-Za-z0-9._-]+\\.(js|css)$');
     expect(deployScript).toContain('sha256sum "/usr/share/nginx/html/$normalized_asset_path"');
+    expect(deployScript).toContain('"/usr/share/nginx/html/$normalized_asset_path" </dev/null');
     expect(deployScript).toContain('public_body_sha "$asset_url"');
     expect(deployScript).toContain('[[ "$public_asset_sha" == "$container_asset_sha" ]]');
+    expect(deployScript).toContain("did not pass the release gate");
   });
 
   it("restores the prior image when a rollout gate fails", () => {
