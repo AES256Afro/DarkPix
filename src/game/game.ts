@@ -36,6 +36,14 @@ function setTextIfChanged(element: HTMLElement, value: string): void {
   if (element.textContent !== value) element.textContent = value;
 }
 
+function setAttributeIfChanged(element: HTMLElement, name: string, value: string): void {
+  if (element.getAttribute(name) !== value) element.setAttribute(name, value);
+}
+
+function setStylePropertyIfChanged(element: HTMLElement, name: string, value: string): void {
+  if (element.style.getPropertyValue(name) !== value) element.style.setProperty(name, value);
+}
+
 interface Enemy {
   id: number;
   group: THREE.Group;
@@ -3309,10 +3317,10 @@ export class DarkPixGame {
     this.interactionHold = continuousHold(this.interactionHold, delta, channeling);
     const channelPercent = Math.min(100, (this.interactionHold / channelDuration) * 100);
     const channelLabel = channelCommitmentLabel(channeling ? this.interactionTarget : heldTarget, descending, this.depth);
-    this.extractProgress.style.width = `${channelPercent}%`;
+    setStylePropertyIfChanged(this.extractProgress, "width", `${channelPercent}%`);
     this.extractMeter.classList.toggle("visible", channeling);
-    this.extractMeter.setAttribute("aria-valuenow", String(Math.round(channelPercent)));
-    this.extractMeter.setAttribute("aria-label", channeling ? channelLabel : "Ritual channel");
+    setAttributeIfChanged(this.extractMeter, "aria-valuenow", String(Math.round(channelPercent)));
+    setAttributeIfChanged(this.extractMeter, "aria-label", channeling ? channelLabel : "Ritual channel");
     setTextIfChanged(this.extractProgressLabel, channeling ? `${channelLabel} · ${Math.round(channelPercent)}%` : "");
 
     if (!this.interactHeld && !this.descendHeld) return;
@@ -3648,15 +3656,15 @@ export class DarkPixGame {
   }
 
   private updateHud(): void {
-    this.healthFill.style.width = `${Math.max(0, (this.health / this.maxHealth) * 100)}%`;
-    this.staminaFill.style.width = `${(this.stamina / this.definition.maxStamina) * 100}%`;
+    setStylePropertyIfChanged(this.healthFill, "width", `${Math.max(0, (this.health / this.maxHealth) * 100)}%`);
+    setStylePropertyIfChanged(this.staminaFill, "width", `${(this.stamina / this.definition.maxStamina) * 100}%`);
     this.staminaFill.parentElement?.classList.toggle("broken", this.guardBreakTimer > 0);
-    this.spellFill.style.width = `${this.options.classId === "hexbound" ? (this.spellCharges / this.maxSpellCharges) * 100 : 100}%`;
+    setStylePropertyIfChanged(this.spellFill, "width", `${this.options.classId === "hexbound" ? (this.spellCharges / this.maxSpellCharges) * 100 : 100}%`);
     this.spellFill.parentElement?.classList.toggle("inactive", this.options.classId !== "hexbound");
     if (this.options.classId === "hexbound") {
       const spell = HEX_SPELLS[this.selectedSpell];
       setTextIfChanged(this.spellLabelHud, `MEMORY · ${spell.name.toUpperCase()}`);
-      this.spellFill.style.background = `#${spell.color.toString(16).padStart(6, "0")}`;
+      setStylePropertyIfChanged(this.spellFill, "--spell-fill", `#${spell.color.toString(16).padStart(6, "0")}`);
     }
     const floorRules = depthRules(this.depth);
     const remaining = floorRules.duration - this.phaseElapsed();

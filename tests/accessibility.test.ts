@@ -190,8 +190,18 @@ describe("lobby accessibility contracts", () => {
   it("exposes held ritual progress and its committed destination semantically", () => {
     const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
     expect(gameSource).toContain('class="extract-meter" role="progressbar"');
-    expect(gameSource).toContain('this.extractMeter.setAttribute("aria-valuenow"');
-    expect(gameSource).toContain('this.extractMeter.setAttribute("aria-label", channeling ? channelLabel');
+    expect(gameSource).toContain('setAttributeIfChanged(this.extractMeter, "aria-valuenow"');
+    expect(gameSource).toContain('setAttributeIfChanged(this.extractMeter, "aria-label", channeling ? channelLabel');
+  });
+
+  it("skips unchanged frame-loop style and accessibility writes", () => {
+    const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
+    expect(gameSource).toContain("function setAttributeIfChanged");
+    expect(gameSource).toContain("function setStylePropertyIfChanged");
+    expect(gameSource).toContain('setStylePropertyIfChanged(this.extractProgress, "width"');
+    expect(gameSource).toContain('setStylePropertyIfChanged(this.healthFill, "width"');
+    expect(gameSource).toContain('setStylePropertyIfChanged(this.spellFill, "--spell-fill"');
+    expect(styles).toContain("var(--spell-fill, linear-gradient");
   });
 
   it("keeps occluded movement cues separate from combat impact announcements", () => {

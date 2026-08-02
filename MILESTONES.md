@@ -104,6 +104,7 @@ Status: Complete for the current map
 - Ordinary movement and class-specific dodges derive capped collision substeps from their actual travel distance instead of relying on a fixed sample count
 - Frame-hot darkness rendering uses cached shell and HUD nodes instead of repeating DOM selector walks throughout a raid
 - Frame-hot clock, objective, inventory, ritual, stealth, direction, and wayfinder copy skips unchanged text and ritual prompts commit only one final message per frame
+- Idle ritual progress, accessibility values, resource bars, and spell color also skip unchanged DOM writes while active channel animation retains full frame cadence
 - Digital movement normalization writes into the raid's shared direction scratch record instead of constructing a Three.js vector every simulation frame
 - Interaction sight and facing scans reuse raid-owned vectors and coordinate records rather than allocating a vector, closure, origin, facing, and target records every active frame
 - Remedy and throwing-weapon HUD summaries scan recovered and packed items into caller-owned records instead of rebuilding and filtering quick-slot arrays every frame
