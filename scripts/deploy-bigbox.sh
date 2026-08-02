@@ -66,19 +66,25 @@ check_restored_public_routes() {
   local public_url
   local restored_html
   local restored_release
+  local restored_write_method_status
   for public_url in "${darkpix_public_urls[@]}"; do
     if command -v curl >/dev/null 2>&1; then
       restored_release="$(curl -fsS --max-time 8 "$public_url/version.txt?rollback=$previous_release" 2>/dev/null)" || return 1
       curl -fsS --max-time 8 "$public_url/healthz?rollback=$previous_release" >/dev/null 2>&1 || return 1
       restored_html="$(curl -fsS --max-time 8 "$public_url/?rollback=$previous_release" 2>/dev/null)" || return 1
+      restored_write_method_status="$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' -X POST "$public_url/healthz" 2>/dev/null)" || return 1
     elif command -v wget >/dev/null 2>&1; then
       restored_release="$(wget -q -T 8 -O - "$public_url/version.txt?rollback=$previous_release" 2>/dev/null)" || return 1
       wget -q -T 8 -O /dev/null "$public_url/healthz?rollback=$previous_release" 2>/dev/null || return 1
       restored_html="$(wget -q -T 8 -O - "$public_url/?rollback=$previous_release" 2>/dev/null)" || return 1
+      restored_write_method_status="$(wget -T 8 --server-response --method=POST --body-data='' -O /dev/null "$public_url/healthz" 2>&1 || true)"
+      grep -Eq 'HTTP/[0-9.]+ 405' <<<"$restored_write_method_status" || return 1
+      restored_write_method_status="405"
     else
       return 1
     fi
     [[ "$restored_release" == "$previous_release" ]] || return 1
+    [[ "$restored_write_method_status" == "405" ]] || return 1
     grep -Fq "<meta name=\"darkpix-release\" content=\"$previous_release\"" <<<"$restored_html" || return 1
   done
 }
