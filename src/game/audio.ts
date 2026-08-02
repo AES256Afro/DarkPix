@@ -1,3 +1,5 @@
+import type { ThreatKind } from "./types";
+
 export type AudioContextFactory = () => AudioContext | undefined;
 
 export function footstepCadenceCrossed(previousDistance: number, currentDistance: number, strideLength: number): boolean {
@@ -110,6 +112,13 @@ export class AudioDirector {
     const frequency = (crouching ? 112 : sprinting ? 62 : 82) - safeArmor * 0.7;
     const volume = (crouching ? 0.018 : sprinting ? 0.05 : 0.03) + safeArmor * 0.0012;
     this.tone(Math.max(35, frequency), crouching ? 0.045 : 0.065, "triangle", Math.min(0.075, volume));
+  }
+
+  threatFootstep(kind: ThreatKind, distance: number): void {
+    const safeDistance = Number.isFinite(distance) ? Math.min(16, Math.max(0, distance)) : 16;
+    const frequency = kind === "boss" ? 42 : kind === "rival" ? 74 : kind === "crawler" ? 118 : kind === "mimic" ? 92 : 64;
+    const presence = 1 - safeDistance / 20;
+    this.tone(frequency, kind === "boss" ? 0.11 : 0.07, kind === "rival" ? "triangle" : "square", 0.012 + presence * (kind === "boss" ? 0.055 : 0.038));
   }
 
   hit(): void {

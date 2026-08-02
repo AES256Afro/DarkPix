@@ -23,4 +23,9 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain('if (!verdictSecured) {');
     expect(mainSource).toContain('"RETRY SECURING VERDICT"');
   });
+
+  it("keeps occluded movement cues separate from combat impact announcements", () => {
+    expect(readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8")).toContain('class="sound-direction" role="status" aria-live="polite"');
+    expect(styles).toContain(".raid-shell.high-contrast-hud .damage-direction, .raid-shell.high-contrast-hud .sound-direction");
+  });
 });

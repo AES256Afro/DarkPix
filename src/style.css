@@ -274,7 +274,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .raid-shell.high-contrast-hud .contract-panel > .journal-copy.failed { color: #ff9b86; }
 .raid-shell.high-contrast-hud .compass { border-color: #d8c8ad; color: #f0e1c9; }
 .raid-shell.high-contrast-hud .compass strong { color: #ffe0ae; }
-.raid-shell.high-contrast-hud .damage-direction { border-color: #f0d2a0; background: #050403; color: #fff0c8; }
+.raid-shell.high-contrast-hud .damage-direction, .raid-shell.high-contrast-hud .sound-direction { border-color: #f0d2a0; background: #050403; color: #fff0c8; }
 .raid-shell.high-contrast-hud .event-feed { border-color: #d8c8ad; background: rgba(2,2,2,.96); color: #fff; }
 .raid-shell.high-contrast-hud .threat-vitals > div { border-color: #e5d2b4; background: #020202; }
 .raid-shell.high-contrast-hud .threat-vitals strong, .raid-shell.high-contrast-hud .threat-vitals small { color: #fff0dc; }
@@ -293,6 +293,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .damage-direction[data-direction="back"] { transform: translate(-50%, 44px); }
 .damage-direction[data-direction="left"] { transform: translate(calc(-100% - 46px), -50%); }
 .damage-direction[data-direction="center"] { transform: translate(-50%, -42px); }
+.sound-direction { position: absolute; top: 34%; left: 50%; z-index: 4; padding: 4px 7px; border: 1px solid rgba(126,148,151,.42); background: rgba(4,12,13,.76); color: #8db5b3; font: 800 7px ui-monospace, monospace; letter-spacing: .1em; opacity: 0; pointer-events: none; text-shadow: 0 1px 2px #000; transition: opacity .12s; }
+.sound-direction.visible { opacity: .86; }
+.sound-direction[data-direction="front"] { transform: translate(-50%, -18px); }
+.sound-direction[data-direction="right"] { transform: translate(70px, 0); }
+.sound-direction[data-direction="back"] { transform: translate(-50%, 22px); }
+.sound-direction[data-direction="left"] { transform: translate(calc(-100% - 70px), 0); }
+.sound-direction[data-direction="center"] { transform: translate(-50%, 0); }
 .raid-hud { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
 .hud-top { display: grid; grid-template-columns: 1fr auto 1fr; align-items: start; padding: 24px 30px; }
 .contract-panel, .objective-panel { display: flex; width: 220px; padding: 12px 15px; flex-direction: column; border-left: 2px solid #765039; background: linear-gradient(90deg, rgba(9,8,7,.76), transparent); text-shadow: 0 2px 5px #000; }

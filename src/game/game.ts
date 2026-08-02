@@ -62,6 +62,8 @@ interface Enemy {
   tollWindup: number;
   tollWindupDuration: number;
   tollRing?: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
+  footstepDistance: number;
+  footstepPosition: Vec2;
 }
 
 interface PendingStrike {
@@ -252,6 +254,7 @@ export class DarkPixGame {
   private abandonButton!: HTMLButtonElement;
   private damageOverlay!: HTMLElement;
   private damageDirectionHud!: HTMLElement;
+  private soundDirectionHud!: HTMLElement;
   private extractProgress!: HTMLElement;
   private abilityHud!: HTMLElement;
   private consumableHud!: HTMLElement;
@@ -304,6 +307,8 @@ export class DarkPixGame {
   private damageCooldown = 0;
   private darknessPulseTimer = 0;
   private damageDirectionTimer = 0;
+  private soundDirectionTimer = 0;
+  private enemyFootstepCooldown = 0;
   private interactHeld = false;
   private descendHeld = false;
   private interactionHold = 0;
@@ -377,6 +382,7 @@ export class DarkPixGame {
         <div class="darkness-vignette" aria-hidden="true"></div>
         <div class="damage-flash" aria-hidden="true"></div>
         <div class="damage-direction" role="status" aria-live="polite" aria-atomic="true"></div>
+        <div class="sound-direction" role="status" aria-live="polite" aria-atomic="true"></div>
         <div class="raid-hud">
           <div class="hud-top">
             <section class="contract-panel">
@@ -462,6 +468,7 @@ export class DarkPixGame {
     this.abandonButton = this.mount.querySelector<HTMLButtonElement>(".abandon-raid")!;
     this.damageOverlay = this.mount.querySelector<HTMLElement>(".damage-flash")!;
     this.damageDirectionHud = this.mount.querySelector<HTMLElement>(".damage-direction")!;
+    this.soundDirectionHud = this.mount.querySelector<HTMLElement>(".sound-direction")!;
     this.extractProgress = this.mount.querySelector<HTMLElement>(".extract-meter i")!;
     this.abilityHud = this.mount.querySelector<HTMLElement>(".ability-slot small")!;
     this.consumableHud = this.mount.querySelector<HTMLElement>(".consumable-slot small")!;
@@ -966,6 +973,8 @@ export class DarkPixGame {
       tollWindup: 0,
       tollWindupDuration: 1.15,
       tollRing,
+      footstepDistance: 0,
+      footstepPosition: { x, z },
     });
   }
 
@@ -1398,6 +1407,8 @@ export class DarkPixGame {
     this.damageCooldown = Math.max(0, this.damageCooldown - delta);
     this.darknessPulseTimer = Math.max(0, this.darknessPulseTimer - delta);
     this.damageDirectionTimer = Math.max(0, this.damageDirectionTimer - delta);
+    this.soundDirectionTimer = Math.max(0, this.soundDirectionTimer - delta);
+    this.enemyFootstepCooldown = Math.max(0, this.enemyFootstepCooldown - delta);
     this.messageTimer = Math.max(0, this.messageTimer - delta);
     this.threatTimer = Math.max(0, this.threatTimer - delta);
     this.blockAge += this.blocking ? delta : 0;
@@ -1411,6 +1422,7 @@ export class DarkPixGame {
     if (this.ended) return;
     this.updateEnemies(delta);
     if (this.ended) return;
+    this.updateEnemyFootsteps();
     this.updateZone(delta);
     if (this.ended) return;
     this.updateInteraction(delta);
@@ -2462,6 +2474,43 @@ export class DarkPixGame {
     return this.options.preferences.reducedMotion ? 0 : Math.sin(this.elapsed * 7 + enemy.phase) * 0.025;
   }
 
+  private updateEnemyFootsteps(): void {
+    let nearest: { enemy: Enemy; distance: number } | undefined;
+    for (const enemy of this.enemies) {
+      const current = { x: enemy.group.position.x, z: enemy.group.position.z };
+      const moved = Math.hypot(current.x - enemy.footstepPosition.x, current.z - enemy.footstepPosition.z);
+      enemy.footstepPosition = current;
+      if (!enemy.alive || moved <= 0.001) continue;
+      const previousDistance = enemy.footstepDistance;
+      enemy.footstepDistance += moved;
+      const stride = enemy.kind === "crawler" ? 0.9 : enemy.kind === "boss" ? 2.1 : 1.55;
+      if (!footstepCadenceCrossed(previousDistance, enemy.footstepDistance, stride)) continue;
+      const distance = Math.hypot(current.x - this.camera.position.x, current.z - this.camera.position.z);
+      if (distance > 13 || dungeonLineOfSight(current, { x: this.camera.position.x, z: this.camera.position.z }, 0.12)) continue;
+      if (!nearest || distance < nearest.distance) nearest = { enemy, distance };
+    }
+    if (!nearest || this.enemyFootstepCooldown > 0) return;
+    this.enemyFootstepCooldown = 0.34;
+    this.audio.threatFootstep(nearest.enemy.kind, nearest.distance);
+    const label = nearest.enemy.kind === "boss"
+      ? "KEEPER STEPS"
+      : nearest.enemy.kind === "rival"
+        ? "RIVAL FOOTFALL"
+        : nearest.enemy.kind === "crawler"
+          ? "SCRAPING"
+          : "FOOTSTEPS";
+    const cue = directionalCue(
+      this.yaw,
+      { x: this.camera.position.x, z: this.camera.position.z },
+      { x: nearest.enemy.group.position.x, z: nearest.enemy.group.position.z },
+      label,
+    );
+    this.soundDirectionHud.textContent = `${cue.text} · ${Math.round(nearest.distance)}m`;
+    this.soundDirectionHud.dataset.direction = cue.direction.toLowerCase();
+    this.soundDirectionHud.classList.add("visible");
+    this.soundDirectionTimer = 0.8;
+  }
+
   private hurt(amount: number, source: string, physical = true, sourcePosition?: Vec2, independentPulse = false): void {
     if ((!independentPulse && this.damageCooldown > 0) || this.ended) return;
     const channelBroken = this.interactionHold > 0;
@@ -3332,6 +3381,7 @@ export class DarkPixGame {
     this.directionHud.classList.toggle("active", combatOverride || strikeExhausted || this.mouseAccumulator.x !== 0 || this.mouseAccumulator.y !== 0);
     this.directionHud.classList.toggle("danger", this.guardBreakTimer > 0 || strikeExhausted);
     this.damageDirectionHud.classList.toggle("visible", this.damageDirectionTimer > 0);
+    this.soundDirectionHud.classList.toggle("visible", this.soundDirectionTimer > 0);
     this.threatHud.classList.toggle("visible", this.threatTimer > 0);
     if (!this.portalAnnounced && this.phaseElapsed() > floorRules.duration * 0.43 && this.sigils < 2) {
       this.portalAnnounced = true;

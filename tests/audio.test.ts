@@ -90,6 +90,17 @@ describe("raid audio lifecycle", () => {
     expect(harness.oscillator.frequency.setValueAtTime).toHaveBeenLastCalledWith(48, 4);
   });
 
+  it("distinguishes an occluded rival from a heavy keeper step", () => {
+    const harness = audioHarness();
+    const audio = new AudioDirector(true, 1, () => harness.context as unknown as AudioContext);
+    audio.start();
+    harness.context.state = "running";
+    audio.threatFootstep("rival", 8);
+    expect(harness.oscillator.frequency.setValueAtTime).toHaveBeenLastCalledWith(74, 4);
+    audio.threatFootstep("boss", 4);
+    expect(harness.oscillator.frequency.setValueAtTime).toHaveBeenLastCalledWith(42, 4);
+  });
+
   it("cancels queued feedback when the raid pauses or stops", () => {
     vi.useFakeTimers();
     try {
