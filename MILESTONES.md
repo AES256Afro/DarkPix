@@ -121,6 +121,7 @@ Status: Complete for the current map
 - Player and hostile missiles reuse contact vectors, while player shots find the first living impact in one ordered scan instead of allocating and sorting threat arrays every frame
 - Projectile launch offsets, impact guard-facing checks, melee guard-facing checks, chain-ring defense, and dropped-haul placement reuse owned flight or raid scratch vectors instead of disposable Three.js vectors
 - Reduced motion suppresses decorative loading, camera, enemy-step, loot, flame, and portal loops while retaining functional combat telegraphs; pause sleeps continuous rendering and cancels queued audio feedback before it can replay in a later raid state
+- Pause, teardown, and failed audio-context resume also stop and disconnect every active transient tone, preventing suspended combat audio from replaying after a later cursor rebind
 - High contrast strengthens darkness and checkpoint state, navigation, combat warnings, threat vitals, resources, and interaction panels; lobby selection semantics, keyboard focus, and forced-color outlines do not rely on hover or color alone
 - Lobby rebuilds restore the logical keyboard control across class, contract, stash, merchant, crafting, settings, and idle cross-tab refreshes without forcing the viewport to jump
 - Terminal raid verdicts move focus to their labeled outcome heading, and a secured return places keyboard focus on the next-descent control

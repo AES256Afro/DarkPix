@@ -24,6 +24,7 @@ export class AudioDirector {
   private playbackAllowed = false;
   private playbackEpoch = 0;
   private readonly delayedTones = new Set<ReturnType<typeof globalThis.setTimeout>>();
+  private readonly activeTones = new Map<OscillatorNode, GainNode>();
   private readonly volume: number;
 
   constructor(
@@ -74,6 +75,7 @@ export class AudioDirector {
     this.playbackEpoch += 1;
     this.playbackAllowed = false;
     this.clearDelayedTones();
+    this.clearActiveTones();
     if (this.context && this.context.state !== "closed") {
       void this.context.suspend().catch(() => undefined);
     }
@@ -82,23 +84,41 @@ export class AudioDirector {
   tone(frequency: number, duration = 0.09, type: OscillatorType = "square", volume = 0.11): void {
     if (!this.enabled || !this.playbackAllowed) return;
     if (!this.context || !this.master) return;
+    let oscillator: OscillatorNode | undefined;
+    let gain: GainNode | undefined;
     try {
       const now = this.context.currentTime;
-      const oscillator = this.context.createOscillator();
-      const gain = this.context.createGain();
-      oscillator.type = type;
-      oscillator.frequency.setValueAtTime(frequency, now);
-      oscillator.frequency.exponentialRampToValueAtTime(Math.max(24, frequency * 0.7), now + duration);
-      gain.gain.setValueAtTime(volume, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-      oscillator.connect(gain).connect(this.master);
-      oscillator.onended = () => {
-        oscillator.disconnect();
-        gain.disconnect();
+      oscillator = this.context.createOscillator();
+      gain = this.context.createGain();
+      const toneOscillator = oscillator;
+      const toneGain = gain;
+      toneOscillator.type = type;
+      toneOscillator.frequency.setValueAtTime(frequency, now);
+      toneOscillator.frequency.exponentialRampToValueAtTime(Math.max(24, frequency * 0.7), now + duration);
+      toneGain.gain.setValueAtTime(volume, now);
+      toneGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      toneOscillator.connect(toneGain).connect(this.master);
+      const release = () => {
+        this.activeTones.delete(toneOscillator);
+        toneOscillator.disconnect();
+        toneGain.disconnect();
       };
-      oscillator.start(now);
-      oscillator.stop(now + duration);
+      toneOscillator.onended = release;
+      this.activeTones.set(toneOscillator, toneGain);
+      toneOscillator.start(now);
+      toneOscillator.stop(now + duration);
     } catch {
+      if (oscillator) {
+        this.activeTones.delete(oscillator);
+        oscillator.onended = null;
+        try {
+          oscillator.stop();
+        } catch {
+          // A partially started oscillator may reject an explicit stop.
+        }
+        oscillator.disconnect();
+      }
+      gain?.disconnect();
       // Browser audio may disappear during a tab or device lifecycle change.
     }
   }
@@ -145,6 +165,7 @@ export class AudioDirector {
     this.playbackEpoch += 1;
     this.playbackAllowed = false;
     this.clearDelayedTones();
+    this.clearActiveTones();
     try {
       this.drone?.stop();
     } catch {
@@ -160,6 +181,7 @@ export class AudioDirector {
       if (this.context !== context || this.playbackEpoch !== epoch) return;
       this.playbackAllowed = false;
       this.clearDelayedTones();
+      this.clearActiveTones();
     });
   }
 
@@ -174,6 +196,20 @@ export class AudioDirector {
   private clearDelayedTones(): void {
     for (const timer of this.delayedTones) globalThis.clearTimeout(timer);
     this.delayedTones.clear();
+  }
+
+  private clearActiveTones(): void {
+    for (const [oscillator, gain] of this.activeTones) {
+      oscillator.onended = null;
+      try {
+        oscillator.stop();
+      } catch {
+        // The tone may already have ended while the page was losing focus.
+      }
+      oscillator.disconnect();
+      gain.disconnect();
+    }
+    this.activeTones.clear();
   }
 
   private releaseGraph(): void {

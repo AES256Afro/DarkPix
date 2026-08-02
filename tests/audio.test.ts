@@ -4,14 +4,29 @@ import { AudioDirector, footstepCadenceCrossed } from "../src/game/audio";
 function audioHarness() {
   const master = { gain: { value: 0 }, connect: vi.fn(), disconnect: vi.fn() };
   const droneGain = { gain: { value: 0 }, connect: vi.fn(() => master), disconnect: vi.fn() };
-  const oscillator = {
-    type: "sine",
-    frequency: { value: 0, setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
-    connect: vi.fn(() => droneGain),
-    disconnect: vi.fn(),
-    start: vi.fn(),
-    stop: vi.fn(),
-    onended: null as (() => void) | null,
+  const frequency = { value: 0, setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() };
+  const oscillator = { start: vi.fn(), stop: vi.fn(), frequency };
+  const oscillators: Array<{
+    type: string;
+    frequency: typeof frequency;
+    connect: ReturnType<typeof vi.fn>;
+    disconnect: ReturnType<typeof vi.fn>;
+    start: ReturnType<typeof vi.fn>;
+    stop: ReturnType<typeof vi.fn>;
+    onended: (() => void) | null;
+  }> = [];
+  const createOscillator = () => {
+    const node = {
+      type: "sine",
+      frequency,
+      connect: vi.fn(() => droneGain),
+      disconnect: vi.fn(),
+      start: oscillator.start,
+      stop: oscillator.stop,
+      onended: null as (() => void) | null,
+    };
+    oscillators.push(node);
+    return node;
   };
   const context = {
     state: "suspended",
@@ -21,12 +36,12 @@ function audioHarness() {
       .mockReturnValueOnce(master)
       .mockReturnValueOnce(droneGain)
       .mockReturnValue({ gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, connect: vi.fn(() => master), disconnect: vi.fn() }),
-    createOscillator: vi.fn(() => oscillator),
+    createOscillator: vi.fn(createOscillator),
     resume: vi.fn(async () => undefined),
     suspend: vi.fn(async () => undefined),
     close: vi.fn(async () => undefined),
   };
-  return { context, master, droneGain, oscillator };
+  return { context, master, droneGain, oscillator, oscillators };
 }
 
 describe("raid audio lifecycle", () => {
@@ -129,6 +144,38 @@ describe("raid audio lifecycle", () => {
     }
   });
 
+  it("stops and disconnects active transient tones when the raid pauses", () => {
+    const harness = audioHarness();
+    const audio = new AudioDirector(true, 1, () => harness.context as unknown as AudioContext);
+    audio.start();
+    harness.context.state = "running";
+    audio.attack();
+    const transient = harness.oscillators[1]!;
+    expect(transient.stop).toHaveBeenCalledTimes(1);
+    audio.pause();
+    expect(transient.stop).toHaveBeenCalledTimes(2);
+    expect(transient.disconnect).toHaveBeenCalledOnce();
+  });
+
+  it("disconnects a transient tone when the browser rejects its start", () => {
+    const harness = audioHarness();
+    const audio = new AudioDirector(true, 1, () => harness.context as unknown as AudioContext);
+    audio.start();
+    harness.context.state = "running";
+    const broken = {
+      ...harness.oscillators[0]!,
+      connect: vi.fn(() => harness.droneGain),
+      disconnect: vi.fn(),
+      start: vi.fn(() => { throw new Error("audio device lost"); }),
+      stop: vi.fn(),
+      onended: null,
+    };
+    harness.context.createOscillator.mockImplementationOnce(() => broken);
+    expect(() => audio.attack()).not.toThrow();
+    expect(broken.stop).toHaveBeenCalledOnce();
+    expect(broken.disconnect).toHaveBeenCalledOnce();
+  });
+
   it("rebuilds audio after the browser closes its context", () => {
     const first = audioHarness();
     const second = audioHarness();
@@ -154,11 +201,15 @@ describe("raid audio lifecycle", () => {
       .mockResolvedValue(undefined);
     const audio = new AudioDirector(true, 1, () => harness.context as unknown as AudioContext);
     audio.start();
+    audio.attack();
+    const transient = harness.oscillators[1]!;
     audio.pause();
     audio.start();
     rejectFirstResume(new Error("superseded browser request"));
     await Promise.resolve();
+    expect(transient.stop).toHaveBeenCalledTimes(2);
+    expect(transient.disconnect).toHaveBeenCalledOnce();
     audio.attack();
-    expect(harness.context.createOscillator).toHaveBeenCalledTimes(2);
+    expect(harness.context.createOscillator).toHaveBeenCalledTimes(3);
   });
 });
