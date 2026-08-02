@@ -72,6 +72,17 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain("if (lockForForeignRaidJournal()) return;");
   });
 
+  it("stops a losing concurrent raid claim without overwriting the winning journal", () => {
+    expect(mainSource).toContain("function queueRaidLeaseLoss()");
+    expect(mainSource).toContain("raidEscrowOwnedBy(journal.escrow, raidOwnerId, activeRaidStartedAt)");
+    expect(mainSource).toContain('renewal === "ownership_lost"');
+    expect(mainSource).toContain("lostRaidLeaseStartedAt === claimedRaidStartedAt");
+    expect(mainSource).toContain("activeGame?.destroy()");
+    const leaseLoss = mainSource.slice(mainSource.indexOf("function queueRaidLeaseLoss"), mainSource.indexOf("function loadGameModule"));
+    expect(leaseLoss).not.toContain("clearRaidEscrow");
+    expect(leaseLoss).not.toContain("saveProfile");
+  });
+
   it("refreshes an idle lobby when another tab stores a durable profile", () => {
     expect(mainSource).toContain("event.key === PROFILE_KEY");
     expect(mainSource).toContain("refreshIdleProfileFromStorage");

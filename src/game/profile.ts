@@ -473,12 +473,38 @@ export function raidEscrowLeaseHeldByOther(
   return age > -RAID_ESCROW_LEASE_MS && age < RAID_ESCROW_LEASE_MS;
 }
 
-export function beginRaidEscrow(escrow: RaidEscrow): boolean {
+export function beginRaidEscrow(escrow: RaidEscrow, storage?: ProfileStorageTarget): boolean {
   try {
-    localStorage.setItem(RAID_ESCROW_KEY, JSON.stringify(escrow));
-    return true;
+    const target = storage ?? globalThis.localStorage;
+    const serialized = JSON.stringify(escrow);
+    target.setItem(RAID_ESCROW_KEY, serialized);
+    return target.getItem(RAID_ESCROW_KEY) === serialized;
   } catch {
     return false;
+  }
+}
+
+export type RaidEscrowRenewal = "secure" | "write_failed" | "ownership_lost";
+
+export function raidEscrowOwnedBy(escrow: Pick<RaidEscrow, "ownerId" | "startedAt">, ownerId: string, startedAt: number): boolean {
+  return escrow.ownerId === ownerId && Number.isSafeInteger(startedAt) && startedAt > 0 && escrow.startedAt === startedAt;
+}
+
+export function renewRaidEscrow(escrow: RaidEscrow, storage?: ProfileStorageTarget): RaidEscrowRenewal {
+  try {
+    const target = storage ?? globalThis.localStorage;
+    const current = loadRaidEscrowState(target);
+    if (current.status !== "loaded") return "write_failed";
+    if (!escrow.ownerId || !raidEscrowOwnedBy(current.escrow, escrow.ownerId, escrow.startedAt)) return "ownership_lost";
+    const serialized = JSON.stringify(escrow);
+    target.setItem(RAID_ESCROW_KEY, serialized);
+    if (target.getItem(RAID_ESCROW_KEY) === serialized) return "secure";
+    const afterWrite = loadRaidEscrowState(target);
+    return afterWrite.status === "loaded" && !raidEscrowOwnedBy(afterWrite.escrow, escrow.ownerId, escrow.startedAt)
+      ? "ownership_lost"
+      : "write_failed";
+  } catch {
+    return "write_failed";
   }
 }
 

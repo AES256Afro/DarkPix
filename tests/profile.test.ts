@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BESTIARY, CLASS_ABILITIES, CRAFTING_RECIPES, HEX_SPELLS, MERCHANT_OFFERS, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createItemId, createLoot, createSigil, craftingRecipeUnlocked, formatTime, levelForXp, merchantOfferUnlocked, merchantStanding, progressionBonuses, rarityFromRoll, throwableDamage } from "../src/game/data";
-import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, MAX_RAID_LOOT_ITEMS, RAID_ESCROW_LEASE_MS, RAID_HISTORY_LIMIT, applyRaidResult, contractRecordSummary, craftItem, createProfile, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeProfile, normalizeRaidEscrow, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidThreatKillLedger, raidXpBreakdown, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
+import { MAX_GOLD, MAX_ITEM_POWER, MAX_ITEM_VALUE, MAX_RAID_LOOT_ITEMS, RAID_ESCROW_KEY, RAID_ESCROW_LEASE_MS, RAID_HISTORY_LIMIT, applyRaidResult, beginRaidEscrow, contractRecordSummary, craftItem, createProfile, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeProfile, normalizeRaidEscrow, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidEscrowOwnedBy, raidThreatKillLedger, raidXpBreakdown, renewRaidEscrow, sellStashItem, settleInterruptedRaid, settleRaid } from "../src/game/profile";
 import { DEFAULT_PREFERENCES, firstRunPreferences, normalizePreferences } from "../src/game/preferences";
 import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, damageImpactAccepted, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, safeDamageAmount, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat } from "../src/game/combat";
 import type { RaidResult } from "../src/game/types";
@@ -444,6 +444,58 @@ describe("persistent raid consequences", () => {
     expect(raidEscrowLeaseHeldByOther({ ownerId: "page-a", heartbeatAt: now + 1_000 }, "page-b", now)).toBe(true);
     expect(raidEscrowLeaseHeldByOther({ ownerId: "page-a", heartbeatAt: now + RAID_ESCROW_LEASE_MS }, "page-b", now)).toBe(false);
     expect(raidEscrowLeaseHeldByOther({ ownerId: "page-a", heartbeatAt: now + 86_400_000 }, "page-b", now)).toBe(false);
+  });
+
+  it("verifies initial claims and renews only the journal owned by that page", () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+    };
+    const now = 1_700_000_000_000;
+    const owned = createRaidEscrow("vanguard", "standard", [], now, 1, 0, 75, {}, 0, 0, "page-a", now);
+    expect(beginRaidEscrow(owned, storage)).toBe(true);
+    expect(raidEscrowOwnedBy(owned, "page-a", now)).toBe(true);
+    expect(raidEscrowOwnedBy(owned, "page-b", now)).toBe(false);
+    const renewed = createRaidEscrow("vanguard", "standard", [], now, 1, 1, 75, { skeleton: 1 }, 0, 0, "page-a", now + 3_000);
+    expect(renewRaidEscrow(renewed, storage)).toBe("secure");
+    expect(loadRaidEscrowState(storage).status).toBe("loaded");
+
+    const rival = createRaidEscrow("ranger", "standard", [], now + 1, 1, 0, 75, {}, 1, 0, "page-b", now + 1);
+    values.set(RAID_ESCROW_KEY, JSON.stringify(rival));
+    expect(renewRaidEscrow(renewed, storage)).toBe("ownership_lost");
+    expect(values.get(RAID_ESCROW_KEY)).toBe(JSON.stringify(rival));
+    values.delete(RAID_ESCROW_KEY);
+    expect(renewRaidEscrow(renewed, storage)).toBe("write_failed");
+  });
+
+  it("rejects a raid claim when storage silently refuses the exact write", () => {
+    const existing = createRaidEscrow("ranger", "standard", [], 123, 1, 0, 75, {}, 0, 0, "page-b", 123);
+    const storage = {
+      getItem: () => JSON.stringify(existing),
+      setItem: () => undefined,
+    };
+    const attempted = createRaidEscrow("vanguard", "standard", [], 124, 1, 0, 75, {}, 0, 0, "page-a", 124);
+    expect(beginRaidEscrow(attempted, storage)).toBe(false);
+  });
+
+  it("detects an ownership change that lands during a heartbeat write", () => {
+    const now = 1_700_000_000_000;
+    const owned = createRaidEscrow("vanguard", "standard", [], now, 1, 0, 75, {}, 0, 0, "page-a", now);
+    const renewed = createRaidEscrow("vanguard", "standard", [], now, 1, 1, 75, { skeleton: 1 }, 0, 0, "page-a", now + 3_000);
+    const rival = createRaidEscrow("ranger", "standard", [], now + 1, 1, 0, 75, {}, 1, 0, "page-b", now + 1);
+    let stored = JSON.stringify(owned);
+    let reads = 0;
+    const storage = {
+      getItem: () => {
+        reads += 1;
+        if (reads >= 2) stored = JSON.stringify(rival);
+        return stored;
+      },
+      setItem: (_key: string, value: string) => { stored = value; },
+    };
+    expect(renewRaidEscrow(renewed, storage)).toBe("ownership_lost");
+    expect(stored).toBe(JSON.stringify(rival));
   });
 
   it("allocates a raid marker distinct from the last settled journal in the same millisecond", () => {

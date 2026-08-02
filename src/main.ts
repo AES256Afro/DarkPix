@@ -9,7 +9,7 @@ import { equippedPower, loadoutStats, saleNeedsConfirmation, sortStash, toggleEq
 import { SingleFlightGate, lobbyOperationCurrent } from "./game/lifecycle";
 import { PREFERENCES_KEY, loadPreferences, savePreferences } from "./game/preferences";
 import { browserStorageWritable, persistBeforeClearingEscrow } from "./game/persistence";
-import { BONE_BOUNTY_TARGET, PROFILE_KEY, RAID_ESCROW_KEY, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidThreatKillLedger, raidXpBreakdown, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
+import { BONE_BOUNTY_TARGET, PROFILE_KEY, RAID_ESCROW_KEY, RIVAL_BOUNTY_TARGET, beginRaidEscrow, boneKillCount, clearRaidEscrow, contractRecordSummary, craftItem, createRaidEscrow, loadProfileState, loadRaidEscrowState, nextRaidStartedAt, normalizeRaidResult, purchaseItem, raidEscrowAlreadySettled, raidEscrowLeaseHeldByOther, raidEscrowOwnedBy, raidThreatKillLedger, raidXpBreakdown, renewRaidEscrow, saveProfile, sellStashItem, settleInterruptedRaid, settleRaid } from "./game/profile";
 import { raidEntryStatus, raidRules } from "./game/raid";
 import { rarityMark } from "./game/rarity";
 import { QUIET_KNIVES_REWARD, QUIET_KNIVES_TARGET } from "./game/stealth";
@@ -49,6 +49,8 @@ let gameModulePromise: Promise<typeof import("./game/game")> | undefined;
 let updateRegistration: ServiceWorkerRegistration | undefined;
 let reloadForUpdate = false;
 let activeRaidStartedAt = 0;
+let lostRaidLeaseStartedAt = 0;
+let raidLeaseLossPending = false;
 let interruptedSettlementPending = false;
 let interruptedSettlementNotice = "";
 const raidEscrowLoad = profileLoad.status === "incompatible" ? undefined : loadRaidEscrowState();
@@ -89,6 +91,26 @@ if (interruptedRaid) {
 function stopRaidHeartbeat(): void {
   if (raidHeartbeatTimer !== undefined) window.clearInterval(raidHeartbeatTimer);
   raidHeartbeatTimer = undefined;
+}
+
+function queueRaidLeaseLoss(): void {
+  if (raidLeaseLossPending || activeRaidStartedAt <= 0) return;
+  raidLeaseLossPending = true;
+  queueMicrotask(() => {
+    raidLeaseLossPending = false;
+    if (activeRaidStartedAt <= 0) return;
+    const journal = loadRaidEscrowState();
+    if (journal.status !== "loaded" || raidEscrowOwnedBy(journal.escrow, raidOwnerId, activeRaidStartedAt)) return;
+    lostRaidLeaseStartedAt = activeRaidStartedAt;
+    stopRaidHeartbeat();
+    activeGame?.destroy();
+    activeGame = undefined;
+    activeRaidStartedAt = 0;
+    foreignRaidLease = true;
+    merchantNotice = "Another tab won a concurrent raid claim. This local descent stopped without touching its journal or profile.";
+    lobbyEpoch += 1;
+    renderForeignRaidLease();
+  });
 }
 
 function loadGameModule(): Promise<typeof import("./game/game")> {
@@ -839,7 +861,9 @@ async function startRaid(): Promise<void> {
   }
   const launchTicket = raidLaunchGate.begin();
   if (launchTicket === undefined) return;
+  lostRaidLeaseStartedAt = 0;
   let securedGoldBeforeEntry: number | undefined;
+  let claimedRaidStartedAt = 0;
   let mount: HTMLElement | null = null;
   try {
     const existingJournal = loadRaidEscrowState();
@@ -908,11 +932,13 @@ async function startRaid(): Promise<void> {
     }
     let escrow = createRaidEscrow(classId, raidMode, equipped.map((item) => item.id), startedAt, 1, 0, goldBeforeEntry, {}, variationSeed, 0, raidOwnerId, Date.now());
     if (!beginRaidEscrow(escrow)) {
+      if (lockForForeignRaidJournal()) return;
       persistenceWarning = "The browser could not secure a raid escrow. No fee was charged and the raid did not start.";
       renderLobby();
       return;
     }
     activeRaidStartedAt = escrow.startedAt;
+    claimedRaidStartedAt = escrow.startedAt;
     stopRaidHeartbeat();
     raidHeartbeatTimer = window.setInterval(() => {
       if (activeGame) {
@@ -920,7 +946,9 @@ async function startRaid(): Promise<void> {
         return;
       }
       escrow = createRaidEscrow(escrow.classId, escrow.raidMode, escrow.equippedIds, escrow.startedAt, escrow.depthReached, escrow.kills, escrow.goldBeforeEntry, escrow.killsByKind, escrow.variationSeed, escrow.unseenStrikes, raidOwnerId, Date.now());
-      if (!beginRaidEscrow(escrow)) console.warn("DarkPix could not renew the loading raid escrow lease");
+      const renewal = renewRaidEscrow(escrow);
+      if (renewal === "ownership_lost") queueRaidLeaseLoss();
+      else if (renewal === "write_failed") console.warn("DarkPix could not renew the loading raid escrow lease");
     }, 3_000);
     profile.gold = escrow.goldAfterEntry ?? Math.max(0, goldBeforeEntry - rules.entryFee);
     if (!saveProfile(profile)) {
@@ -942,6 +970,7 @@ async function startRaid(): Promise<void> {
       return;
     }
     const { DarkPixGame: GameRuntime } = await loadGameModule();
+    if (lostRaidLeaseStartedAt === escrow.startedAt) return;
     if (!mount.isConnected || !app.contains(mount)) {
       if (!refundFailedRaidStart(goldBeforeEntry)) persistenceWarning = "The canceled raid entry could not be refunded yet. Its escrow remains for recovery.";
       return;
@@ -955,15 +984,17 @@ async function startRaid(): Promise<void> {
       variationSeed,
       onCheckpoint: (depthReached, kills, killsByKind, unseenStrikes) => {
         escrow = createRaidEscrow(escrow.classId, escrow.raidMode, escrow.equippedIds, escrow.startedAt, depthReached, kills, escrow.goldBeforeEntry, killsByKind, escrow.variationSeed, unseenStrikes, raidOwnerId, Date.now());
-        const saved = beginRaidEscrow(escrow);
-        if (!saved) console.warn("DarkPix could not update the active raid escrow checkpoint");
-        return saved;
+        const renewal = renewRaidEscrow(escrow);
+        if (renewal === "ownership_lost") queueRaidLeaseLoss();
+        if (renewal !== "secure") console.warn("DarkPix could not update the active raid escrow checkpoint");
+        return renewal === "secure";
       },
       onFinish: finishRaid,
     });
   } catch (error) {
     console.error("DarkPix could not start the 3D raid", error);
-    const refunded = securedGoldBeforeEntry === undefined ? true : refundFailedRaidStart(securedGoldBeforeEntry);
+    const leaseLost = claimedRaidStartedAt > 0 && lostRaidLeaseStartedAt === claimedRaidStartedAt;
+    const refunded = leaseLost || securedGoldBeforeEntry === undefined ? true : refundFailedRaidStart(securedGoldBeforeEntry);
     if (!refunded) persistenceWarning = "The failed raid entry could not be refunded yet. Its escrow remains for recovery.";
     if (mount?.isConnected) {
       mount.innerHTML = `<section class="runtime-error"><span>†</span><h1>THE PASSAGE FAILED</h1><p>The 3D renderer could not start. Update the browser, enable WebGL, or try the raid again.</p><button type="button">RETURN TO THE LAST LANTERN</button></section>`;
@@ -975,6 +1006,11 @@ async function startRaid(): Promise<void> {
 }
 
 function finishRaid(result: RaidResult): void {
+  const currentJournal = loadRaidEscrowState();
+  if (currentJournal.status === "loaded" && !raidEscrowOwnedBy(currentJournal.escrow, raidOwnerId, activeRaidStartedAt)) {
+    queueRaidLeaseLoss();
+    return;
+  }
   stopRaidHeartbeat();
   activeGame?.destroy();
   activeGame = undefined;
@@ -1097,6 +1133,13 @@ window.addEventListener("storage", (event) => {
     if (event.newValue === null && foreignRaidLease) {
       location.reload();
       return;
+    }
+    if (activeRaidStartedAt > 0) {
+      const journal = loadRaidEscrowState();
+      if (journal.status === "loaded" && !raidEscrowOwnedBy(journal.escrow, raidOwnerId, activeRaidStartedAt)) {
+        queueRaidLeaseLoss();
+        return;
+      }
     }
     lockForForeignRaidJournal();
   }
