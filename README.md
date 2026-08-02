@@ -118,6 +118,7 @@ The repository includes a hardened Docker and Nginx deployment for BigBox. It bi
 - Consent-driven service-worker updates and a network-first offline shell
 - Local storage for class progression, gold, and stash persistence
 - Safe WebGL context-loss pause and click-to-resume recovery during a raid
+- Raid-owned delayed feedback, visual cleanup, and verdict callbacks that are canceled on teardown
 - Focus-loss input clearing and allocation-light enemy steering for steadier repeated play
 
 The title-screen pixel illustration was generated specifically for DarkPix with OpenAI image generation. The dungeon geometry, textures, lighting, enemies, animation, combat, and interface are rendered from project code.

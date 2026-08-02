@@ -16,7 +16,7 @@ import { RAID_VARIATION_COUNT, raidVariationSeal, validRaidVariationSeed } from 
 import { rarityShape } from "./rarity";
 import { raidReadinessSummary } from "./readiness";
 import { MAX_TORCH_FUEL_SECONDS, addTorchFuel, spendTorchFuel } from "./light";
-import { pointerLockRequestAllowed, pointerLockResumesRaid } from "./lifecycle";
+import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid } from "./lifecycle";
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
 import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
@@ -179,6 +179,7 @@ export class DarkPixGame {
   private readonly renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
   private readonly clock = new THREE.Clock();
   private readonly audio: AudioDirector;
+  private readonly lifecycleTimers = new LifecycleTimers();
   private readonly keys = new Set<string>();
   private readonly walls: WallCollider[] = [];
   private readonly enemies: Enemy[] = [];
@@ -1637,7 +1638,7 @@ export class DarkPixGame {
       darts.push(dart);
     }
     this.audio.tone(190, 0.11, "sawtooth", 0.08);
-    window.setTimeout(() => {
+    this.lifecycleTimers.schedule(() => {
       for (const dart of darts) {
         this.scene.remove(dart);
         dart.geometry.dispose();
@@ -1748,7 +1749,7 @@ export class DarkPixGame {
     bolt.position.copy(start).add(forward.clone().multiplyScalar(distance / 2));
     bolt.quaternion.copy(this.camera.quaternion);
     this.scene.add(bolt);
-    window.setTimeout(() => {
+    this.lifecycleTimers.schedule(() => {
       this.scene.remove(bolt);
       bolt.geometry.dispose();
       boltMaterial.dispose();
@@ -1761,7 +1762,7 @@ export class DarkPixGame {
     arrow.position.copy(start).add(forward.clone().multiplyScalar(distance / 2));
     arrow.quaternion.copy(this.camera.quaternion);
     this.scene.add(arrow);
-    window.setTimeout(() => {
+    this.lifecycleTimers.schedule(() => {
       this.scene.remove(arrow);
       arrow.geometry.dispose();
       arrowMaterial.dispose();
@@ -1777,7 +1778,7 @@ export class DarkPixGame {
     knife.position.copy(start).lerp(end, 0.5);
     knife.lookAt(end);
     this.scene.add(knife);
-    window.setTimeout(() => {
+    this.lifecycleTimers.schedule(() => {
       this.scene.remove(knife);
       knife.geometry.dispose();
       knifeMaterial.dispose();
@@ -1793,7 +1794,7 @@ export class DarkPixGame {
     chain.position.copy(start).lerp(end, 0.5);
     chain.lookAt(end);
     this.scene.add(chain);
-    window.setTimeout(() => {
+    this.lifecycleTimers.schedule(() => {
       this.scene.remove(chain);
       chain.geometry.dispose();
       chainMaterial.dispose();
@@ -2547,7 +2548,7 @@ export class DarkPixGame {
     knife.position.copy(start).add(forward.clone().multiplyScalar(distance / 2));
     knife.quaternion.copy(this.camera.quaternion);
     this.scene.add(knife);
-    window.setTimeout(() => {
+    this.lifecycleTimers.schedule(() => {
       this.scene.remove(knife);
       knife.geometry.dispose();
       knifeMaterial.dispose();
@@ -3294,7 +3295,7 @@ export class DarkPixGame {
       finishedAt: Date.now(),
       variationSeed: this.variationSeed,
     };
-    window.setTimeout(() => this.options.onFinish(result), 260);
+    this.lifecycleTimers.schedule(() => this.options.onFinish(result), 260);
   }
 
   private resize(): void {
@@ -3313,6 +3314,7 @@ export class DarkPixGame {
     this.ended = true;
     this.invalidatePointerLockRequest();
     cancelAnimationFrame(this.animationFrame);
+    this.lifecycleTimers.cancelAll();
     this.resizeObserver.disconnect();
     document.removeEventListener("keydown", this.onKeyDown);
     document.removeEventListener("keyup", this.onKeyUp);

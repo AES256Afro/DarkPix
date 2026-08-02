@@ -17,6 +17,7 @@ Status: Complete
 - Loot capacity, item rarity, randomized modifiers, stash risk, dependable light provisions, merchants, one-time stealth bounty, rotating daily commissions, reputation-gated crafting, structurally validated save backup, corrupt-profile recovery export, startup storage readiness, and authoritative local raid settlement
 - Closing darkness with an independent damage pulse, finite hoodable torch fuel, two extraction sites, red descent, two floors, traps, second-floor ash vents, mimics, hidden room, campfire, blood reliquary, bosses, and loot-scavenging AI rival delvers that can fight crypt threats or race for extraction
 - Standard, High Toll, and Iron Soul contracts with distinct loss and reward rules
+- Raid teardown owns and cancels delayed audio, transient visual, and verdict callbacks before renderer disposal
 
 Exit evidence: automated domain tests, production TypeScript build, container health, and exact public release checks.
 
