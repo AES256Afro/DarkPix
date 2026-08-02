@@ -36,6 +36,7 @@ Status: Complete for local-first play
 - Pre-raid and verdict value ledgers derive loadout risk, fees, Iron Soul XP exposure, and net wealth change from actual contract state
 - Verdicts itemize the bounded per-threat kill evidence used by bestiary, commission, and boss settlement
 - Future-dated verdicts cannot pre-claim a later daily commission or poison the contract journal clock
+- The exact floor deadline and first lethal source stop the terminal simulation frame before later systems can mutate a captured verdict
 - Version 14 migrates older profiles into the Quiet Knives contract without changing prior progress
 - Class XP, contracts, bestiary ledgers, survival streaks, raid history, settings, and backup import/export survive compatible profile migrations
 - Iron Soul failure clears the selected discipline's XP while preserving the rest of the profile

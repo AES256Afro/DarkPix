@@ -16,7 +16,7 @@ import { RAID_VARIATION_COUNT, raidVariationSeal, validRaidVariationSeed } from 
 import { rarityShape } from "./rarity";
 import { raidReadinessSummary } from "./readiness";
 import { MAX_TORCH_FUEL_SECONDS, addTorchFuel, spendTorchFuel } from "./light";
-import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid } from "./lifecycle";
+import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, raidDeadlineReached } from "./lifecycle";
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
 import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
@@ -1322,6 +1322,10 @@ export class DarkPixGame {
 
   private update(delta: number): void {
     this.elapsed += delta;
+    if (raidDeadlineReached(this.phaseElapsed(), depthRules(this.depth).duration)) {
+      this.finish("darkness");
+      return;
+    }
     const previousTorchFuel = this.torchFuel;
     this.torchFuel = spendTorchFuel(this.torchFuel, delta, this.torchLit);
     if (this.torchLit && previousTorchFuel > 0 && this.torchFuel <= 0) {
@@ -1361,14 +1365,18 @@ export class DarkPixGame {
     this.vignette = Math.max(0, this.vignette - delta * 1.8);
     this.updateMovement(delta);
     this.updateTraps(delta);
+    if (this.ended) return;
     this.updateDartTraps(delta);
+    if (this.ended) return;
     this.updateAshVents(delta);
+    if (this.ended) return;
     this.updateEnemies(delta);
+    if (this.ended) return;
     this.updateZone(delta);
+    if (this.ended) return;
     this.updateInteraction(delta);
+    if (this.ended) return;
     this.updateHud();
-
-    if (this.phaseElapsed() >= depthRules(this.depth).duration) this.finish("darkness");
   }
 
   private phaseElapsed(): number {
@@ -1494,6 +1502,7 @@ export class DarkPixGame {
         trap.cooldown = 3.2;
         trap.active = 0.72;
         this.hurt(trap.damage, "a floor trap", true, { x: trap.group.position.x, z: trap.group.position.z });
+        if (this.ended) return;
         continue;
       }
       const victim = this.enemies.find((enemy) => enemy.alive && Math.hypot(
@@ -1514,7 +1523,10 @@ export class DarkPixGame {
       if (trap.windup > 0) {
         trap.windup = Math.max(0, trap.windup - delta);
         trap.portMaterial.emissiveIntensity = 1.2 + Math.sin(this.elapsed * 26) * 0.35;
-        if (trap.windup === 0) this.fireDartTrap(trap);
+        if (trap.windup === 0) {
+          this.fireDartTrap(trap);
+          if (this.ended) return;
+        }
         continue;
       }
       trap.portMaterial.emissiveIntensity = 0.15;
@@ -1558,7 +1570,10 @@ export class DarkPixGame {
         const pulse = this.options.preferences.reducedFlashes ? 0 : Math.sin(this.elapsed * 24) * 0.18;
         vent.runeMaterial.emissiveIntensity = 0.5 + progress * 1.8 + pulse;
         vent.light.intensity = 0.25 + progress * 1.5;
-        if (vent.windup === 0) this.eruptAshVent(vent);
+        if (vent.windup === 0) {
+          this.eruptAshVent(vent);
+          if (this.ended) return;
+        }
         continue;
       }
       vent.cooldown = Math.max(0, vent.cooldown - delta);
@@ -1582,6 +1597,7 @@ export class DarkPixGame {
     const origin = { x: vent.group.position.x, z: vent.group.position.z };
     const playerHit = ashVentHits(origin, this.camera.position);
     if (playerHit) this.hurt(ASH_VENT_DAMAGE, "an ash vent", false, origin);
+    if (this.ended) return;
     let enemyHits = 0;
     for (const enemy of this.enemies) {
       if (!enemy.alive || !ashVentHits(origin, enemy.group.position, enemy.kind === "boss" ? ASH_VENT_RADIUS + 0.35 : ASH_VENT_RADIUS)) continue;
@@ -1617,6 +1633,7 @@ export class DarkPixGame {
       );
       const guarded = this.blocking && facingPort;
       this.hurt(trap.damage * (guarded ? 0.28 : 1), "a wall dart", true, origin);
+      if (this.ended) return;
       if (guarded) this.drainGuard(trap.damage * 0.5);
       return;
     }
@@ -1922,6 +1939,7 @@ export class DarkPixGame {
   private updateEnemies(delta: number): void {
     const player = this.camera.position;
     for (const enemy of this.enemies) {
+      if (this.ended) return;
       if (!enemy.alive) continue;
       enemy.cooldown = Math.max(0, enemy.cooldown - delta);
       enemy.stagger = Math.max(0, enemy.stagger - delta);
@@ -1967,7 +1985,10 @@ export class DarkPixGame {
             enemy.tollRing.material.opacity = 0.08 + progress * 0.28;
           }
           this.showThreatVitals(enemy);
-          if (enemy.tollWindup === 0) this.resolveBossToll(enemy, distance, hasSight);
+          if (enemy.tollWindup === 0) {
+            this.resolveBossToll(enemy, distance, hasSight);
+            if (this.ended) return;
+          }
           continue;
         }
         if (enemy.tollCooldown <= 0 && enemy.windup <= 0 && enemy.stagger <= 0 && hasSight && distance <= 7.2) {
@@ -2027,6 +2048,7 @@ export class DarkPixGame {
             ? Math.round(enemy.damage * 0.68)
             : enemy.kind === "rival" && enemy.attackStyle === "melee" ? Math.round(enemy.damage * 0.75) : enemy.damage;
           this.hurt(attackDamage * (1 - reduction), enemy.name, true, { x: enemy.group.position.x, z: enemy.group.position.z });
+          if (this.ended) return;
           if (guardingAttack) this.drainGuard(attackDamage * 0.75);
         }
         continue;
@@ -2130,6 +2152,7 @@ export class DarkPixGame {
     const guarded = this.blocking && facingThreat;
     const damage = bossTollDamage(enemy.damage, guarded);
     this.hurt(damage, `${enemy.name}'s chain ring`, true, { x: enemy.group.position.x, z: enemy.group.position.z });
+    if (this.ended) return;
     if (guarded) {
       this.drainGuard(14);
       if (this.guardBreakTimer <= 0) this.feed("CHAIN RING GUARDED · the impact drains your footing", "system");

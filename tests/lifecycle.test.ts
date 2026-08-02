@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LifecycleTimers, SingleFlightGate, pointerLockRequestAllowed, pointerLockResumesRaid } from "../src/game/lifecycle";
+import { LifecycleTimers, SingleFlightGate, pointerLockRequestAllowed, pointerLockResumesRaid, raidDeadlineReached } from "../src/game/lifecycle";
 
 afterEach(() => vi.useRealTimers());
 
@@ -60,5 +60,13 @@ describe("raid lifecycle", () => {
     gate.finish(first ?? 0);
     expect(gate.busy).toBe(false);
     expect(gate.begin()).toBe(2);
+  });
+
+  it("ends the terminal frame at the exact floor deadline", () => {
+    expect(raidDeadlineReached(209.999, 210)).toBe(false);
+    expect(raidDeadlineReached(210, 210)).toBe(true);
+    expect(raidDeadlineReached(211, 210)).toBe(true);
+    expect(raidDeadlineReached(Number.NaN, 210)).toBe(true);
+    expect(raidDeadlineReached(1, 0)).toBe(true);
   });
 });
