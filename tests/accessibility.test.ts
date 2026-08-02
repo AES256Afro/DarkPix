@@ -259,6 +259,12 @@ describe("lobby accessibility contracts", () => {
     expect(gameSource).toContain('setAttributeIfChanged(this.spellBar, "aria-label"');
   });
 
+  it("hides the unlabeled WebGL surface while retaining the semantic raid HUD", () => {
+    const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
+    expect(gameSource).toContain('class="render-host" aria-hidden="true"');
+    expect(gameSource).toContain('class="raid-hud"');
+  });
+
   it("exposes the current threat name, vigor, and state as one live status", () => {
     const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
     expect(gameSource).toContain('class="threat-vitals" role="status" aria-live="polite" aria-atomic="true"');

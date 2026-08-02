@@ -146,6 +146,7 @@ Status: Complete for the current map
 - High contrast strengthens darkness and checkpoint state, navigation, combat warnings, threat vitals, resources, and interaction panels; lobby selection semantics, keyboard focus, and forced-color outlines do not rely on hover or color alone
 - Vigor, stamina, and Hexbound memory expose bounded semantic progress values; non-casters do not encounter the inactive memory decoration, and transient event text is explicitly polite and atomic
 - The transient threat panel announces the named foe, combat state, and bounded current vigor as one atomic live status instead of relying on its four-pixel health fill
+- The unlabeled WebGL render surface is hidden from the accessibility tree while the semantic raid HUD, live warnings, and pause controls remain exposed
 - Class-level and Ironmonger-reputation tracks also expose their labels and bounded advancement instead of relying on fill width alone
 - Level 7 is now the explicit veterancy cap: accumulated XP remains durable, while the lobby reports `MAX` and a complete track instead of inventing unrewarded higher levels
 - Invalid or non-finite time and class-level inputs fail closed to a level-one, zero-time presentation instead of leaking `NaN` into raid statistics or combat bonuses
