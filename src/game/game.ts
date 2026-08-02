@@ -20,6 +20,7 @@ import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, poi
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
 import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
+import { playerProjectileDuration, playerProjectilePosition, projectileSegmentConnects, type PlayerProjectileKind } from "./projectile";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
 import { DARKNESS_PULSE_SECONDS, darknessPulseReady, directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "./zone";
 
@@ -69,6 +70,17 @@ interface PendingStrike {
   riposteMultiplier: number;
   abilityDamageMultiplier: number;
   impactRemaining: number;
+}
+
+interface PlayerProjectile {
+  mesh: THREE.Mesh;
+  material: THREE.MeshStandardMaterial;
+  kind: PlayerProjectileKind;
+  start: THREE.Vector3;
+  end: THREE.Vector3;
+  elapsed: number;
+  duration: number;
+  strike: PendingStrike;
 }
 
 interface Pickup {
@@ -298,6 +310,7 @@ export class DarkPixGame {
   private attackDirection: AttackDirection = "THRUST";
   private swingDirection: AttackDirection = "THRUST";
   private pendingStrike?: PendingStrike;
+  private readonly playerProjectiles: PlayerProjectile[] = [];
   private mouseAccumulator = { x: 0, y: 0 };
   private yaw = 0;
   private pitch = 0;
@@ -1379,6 +1392,7 @@ export class DarkPixGame {
         this.resolveStrike(strike);
       }
     }
+    this.updatePlayerProjectiles(delta);
     this.damageCooldown = Math.max(0, this.damageCooldown - delta);
     this.darknessPulseTimer = Math.max(0, this.darknessPulseTimer - delta);
     this.damageDirectionTimer = Math.max(0, this.damageDirectionTimer - delta);
@@ -1747,15 +1761,21 @@ export class DarkPixGame {
         bestDistance = distance;
       }
     }
-    if (!best) {
-      if (this.options.classId === "hexbound") this.spawnSpellTrail(cameraPosition, forward, this.definition.reach, HEX_SPELLS[strike.spellId].color);
-      if (this.options.classId === "ranger") this.spawnArrowTrail(cameraPosition, forward, this.definition.reach);
+    const ranged = this.options.classId === "hexbound" || this.options.classId === "ranger";
+    if (!best && ranged) {
+      this.launchPlayerProjectile(strike, cameraPosition, cameraPosition.clone().add(forward.multiplyScalar(this.definition.reach)));
       return;
     }
+    if (!best) return;
 
     const headHeight = best.kind === "crawler" || best.kind === "mimic" ? 0.72 : best.kind === "boss" ? 2.35 : 1.82;
     const toHead = best.group.position.clone().add(new THREE.Vector3(0, headHeight, 0)).sub(cameraPosition).normalize();
     const headshot = toHead.dot(forward) > (this.options.classId === "hexbound" ? 0.992 : this.options.classId === "ranger" ? 0.988 : 0.975);
+    if (ranged) {
+      const impactHeight = headshot ? headHeight : best.kind === "crawler" || best.kind === "mimic" ? 0.38 : best.kind === "boss" ? 1.55 : 1.1;
+      this.launchPlayerProjectile(strike, cameraPosition, best.group.position.clone().add(new THREE.Vector3(0, impactHeight, 0)));
+      return;
+    }
     const limbHit = !headshot && strike.direction === "SWEEP" && this.options.classId !== "hexbound" && this.options.classId !== "ranger";
     const weaponPower = equippedPower(this.options.equipped, "weapon");
     const baseDamage = attackDamage({
@@ -1779,34 +1799,103 @@ export class DarkPixGame {
     );
     const unseenStrike = this.recordUnseenStrike(best);
     this.damageEnemy(best, damage, headshot, limbHit, Boolean(spell?.cripples && !headshot), riposte, true, true, true, unseenStrike);
-    if (this.options.classId === "hexbound") this.spawnSpellTrail(cameraPosition, forward, bestDistance, spell?.color ?? HEX_SPELLS.ash_bolt.color);
-    if (this.options.classId === "ranger") this.spawnArrowTrail(cameraPosition, forward, bestDistance);
   }
 
-  private spawnSpellTrail(start: THREE.Vector3, forward: THREE.Vector3, distance: number, color: number): void {
-    const boltMaterial = material(color, color);
-    const bolt = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, Math.max(0.2, distance)), boltMaterial);
-    bolt.position.copy(start).add(forward.clone().multiplyScalar(distance / 2));
-    bolt.quaternion.copy(this.camera.quaternion);
-    this.scene.add(bolt);
-    this.lifecycleTimers.schedule(() => {
-      this.scene.remove(bolt);
-      bolt.geometry.dispose();
-      boltMaterial.dispose();
-    }, 80);
+  private launchPlayerProjectile(strike: PendingStrike, start: THREE.Vector3, end: THREE.Vector3): void {
+    const kind: PlayerProjectileKind = this.options.classId === "ranger" ? "arrow" : "spell";
+    const color = kind === "arrow" ? 0x8c7146 : HEX_SPELLS[strike.spellId].color;
+    const projectileMaterial = material(color, kind === "arrow" ? 0x24160c : color);
+    const projectile = new THREE.Mesh(
+      kind === "arrow" ? new THREE.BoxGeometry(0.045, 0.045, 0.48) : new THREE.OctahedronGeometry(0.1, 0),
+      projectileMaterial,
+    );
+    const origin = start.clone().add(new THREE.Vector3(0, -0.12, 0));
+    const distance = origin.distanceTo(end);
+    projectile.position.copy(origin);
+    projectile.lookAt(end);
+    this.scene.add(projectile);
+    this.playerProjectiles.push({
+      mesh: projectile,
+      material: projectileMaterial,
+      kind,
+      start: origin,
+      end: end.clone(),
+      elapsed: 0,
+      duration: playerProjectileDuration(distance, kind),
+      strike,
+    });
   }
 
-  private spawnArrowTrail(start: THREE.Vector3, forward: THREE.Vector3, distance: number): void {
-    const arrowMaterial = material(0x8c7146, 0x24160c);
-    const arrow = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.045, Math.max(0.3, distance)), arrowMaterial);
-    arrow.position.copy(start).add(forward.clone().multiplyScalar(distance / 2));
-    arrow.quaternion.copy(this.camera.quaternion);
-    this.scene.add(arrow);
-    this.lifecycleTimers.schedule(() => {
-      this.scene.remove(arrow);
-      arrow.geometry.dispose();
-      arrowMaterial.dispose();
-    }, 72);
+  private updatePlayerProjectiles(delta: number): void {
+    for (let index = this.playerProjectiles.length - 1; index >= 0; index -= 1) {
+      const projectile = this.playerProjectiles[index]!;
+      const previous = projectile.mesh.position.clone();
+      projectile.elapsed = Math.min(projectile.duration, projectile.elapsed + delta);
+      const position = playerProjectilePosition(projectile.start, projectile.end, projectile.elapsed, projectile.duration, projectile.kind);
+      projectile.mesh.position.set(position.x, position.y, position.z);
+      const nextPosition = playerProjectilePosition(projectile.start, projectile.end, projectile.elapsed + 0.02, projectile.duration, projectile.kind);
+      projectile.mesh.lookAt(nextPosition.x, nextPosition.y, nextPosition.z);
+      if (!dungeonLineOfSight({ x: previous.x, z: previous.z }, position, 0.04)) {
+        this.removePlayerProjectile(index);
+        continue;
+      }
+      const enemy = this.enemies
+        .filter((candidate) => candidate.alive)
+        .map((candidate) => {
+          const lowThreat = candidate.kind === "crawler" || candidate.kind === "mimic";
+          const bodyHeight = lowThreat ? 0.36 : candidate.kind === "boss" ? 1.45 : 1.05;
+          const headHeight = lowThreat ? 0.72 : candidate.kind === "boss" ? 2.35 : 1.82;
+          const body = candidate.group.position.clone().add(new THREE.Vector3(0, bodyHeight, 0));
+          const head = candidate.group.position.clone().add(new THREE.Vector3(0, headHeight, 0));
+          const headHit = projectileSegmentConnects(previous, position, head, lowThreat ? 0.2 : candidate.kind === "boss" ? 0.38 : 0.3);
+          const bodyHit = projectileSegmentConnects(previous, position, body, lowThreat ? 0.42 : candidate.kind === "boss" ? 0.78 : 0.54);
+          return { enemy: candidate, distance: previous.distanceToSquared(candidate.group.position), headHit, bodyHit };
+        })
+        .filter(({ headHit, bodyHit }) => headHit || bodyHit)
+        .sort((left, right) => left.distance - right.distance)[0];
+      if (enemy) {
+        const headshot = enemy.headHit;
+        this.removePlayerProjectile(index);
+        this.resolvePlayerProjectileHit(projectile, enemy.enemy, headshot);
+        continue;
+      }
+      if (projectile.elapsed >= projectile.duration) this.removePlayerProjectile(index);
+    }
+  }
+
+  private resolvePlayerProjectileHit(projectile: PlayerProjectile, enemy: Enemy, headshot: boolean): void {
+    const weaponPower = equippedPower(this.options.equipped, "weapon");
+    const baseDamage = attackDamage({
+      baseDamage: this.definition.damage,
+      weaponPower,
+      progressionBonus: this.damageBonus,
+      direction: projectile.strike.direction,
+      ambush: false,
+      headshot,
+    });
+    const spell = projectile.kind === "spell" ? HEX_SPELLS[projectile.strike.spellId] : undefined;
+    const riposte = projectile.strike.riposteMultiplier > 1;
+    const damage = Math.round(
+      baseDamage
+      * (enemy.kind === "rival" ? 1 : this.loadoutBonuses.undeadDamageMultiplier)
+      * projectile.strike.abilityDamageMultiplier
+      * (spell?.damageMultiplier ?? 1)
+      * projectile.strike.riposteMultiplier,
+    );
+    const unseenStrike = this.recordUnseenStrike(enemy);
+    this.damageEnemy(enemy, damage, headshot, false, Boolean(spell?.cripples && !headshot), riposte, true, true, true, unseenStrike);
+  }
+
+  private removePlayerProjectile(index: number): void {
+    const [projectile] = this.playerProjectiles.splice(index, 1);
+    if (!projectile) return;
+    this.scene.remove(projectile.mesh);
+    projectile.mesh.geometry.dispose();
+    projectile.material.dispose();
+  }
+
+  private clearPlayerProjectiles(): void {
+    while (this.playerProjectiles.length) this.removePlayerProjectile(this.playerProjectiles.length - 1);
   }
 
   private spawnRivalKnife(enemy: Enemy): void {
@@ -3060,6 +3149,7 @@ export class DarkPixGame {
     this.interactHeld = false;
     this.descendHeld = false;
     this.clearHeldInputs();
+    this.clearPlayerProjectiles();
 
     for (const enemy of this.enemies) {
       if (!enemy.alive) continue;
@@ -3378,6 +3468,7 @@ export class DarkPixGame {
     this.resumeButton.removeEventListener("click", this.requestPointerLock);
     this.abandonButton.removeEventListener("click", this.onAbandonRaid);
     this.audio.stop();
+    this.clearPlayerProjectiles();
     disposeSceneResources(this.scene);
     this.renderer.renderLists.dispose();
     this.renderer.dispose();
