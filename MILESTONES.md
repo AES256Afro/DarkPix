@@ -141,6 +141,7 @@ Status: Complete for the current map
 - Initial entry, voluntary unlock, cursor rejection, focus loss, and renderer recovery keep keyboard focus on the visible Resume action while simulation remains paused
 - Settled and superseded cursor-binding requests cancel their owned deadline immediately instead of retaining stale lifecycle callbacks
 - The full-screen raid pause is exposed as a labeled modal, and cursor-binding work shares one semantic busy state with the disabled Resume action
+- Forward and reverse Tab navigation wrap among the paused raid modal's visible enabled actions, including its conditional journal retry
 - Incompatible-profile, unsecured-verdict, damaged-journal, and foreign-raid locks move focus to their first safe recovery action without selecting a destructive choice
 - The persistent raid control strip names the class ability binding, and held Space cannot leak repeated scroll input while sidestep remains single-fire
 - The Ash Tollkeeper begins its annulus phase at full vigor and uses a tighter second-floor cadence

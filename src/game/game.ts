@@ -1092,6 +1092,7 @@ export class DarkPixGame {
   }
 
   private onKeyDown = (event: KeyboardEvent): void => {
+    if (this.trapLockOverlayFocus(event)) return;
     if (this.paused || this.ended) return;
     if (event.code === "Space") event.preventDefault();
     this.keys.add(event.code);
@@ -1254,6 +1255,20 @@ export class DarkPixGame {
 
   private focusResumeAction(): void {
     this.resumeButton.focus({ preventScroll: true });
+  }
+
+  private trapLockOverlayFocus(event: KeyboardEvent): boolean {
+    if (event.code !== "Tab" || !this.paused || this.ended || this.lockOverlay.classList.contains("hidden")) return false;
+    const controls = [this.resumeButton, this.retryJournalButton, this.abandonButton]
+      .filter((button) => !button.disabled && !button.classList.contains("hidden"));
+    if (!controls.length) return false;
+    const focusedIndex = controls.indexOf(document.activeElement as HTMLButtonElement);
+    const nextIndex = event.shiftKey
+      ? focusedIndex <= 0 ? controls.length - 1 : focusedIndex - 1
+      : focusedIndex < 0 || focusedIndex === controls.length - 1 ? 0 : focusedIndex + 1;
+    event.preventDefault();
+    controls[nextIndex]?.focus({ preventScroll: true });
+    return true;
   }
 
   private updatePauseLedger(): void {

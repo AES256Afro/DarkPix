@@ -181,6 +181,17 @@ describe("lobby accessibility contracts", () => {
     expect(gameSource).toContain("this.resumeButton.disabled = pending");
   });
 
+  it("contains forward and reverse keyboard focus inside the visible raid modal actions", () => {
+    const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
+    const focusTrap = gameSource.slice(gameSource.indexOf("private trapLockOverlayFocus"), gameSource.indexOf("private updatePauseLedger"));
+    expect(gameSource).toContain("if (this.trapLockOverlayFocus(event)) return;");
+    expect(focusTrap).toContain('event.code !== "Tab"');
+    expect(focusTrap).toContain('!button.disabled && !button.classList.contains("hidden")');
+    expect(focusTrap).toContain("event.shiftKey");
+    expect(focusTrap).toContain("event.preventDefault()");
+    expect(focusTrap).toContain("focus({ preventScroll: true })");
+  });
+
   it("keeps ability discovery visible and suppresses repeated space scrolling", () => {
     const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
     expect(gameSource).toContain("Ctrl crouch · Q ability · 1/2 spells");
