@@ -384,7 +384,6 @@ export class DarkPixGame {
   private mouseAccumulator = { x: 0, y: 0 };
   private yaw = 0;
   private pitch = 0;
-  private messageTimer = 0;
   private threatTimer = 0;
   private vignette = 0;
   private torchLit = true;
@@ -1508,7 +1507,6 @@ export class DarkPixGame {
     this.damageDirectionTimer = Math.max(0, this.damageDirectionTimer - delta);
     this.soundDirectionTimer = Math.max(0, this.soundDirectionTimer - delta);
     this.enemyFootstepCooldown = Math.max(0, this.enemyFootstepCooldown - delta);
-    this.messageTimer = Math.max(0, this.messageTimer - delta);
     this.threatTimer = Math.max(0, this.threatTimer - delta);
     this.blockAge += this.blocking ? delta : 0;
     this.vignette = Math.max(0, this.vignette - delta * 1.8);
@@ -3826,7 +3824,6 @@ export class DarkPixGame {
     this.feedHud.classList.remove("show");
     void this.feedHud.offsetWidth;
     this.feedHud.classList.add("show");
-    this.messageTimer = 3.4;
   }
 
   private finish(reason: RaidEndReason): void {

@@ -132,6 +132,7 @@ Status: Complete for the current map
 - Projectile launch offsets, impact guard-facing checks, melee guard-facing checks, chain-ring defense, and dropped-haul placement reuse owned flight or raid scratch vectors instead of disposable Three.js vectors
 - Reduced motion suppresses decorative loading, camera, enemy-step, loot, flame, and portal loops while retaining functional combat telegraphs; pause sleeps continuous rendering and cancels queued audio feedback before it can replay in a later raid state
 - Reduced motion also replaces the sliding event feed with a static timed message and removes combat-direction, prompt, threat, action, and resource-bar transitions
+- The event feed relies on its presentation lifetime instead of advancing an unused timer in every active simulation frame
 - Pause, teardown, and failed audio-context resume also stop and disconnect every active transient tone, preventing suspended combat audio from replaying after a later cursor rebind
 - Audio startup contains a disappearing context factory and explicitly stops and disconnects every partially created persistent node before closing a failed graph
 - High contrast strengthens darkness and checkpoint state, navigation, combat warnings, threat vitals, resources, and interaction panels; lobby selection semantics, keyboard focus, and forced-color outlines do not rely on hover or color alone
