@@ -134,12 +134,14 @@ export function projectileSegmentContact(start: ProjectilePoint, end: Projectile
   ) <= radius ? progress : undefined;
 }
 
-export function projectileTargetContact(headContact: number | undefined, bodyContact: number | undefined): ProjectileTargetContact | undefined {
+export function projectileTargetContact(headContact: number | undefined, bodyContact: number | undefined, target?: ProjectileTargetContact): ProjectileTargetContact | undefined {
   const head = Number.isFinite(headContact) && headContact! >= 0 && headContact! <= 1 ? headContact : undefined;
   const body = Number.isFinite(bodyContact) && bodyContact! >= 0 && bodyContact! <= 1 ? bodyContact : undefined;
   if (head === undefined && body === undefined) return undefined;
-  if (head !== undefined && (body === undefined || head <= body)) return { progress: head, headshot: true };
-  return { progress: body!, headshot: false };
+  const contact = target ?? { progress: 0, headshot: false };
+  contact.progress = head !== undefined && (body === undefined || head <= body) ? head : body!;
+  contact.headshot = head !== undefined && (body === undefined || head <= body);
+  return contact;
 }
 
 export function projectileContactPrecedes(contact: number | undefined, competingContact: number | undefined): boolean {
@@ -148,13 +150,13 @@ export function projectileContactPrecedes(contact: number | undefined, competing
   return first !== undefined && (competing === undefined || first <= competing);
 }
 
-export function projectileContactPoint(start: ProjectilePoint, end: ProjectilePoint, contact: number | undefined): ProjectilePoint | undefined {
+export function projectileContactPoint(start: ProjectilePoint, end: ProjectilePoint, contact: number | undefined, target?: ProjectilePoint): ProjectilePoint | undefined {
   if (![start.x, start.y, start.z, end.x, end.y, end.z, contact].every(Number.isFinite) || contact! < 0 || contact! > 1) return undefined;
-  return {
-    x: start.x + (end.x - start.x) * contact!,
-    y: start.y + (end.y - start.y) * contact!,
-    z: start.z + (end.z - start.z) * contact!,
-  };
+  const point = target ?? { x: 0, y: 0, z: 0 };
+  point.x = start.x + (end.x - start.x) * contact!;
+  point.y = start.y + (end.y - start.y) * contact!;
+  point.z = start.z + (end.z - start.z) * contact!;
+  return point;
 }
 
 export function projectileStoneOutcome(kind: PlayerProjectileKind | EnemyProjectileKind, thrownName?: string): ProjectileStoneOutcome {

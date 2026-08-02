@@ -20,7 +20,7 @@ import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, poi
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
 import { channelCommitmentLabel, channelInterruptionReason, continuousHold, heldInteractionTargetMatches, targetDistanceInView, type ChannelInterruptionReason, type HeldInteractionTarget } from "./targeting";
-import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, enemyProjectileTargetsThreat, playerProjectileDuration, playerProjectilePosition, projectileContactPoint, projectileContactPrecedes, projectileSegmentContact, projectileStoneOutcome, projectileTargetContact, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
+import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, enemyProjectileTargetsThreat, playerProjectileDuration, playerProjectilePosition, projectileContactPoint, projectileContactPrecedes, projectileSegmentContact, projectileStoneOutcome, projectileTargetContact, type EnemyProjectileKind, type PlayerProjectileKind, type ProjectileTargetContact } from "./projectile";
 import { advanceJournalRetry } from "./persistence";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
 import { DARKNESS_PULSE_SECONDS, darknessPulseReady, directionToZoneCenter, distanceFromZoneCenter, zoneState, type ZoneState } from "./zone";
@@ -226,6 +226,7 @@ export class DarkPixGame {
   private readonly scratchProjectileNext = new THREE.Vector3();
   private readonly scratchProjectileBody = new THREE.Vector3();
   private readonly scratchProjectileHead = new THREE.Vector3();
+  private readonly scratchProjectileContact: ProjectileTargetContact = { progress: 0, headshot: false };
   private readonly scratchDirection: Vec2 = { x: 0, z: 0 };
   private readonly scratchInteractionFacing: Vec2 = { x: 0, z: 0 };
   private readonly scratchInteractionTarget: Vec2 = { x: 0, z: 0 };
@@ -1913,8 +1914,10 @@ export class DarkPixGame {
       projectile.mesh.position.set(position.x, position.y, position.z);
       const nextPosition = playerProjectilePosition(projectile.start, projectile.end, projectile.elapsed + 0.02, projectile.duration, projectile.kind, this.scratchProjectileNext);
       projectile.mesh.lookAt(nextPosition.x, nextPosition.y, nextPosition.z);
-      const stoneContact = this.projectileStoneContact({ x: previous.x, z: previous.z }, position, 0.04);
-      let enemyContact: { enemy: Enemy; progress: number; headshot: boolean } | undefined;
+      const stoneContact = this.projectileStoneContact(previous, position, 0.04);
+      let enemyContact: Enemy | undefined;
+      let enemyContactProgress = Number.POSITIVE_INFINITY;
+      let enemyContactHeadshot = false;
       for (const candidate of this.enemies) {
         if (!candidate.alive) continue;
         const lowThreat = candidate.kind === "crawler" || candidate.kind === "mimic";
@@ -1927,13 +1930,16 @@ export class DarkPixGame {
         const contact = projectileTargetContact(
           projectileSegmentContact(previous, position, head, lowThreat ? 0.2 : candidate.kind === "boss" ? 0.38 : 0.3),
           projectileSegmentContact(previous, position, body, lowThreat ? 0.42 : candidate.kind === "boss" ? 0.78 : 0.54),
+          this.scratchProjectileContact,
         );
-        if (!contact || (enemyContact && enemyContact.progress <= contact.progress)) continue;
-        enemyContact = { enemy: candidate, progress: contact.progress, headshot: contact.headshot };
+        if (!contact || enemyContactProgress <= contact.progress) continue;
+        enemyContact = candidate;
+        enemyContactProgress = contact.progress;
+        enemyContactHeadshot = contact.headshot;
       }
-      if (projectileContactPrecedes(stoneContact, enemyContact?.progress)) {
+      if (projectileContactPrecedes(stoneContact, enemyContact ? enemyContactProgress : undefined)) {
         const outcome = projectileStoneOutcome(projectile.kind, projectile.thrownName);
-        const impact = projectileContactPoint(previous, position, stoneContact) ?? position;
+        const impact = projectileContactPoint(previous, position, stoneContact, this.scratchProjectileNext) ?? position;
         this.removePlayerProjectile(index);
         this.feed(outcome.message, "system");
         this.showDirectionalCue(impact, outcome.cue, 0.45, "impact");
@@ -1942,7 +1948,7 @@ export class DarkPixGame {
       }
       if (enemyContact) {
         this.removePlayerProjectile(index);
-        this.resolvePlayerProjectileHit(projectile, enemyContact.enemy, enemyContact.headshot);
+        this.resolvePlayerProjectileHit(projectile, enemyContact, enemyContactHeadshot);
         continue;
       }
       if (projectile.elapsed >= projectile.duration) {
@@ -2048,43 +2054,45 @@ export class DarkPixGame {
       projectile.mesh.position.set(position.x, position.y, position.z);
       const next = enemyProjectilePosition(projectile.start, projectile.end, projectile.elapsed + 0.02, projectile.duration, projectile.kind, this.scratchProjectileNext);
       projectile.mesh.lookAt(next.x, next.y, next.z);
-      const stoneContact = this.projectileStoneContact({ x: previous.x, z: previous.z }, position, 0.04);
+      const stoneContact = this.projectileStoneContact(previous, position, 0.04);
       const playerContact = projectileSegmentContact(previous, position, this.camera.position, PLAYER_RADIUS + 0.18);
-      let enemyContact: { enemy: Enemy; progress: number } | undefined;
+      let enemyContact: Enemy | undefined;
+      let enemyContactProgress = Number.POSITIVE_INFINITY;
       for (const enemy of this.enemies) {
         if (!enemy.alive || !enemyProjectileTargetsThreat(projectile.sourceId, enemy.id)) continue;
         const target = this.scratchProjectileBody.copy(enemy.group.position);
         target.y += 1;
         const progress = projectileSegmentContact(previous, position, target, enemy.kind === "boss" ? 0.72 : 0.5);
-        if (progress === undefined || (enemyContact && enemyContact.progress <= progress)) continue;
-        enemyContact = { enemy, progress };
+        if (progress === undefined || enemyContactProgress <= progress) continue;
+        enemyContact = enemy;
+        enemyContactProgress = progress;
       }
-      const livingContact = Math.min(playerContact ?? Number.POSITIVE_INFINITY, enemyContact?.progress ?? Number.POSITIVE_INFINITY);
+      const livingContact = Math.min(playerContact ?? Number.POSITIVE_INFINITY, enemyContact ? enemyContactProgress : Number.POSITIVE_INFINITY);
       if (projectileContactPrecedes(stoneContact, Number.isFinite(livingContact) ? livingContact : undefined)) {
         const outcome = projectileStoneOutcome(projectile.kind);
-        const impact = projectileContactPoint(previous, position, stoneContact) ?? position;
+        const impact = projectileContactPoint(previous, position, stoneContact, this.scratchProjectileNext) ?? position;
         this.removeEnemyProjectile(index);
         this.feed(outcome.message, "system");
         this.showDirectionalCue(impact, outcome.cue, 0.45, "impact");
         this.audio.tone(150, 0.1, "square", 0.05);
         continue;
       }
-      if (enemyContact && projectileContactPrecedes(enemyContact.progress, playerContact)) {
+      if (enemyContact && projectileContactPrecedes(enemyContactProgress, playerContact)) {
         this.removeEnemyProjectile(index);
         const crossfireDamage = projectile.kind === "dart"
-          ? trapDamageAgainstThreat(projectile.damage, enemyContact.enemy.kind)
-          : dungeonCrossfireDamage(projectile.damage, enemyContact.enemy.kind);
+          ? trapDamageAgainstThreat(projectile.damage, enemyContact.kind)
+          : dungeonCrossfireDamage(projectile.damage, enemyContact.kind);
         if (crossfireDamage > 0) {
-          this.damageEnemy(enemyContact.enemy, crossfireDamage, false, false, false, false, false, false, false);
+          this.damageEnemy(enemyContact, crossfireDamage, false, false, false, false, false, false, false);
           this.audio.hit();
           this.feed(
             projectile.kind === "dart"
-              ? `WALL DART · ${enemyContact.enemy.name} is pinned${enemyContact.enemy.alive ? "" : " and falls"}`
-              : `CROSSFIRE · ${projectile.sourceName}'s ${projectile.kind} strikes ${enemyContact.enemy.name} for ${crossfireDamage}${enemyContact.enemy.alive ? "" : " · falls"}`,
+              ? `WALL DART · ${enemyContact.name} is pinned${enemyContact.alive ? "" : " and falls"}`
+              : `CROSSFIRE · ${projectile.sourceName}'s ${projectile.kind} strikes ${enemyContact.name} for ${crossfireDamage}${enemyContact.alive ? "" : " · falls"}`,
             "combat",
           );
         } else {
-          this.feed(`${enemyContact.enemy.name.toUpperCase()} SCREENS YOU · the ${projectile.kind} deals no harm`, "system");
+          this.feed(`${enemyContact.name.toUpperCase()} SCREENS YOU · the ${projectile.kind} deals no harm`, "system");
         }
         continue;
       }

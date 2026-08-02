@@ -97,4 +97,17 @@ describe("raid resource cleanup", () => {
     expect(update).toMatch(/this\.hudRefreshTimer = Math\.max\(0, this\.hudRefreshTimer - delta\);[\s\S]+if \(this\.hudRefreshTimer === 0\)[\s\S]+this\.updateHud\(\)/);
     expect(update.indexOf("this.updateEnemies(delta)")).toBeLessThan(update.indexOf("this.hudRefreshTimer"));
   });
+
+  it("reuses projectile contact and impact records during flight", () => {
+    const playerProjectiles = gameSource.slice(gameSource.indexOf("private updatePlayerProjectiles"), gameSource.indexOf("private resolvePlayerProjectileHit"));
+    const enemyProjectiles = gameSource.slice(gameSource.indexOf("private updateEnemyProjectiles"), gameSource.indexOf("private resolveEnemyProjectileHit"));
+    expect(gameSource).toContain("private readonly scratchProjectileContact: ProjectileTargetContact");
+    expect(playerProjectiles).toContain("this.scratchProjectileContact");
+    expect(playerProjectiles).toContain("this.scratchProjectileNext");
+    expect(enemyProjectiles).toContain("this.scratchProjectileNext");
+    expect(playerProjectiles).not.toContain("let enemyContact: {");
+    expect(enemyProjectiles).not.toContain("let enemyContact: {");
+    expect(playerProjectiles).not.toContain("{ x: previous.x");
+    expect(enemyProjectiles).not.toContain("{ x: previous.x");
+  });
 });

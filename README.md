@@ -121,6 +121,7 @@ The repository includes a hardened Docker and Nginx deployment for BigBox. It bi
 - Caller-owned migrating-darkness state with one player-distance calculation per active frame
 - Early-exit scalar collision and trap scans for frame-hot delver, threat, floor-spike, and wall-dart checks
 - Render-independent 20 Hz HUD refreshes while movement, combat, missiles, traps, and darkness continue at simulation cadence
+- Caller-owned projectile target and impact records with scalar first-contact ordering during missile flight
 - Year-long immutable caching for every content-hashed production asset
 - Canvas-generated nearest-neighbor dungeon textures
 - Web Audio synthesis for the dungeon drone and action feedback

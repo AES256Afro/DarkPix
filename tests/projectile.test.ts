@@ -104,6 +104,9 @@ describe("player projectile travel", () => {
     expect(projectileTargetContact(0.4, 0.4)).toEqual({ progress: 0.4, headshot: true });
     expect(projectileTargetContact(undefined, 0.5)).toEqual({ progress: 0.5, headshot: false });
     expect(projectileTargetContact(Number.NaN, undefined)).toBeUndefined();
+    const contact = { progress: 9, headshot: false };
+    expect(projectileTargetContact(0.2, 0.6, contact)).toBe(contact);
+    expect(contact).toEqual({ progress: 0.2, headshot: true });
   });
 
   it("gives every masonry-stopped missile an explicit safe verdict", () => {
@@ -133,5 +136,8 @@ describe("player projectile travel", () => {
     expect(projectileContactPoint(start, end, Number.NaN)).toBeUndefined();
     expect(projectileContactPoint(start, end, -0.1)).toBeUndefined();
     expect(projectileContactPoint({ ...start, x: Number.NaN }, end, 0.5)).toBeUndefined();
+    const point = { x: 99, y: 99, z: 99 };
+    expect(projectileContactPoint(start, end, 0.25, point)).toBe(point);
+    expect(point).toEqual({ x: -1, y: 1.3, z: 3 });
   });
 });
