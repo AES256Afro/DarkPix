@@ -69,6 +69,11 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toMatch(/event\.newValue === null && foreignRaidLease[\s\S]+location\.reload\(\);[\s\S]+return;/);
   });
 
+  it("clears a retained settled journal before considering its foreign lease", () => {
+    expect(mainSource).toMatch(/interruptedRaid[\s\S]+!raidEscrowAlreadySettled\(profile, interruptedRaid\)[\s\S]+raidEscrowLeaseHeldByOther/);
+    expect(mainSource).toMatch(/if \(raidEscrowAlreadySettled\(profile, journal\.escrow\)\)[\s\S]+clearRaidEscrow\(\)[\s\S]+return false;/);
+  });
+
   it("recovers an update prompt after another tab activates its worker", () => {
     expect(mainSource).toContain("const waitingWorker = updateRegistration?.waiting");
     expect(mainSource).toContain("RELOADING APPLIED UPDATE...");

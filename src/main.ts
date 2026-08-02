@@ -58,7 +58,11 @@ const raidLaunchGate = new SingleFlightGate();
 const saveImportGate = new SingleFlightGate();
 
 const interruptedRaid = raidEscrowLoad?.escrow;
-let foreignRaidLease = Boolean(interruptedRaid && raidEscrowLeaseHeldByOther(interruptedRaid, raidOwnerId, Date.now()));
+let foreignRaidLease = Boolean(
+  interruptedRaid
+  && !raidEscrowAlreadySettled(profile, interruptedRaid)
+  && raidEscrowLeaseHeldByOther(interruptedRaid, raidOwnerId, Date.now()),
+);
 if (interruptedRaid) {
   if (foreignRaidLease) {
     merchantNotice = "A raid is active in another DarkPix tab. This tab will not touch its gear or journal.";
@@ -271,7 +275,13 @@ function lockForForeignRaidJournal(): boolean {
     || damagedRaidJournal !== undefined
   ) return false;
   const journal = loadRaidEscrowState();
-  if (journal.status !== "loaded" || !journal.escrow || !raidEscrowLeaseHeldByOther(journal.escrow, raidOwnerId, Date.now())) return false;
+  if (journal.status !== "loaded" || !journal.escrow) return false;
+  if (raidEscrowAlreadySettled(profile, journal.escrow)) {
+    if (clearRaidEscrow()) merchantNotice = "A completed raid journal was reconciled without repeating its verdict.";
+    else persistenceWarning = "A completed raid journal could not be removed, but its verdict marker prevents repeat settlement.";
+    return false;
+  }
+  if (!raidEscrowLeaseHeldByOther(journal.escrow, raidOwnerId, Date.now())) return false;
   foreignRaidLease = true;
   merchantNotice = "A raid became active in another DarkPix tab. This tab will not touch its gear, stash, or journal.";
   lobbyEpoch += 1;
