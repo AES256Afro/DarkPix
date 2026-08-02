@@ -458,14 +458,14 @@ export class DarkPixGame {
         <div class="sound-direction" role="status" aria-live="polite" aria-atomic="true"></div>
         <div class="raid-hud">
           <div class="hud-top">
-            <section class="contract-panel">
+            <section class="contract-panel" aria-label="Raid contract">
               <span class="eyebrow">${this.raidRules.name.toUpperCase()} CONTRACT · ${raidVariationSeal(this.variationSeed)}</span>
-              <strong class="raid-clock">3:30</strong>
+              <strong class="raid-clock" role="timer" aria-label="Floor time remaining">3:30</strong>
               <span class="zone-copy">darkness dormant</span>
               <span class="journal-copy" role="status" aria-live="polite">journal secure</span>
             </section>
             <div class="compass"><span class="compass-heading">N</span><strong class="wayfinder">WARDEN · SEEK</strong><span>⌖</span></div>
-            <section class="objective-panel">
+            <section class="objective-panel" aria-label="Raid objective">
               <span class="eyebrow">CONTRACT</span>
               <strong class="objective-copy">WARDEN SIGILS 0 / 2</strong>
               <span class="stealth-copy">unseen marks 0 / ${QUIET_KNIVES_TARGET} · steady</span>
@@ -479,7 +479,7 @@ export class DarkPixGame {
           <div class="interaction-prompt"></div>
           <div class="extract-meter" role="progressbar" aria-label="Ritual channel" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i><span></span></div>
           <div class="hud-bottom">
-            <section class="vitals">
+            <section class="vitals" aria-label="Delver resources">
               <div class="portrait-rune">${this.options.classId === "vanguard" ? "V" : this.options.classId === "cutpurse" ? "C" : this.options.classId === "hexbound" ? "H" : this.options.classId === "reaver" ? "R" : this.options.classId === "ranger" ? "A" : this.options.classId === "cleric" ? "L" : this.options.classId === "shapeshifter" ? "S" : "M"}</div>
               <div class="bars">
                 <div class="bar health" role="progressbar" aria-label="Vigor" aria-valuemin="0" aria-valuemax="${this.maxHealth}" aria-valuenow="${this.maxHealth}"><i></i><span>VIGOR</span></div>
@@ -487,7 +487,7 @@ export class DarkPixGame {
                 <div class="bar spells" ${this.options.classId === "hexbound" ? `role="progressbar" aria-label="Ash Bolt spell memory" aria-valuemin="0" aria-valuemax="${this.maxSpellCharges}" aria-valuenow="${this.maxSpellCharges}"` : 'aria-hidden="true"'}><i></i><span>MEMORY${this.options.classId === "hexbound" ? " · ASH BOLT" : ""}</span></div>
               </div>
             </section>
-            <section class="quick-slots">
+            <section class="quick-slots" aria-label="Raid controls">
               <div class="ability-slot"><kbd>Q</kbd><span class="slot-icon ability-icon"></span><small>${CLASS_ABILITIES[this.options.classId].name}</small></div>
               <div class="consumable-slot"><kbd>F</kbd><span class="slot-icon potion-icon"></span><small>${escapeHtml(this.carriedConsumables[0]?.name ?? "No remedy")} · C cycle</small></div>
               <div class="throwable-slot"><kbd>V</kbd><span class="slot-icon knife-icon"></span><small>${escapeHtml(this.carriedThrowables[0]?.name ?? "No throwing weapon")} · B cycle</small></div>
@@ -495,7 +495,7 @@ export class DarkPixGame {
               <div><kbd>E</kbd><span class="slot-icon hand-icon"></span><small>Interact / extract</small></div>
               <div class="torch-slot"><kbd>T</kbd><span class="slot-icon torch-icon"></span><small>Hood torch · 90s</small></div>
             </section>
-            <section class="haul-panel">
+            <section class="haul-panel" aria-label="Unsecured haul">
               <span class="eyebrow">UNSECURED HAUL</span>
               <strong class="loot-count">0 / ${HAUL_CAPACITY} slots · 0g</strong>
               <span>death takes all</span>

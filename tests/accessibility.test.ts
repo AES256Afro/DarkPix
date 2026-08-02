@@ -265,6 +265,14 @@ describe("lobby accessibility contracts", () => {
     expect(gameSource).toContain('class="raid-hud"');
   });
 
+  it("names the raid HUD regions and exposes a non-interrupting floor timer", () => {
+    const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
+    for (const label of ["Raid contract", "Raid objective", "Delver resources", "Raid controls", "Unsecured haul"]) {
+      expect(gameSource).toContain(`aria-label="${label}"`);
+    }
+    expect(gameSource).toContain('class="raid-clock" role="timer" aria-label="Floor time remaining"');
+  });
+
   it("exposes the current threat name, vigor, and state as one live status", () => {
     const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
     expect(gameSource).toContain('class="threat-vitals" role="status" aria-live="polite" aria-atomic="true"');
