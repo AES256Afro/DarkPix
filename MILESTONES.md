@@ -113,6 +113,7 @@ Status: Complete for the current map
 - Loose-loot animation uses a direct loop without constructing a per-frame array callback
 - Delver footstep cadence, camera bob, and passive movement noise follow collision-resolved travel rather than requested speed against blocked stone
 - Threat awareness reuses targeting vectors, and Warden guidance finds the nearest living target in one allocation-free scan instead of filtering and sorting every frame
+- Smoke Step, Sanctuary, and Rousing Discord use squared range checks and direct threat scans without temporary target arrays
 - Player and hostile missiles reuse contact vectors, while player shots find the first living impact in one ordered scan instead of allocating and sorting threat arrays every frame
 - Reduced motion suppresses decorative loading, camera, enemy-step, loot, flame, and portal loops while retaining functional combat telegraphs; pause sleeps continuous rendering and cancels queued audio feedback before it can replay in a later raid state
 - High contrast strengthens darkness and checkpoint state, navigation, combat warnings, threat vitals, resources, and interaction panels; lobby selection semantics, keyboard focus, and forced-color outlines do not rely on hover or color alone

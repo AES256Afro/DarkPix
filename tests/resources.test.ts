@@ -154,4 +154,11 @@ describe("raid resource cleanup", () => {
     expect(resolveStrike).not.toContain("new THREE.Vector3");
     expect(resolveStrike).not.toContain(".clone()");
   });
+
+  it("applies area abilities in one allocation-free threat scan", () => {
+    const abilities = gameSource.slice(gameSource.indexOf("private useClassAbility"), gameSource.indexOf("private updateZone"));
+    expect(abilities).toContain("distanceToSquared");
+    expect(abilities).not.toContain("this.enemies.filter");
+    expect(abilities).not.toContain("for (const enemy of [...nearby])");
+  });
 });

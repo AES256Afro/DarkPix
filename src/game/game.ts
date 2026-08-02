@@ -3031,7 +3031,7 @@ export class DarkPixGame {
     } else if (this.options.classId === "cutpurse") {
       this.concealmentTimer = 4;
       for (const enemy of this.enemies) {
-        if (!enemy.alive || enemy.group.position.distanceTo(this.camera.position) <= 3.5) continue;
+        if (!enemy.alive || enemy.group.position.distanceToSquared(this.camera.position) <= 3.5 * 3.5) continue;
         enemy.alerted = false;
         enemy.windup = 0;
         enemy.path = [];
@@ -3067,50 +3067,47 @@ export class DarkPixGame {
       this.stamina = Math.min(this.definition.maxStamina, this.stamina + 20);
       this.feed("WILDSHAPE · claw, cadence, and stride surge for 8s", "system");
     } else if (this.options.classId === "cleric") {
-      const nearby = this.enemies.filter((enemy) =>
-        enemy.alive &&
-        sanctuaryDamage(enemy.kind) > 0 &&
-        enemy.group.position.distanceTo(this.camera.position) <= 5 &&
-        this.hasDungeonSightBetween(
+      let nearby = 0;
+      for (const enemy of this.enemies) {
+        if (!enemy.alive || sanctuaryDamage(enemy.kind) <= 0 || enemy.group.position.distanceToSquared(this.camera.position) > 5 * 5 || !this.hasDungeonSightBetween(
           this.camera.position.x,
           this.camera.position.z,
           enemy.group.position.x,
           enemy.group.position.z,
           0.12,
-        ),
-      );
-      if (nearby.length === 0 && this.health >= this.maxHealth && this.stamina >= this.definition.maxStamina) {
+        )) continue;
+        nearby += 1;
+        this.damageEnemy(enemy, sanctuaryDamage(enemy.kind), false, false);
+      }
+      if (nearby === 0 && this.health >= this.maxHealth && this.stamina >= this.definition.maxStamina) {
         this.feed("Sanctuary finds neither wound nor nearby crypt thing.", "system");
         return;
       }
       this.health = Math.min(this.maxHealth, this.health + 22);
       this.stamina = Math.min(this.definition.maxStamina, this.stamina + 20);
-      for (const enemy of [...nearby]) this.damageEnemy(enemy, sanctuaryDamage(enemy.kind), false, false);
-      this.feed(`SANCTUARY · restored${nearby.length ? ` · ${nearby.length} threat${nearby.length === 1 ? "" : "s"} seared` : ""}`, "system");
+      this.feed(`SANCTUARY · restored${nearby ? ` · ${nearby} threat${nearby === 1 ? "" : "s"} seared` : ""}`, "system");
     } else {
-      const nearby = this.enemies.filter((enemy) =>
-        enemy.alive &&
-        enemy.group.position.distanceTo(this.camera.position) <= 6.5 &&
-        this.hasDungeonSightBetween(
+      let nearby = 0;
+      for (const enemy of this.enemies) {
+        if (!enemy.alive || enemy.group.position.distanceToSquared(this.camera.position) > 6.5 * 6.5 || !this.hasDungeonSightBetween(
           this.camera.position.x,
           this.camera.position.z,
           enemy.group.position.x,
           enemy.group.position.z,
           0.12,
-        ),
-      );
-      if (nearby.length === 0 && this.stamina >= this.definition.maxStamina) {
-        this.feed("Rousing discord finds neither pursuit nor lost breath.", "system");
-        return;
-      }
-      this.stamina = Math.min(this.definition.maxStamina, this.stamina + 30);
-      for (const enemy of nearby) {
+        )) continue;
+        nearby += 1;
         enemy.alerted = true;
         enemy.windup = 0;
         enemy.cooldown = Math.max(enemy.cooldown, 0.8);
         enemy.stagger = Math.max(enemy.stagger, minstrelStagger(enemy.kind));
       }
-      this.feed(`ROUSING DISCORD · breath restored${nearby.length ? ` · ${nearby.length} threat${nearby.length === 1 ? "" : "s"} staggered` : ""}`, "system");
+      if (nearby === 0 && this.stamina >= this.definition.maxStamina) {
+        this.feed("Rousing discord finds neither pursuit nor lost breath.", "system");
+        return;
+      }
+      this.stamina = Math.min(this.definition.maxStamina, this.stamina + 30);
+      this.feed(`ROUSING DISCORD · breath restored${nearby ? ` · ${nearby} threat${nearby === 1 ? "" : "s"} staggered` : ""}`, "system");
     }
     this.abilityCooldown = ability.cooldown;
     this.audio.portal();

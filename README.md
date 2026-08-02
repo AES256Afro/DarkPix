@@ -137,6 +137,7 @@ The public service accepts only `GET` and `HEAD`; write methods are rejected bef
 - Allocation-free wall and pillar scans for repeated sightline and projectile-path samples
 - Raid-owned coordinate scratch records for frame-hot awareness, rival, and stealth sight checks
 - Raid-owned Three.js vectors for repeated melee and ranged attack acquisition
+- Direct squared-range threat scans for Smoke Step, Sanctuary, and Rousing Discord
 - Caller-owned migrating-darkness state with one player-distance calculation per active frame
 - Early-exit squared-distance collision and trap scans for frame-hot delver, threat, floor-spike, and wall-dart checks
 - Render-independent 20 Hz HUD refreshes while movement, combat, missiles, traps, and darkness continue at simulation cadence
