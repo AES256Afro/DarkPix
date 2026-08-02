@@ -1031,12 +1031,12 @@ function finishRaid(result: RaidResult): void {
       ? "Rebuild a two-item kit from the stash, or descend with base equipment and scavenge."
       : "The stash is bare. Descend with base class equipment and rebuild from recovered loot.";
   app.innerHTML = `
-    <main class="result-screen ${extracted ? "success" : "failure"}">
+    <main class="result-screen ${extracted ? "success" : "failure"}" aria-labelledby="raid-verdict-heading">
       <div class="result-backdrop"></div>
       <section class="result-card">
         <span class="result-rune">${extracted ? "◇" : "†"}</span>
         <p class="eyebrow">RAID VERDICT</p>
-        <h1>${headline}</h1>
+        <h1 id="raid-verdict-heading" tabindex="-1">${headline}</h1>
         <p class="result-detail">${detail}</p>
         <div class="result-ledger">
           <span><small>CONTRACT</small><strong>${rules.name}${validRaidVariationSeed(result.variationSeed) ? ` · ${raidVariationSeal(result.variationSeed)}` : ""}</strong></span>
@@ -1064,6 +1064,7 @@ function finishRaid(result: RaidResult): void {
         <button class="return-button" type="button">${verdictSecured ? "RETURN TO THE LAST LANTERN" : "RETRY SECURING VERDICT"}</button>
       </section>
     </main>`;
+  app.querySelector<HTMLElement>("#raid-verdict-heading")?.focus({ preventScroll: true });
   app.querySelector<HTMLButtonElement>(".return-button")?.addEventListener("click", () => {
     if (!verdictSecured) {
       verdictSecured = persistBeforeClearingEscrow(persistProfile, clearRaidEscrow);
@@ -1077,6 +1078,7 @@ function finishRaid(result: RaidResult): void {
     }
     equippedIds = new Set();
     renderLobby();
+    app.querySelector<HTMLButtonElement>(".descend-button")?.focus({ preventScroll: true });
   });
 }
 

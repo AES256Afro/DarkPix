@@ -32,6 +32,13 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain('"RETRY SECURING VERDICT"');
   });
 
+  it("announces terminal verdicts and restores a useful lobby focus target", () => {
+    expect(mainSource).toContain('aria-labelledby="raid-verdict-heading"');
+    expect(mainSource).toContain('id="raid-verdict-heading" tabindex="-1"');
+    expect(mainSource).toContain('querySelector<HTMLElement>("#raid-verdict-heading")?.focus({ preventScroll: true })');
+    expect(mainSource).toContain('querySelector<HTMLButtonElement>(".descend-button")?.focus({ preventScroll: true })');
+  });
+
   it("locks an incompatible future profile to a raw recovery download", () => {
     expect(mainSource).toContain("renderIncompatibleProfileRecovery");
     expect(mainSource).toContain("Lobby actions are locked so unknown progress is not overwritten.");
