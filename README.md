@@ -116,6 +116,7 @@ The repository includes a hardened Docker and Nginx deployment for BigBox. It bi
 - Canvas-generated nearest-neighbor dungeon textures
 - Web Audio synthesis for the dungeon drone and action feedback
 - Consent-driven service-worker updates and a network-first offline shell
+- Multi-tab update recovery with an idle-only reload and bounded activation fallback
 - Local storage for class progression, gold, and stash persistence
 - Safe WebGL context-loss pause and click-to-resume recovery during a raid
 - Raid-owned delayed feedback, visual cleanup, and verdict callbacks that are canceled on teardown

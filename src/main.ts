@@ -118,10 +118,20 @@ function showUpdatePrompt(registration: ServiceWorkerRegistration): void {
       button.textContent = "FINISH THE RAID FIRST";
       return;
     }
+    const waitingWorker = updateRegistration?.waiting;
+    if (!waitingWorker) {
+      button.disabled = true;
+      button.textContent = "RELOADING APPLIED UPDATE...";
+      location.reload();
+      return;
+    }
     button.disabled = true;
     button.textContent = "REKINDLING...";
     reloadForUpdate = true;
-    updateRegistration?.waiting?.postMessage({ type: "SKIP_WAITING" });
+    waitingWorker.postMessage({ type: "SKIP_WAITING" });
+    window.setTimeout(() => {
+      if (reloadForUpdate) location.reload();
+    }, 5_000);
   });
   document.body.append(prompt);
 }

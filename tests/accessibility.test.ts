@@ -30,6 +30,12 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain("DOWNLOAD RAW SAVE");
   });
 
+  it("recovers an update prompt after another tab activates its worker", () => {
+    expect(mainSource).toContain("const waitingWorker = updateRegistration?.waiting");
+    expect(mainSource).toContain("RELOADING APPLIED UPDATE...");
+    expect(mainSource).toContain("if (reloadForUpdate) location.reload()");
+  });
+
   it("offers a paused live-journal retry without resuming the raid", () => {
     const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
     expect(gameSource).toContain('class="retry-journal hidden"');
