@@ -142,16 +142,21 @@ export function selectRaidVariation(seed: number): RaidVariation {
   };
 }
 
+function dungeonCoordinatesCollide(x: number, z: number, radius: number, secretPassageClosed: boolean): boolean {
+  for (const wall of DUNGEON.walls) {
+    if (Math.abs(x - wall.x) < wall.width / 2 + radius && Math.abs(z - wall.z) < wall.depth / 2 + radius) return true;
+  }
+  for (const pillar of DUNGEON.pillars) {
+    if (Math.abs(x - pillar.x) < 0.55 + radius && Math.abs(z - pillar.z) < 0.55 + radius) return true;
+  }
+  if (!secretPassageClosed) return false;
+  const passage = DUNGEON.secretPassage;
+  return Math.abs(x - passage.x) < passage.width / 2 + radius
+    && Math.abs(z - passage.z) < passage.depth / 2 + radius;
+}
+
 export function dungeonCollides(position: Vec2, radius = 0.38, secretPassageClosed = false): boolean {
-  const walls: WallSpec[] = [
-    ...DUNGEON.walls,
-    ...DUNGEON.pillars.map((pillar) => ({ ...pillar, width: 1.1, depth: 1.1 })),
-    ...(secretPassageClosed ? [DUNGEON.secretPassage] : []),
-  ];
-  return walls.some((wall) =>
-    Math.abs(position.x - wall.x) < wall.width / 2 + radius &&
-    Math.abs(position.z - wall.z) < wall.depth / 2 + radius,
-  );
+  return dungeonCoordinatesCollide(position.x, position.z, radius, secretPassageClosed);
 }
 
 export function encounterPosition(position: Vec2, mirrored: boolean): Vec2 {
@@ -275,11 +280,9 @@ export function dungeonLineOfSight(start: Vec2, target: Vec2, radius = 0.06, sec
   const samples = Math.max(1, Math.ceil(distance / 0.2));
   for (let index = 1; index < samples; index += 1) {
     const progress = index / samples;
-    const point = {
-      x: start.x + (target.x - start.x) * progress,
-      z: start.z + (target.z - start.z) * progress,
-    };
-    if (dungeonCollides(point, radius, secretPassageClosed)) return false;
+    const x = start.x + (target.x - start.x) * progress;
+    const z = start.z + (target.z - start.z) * progress;
+    if (dungeonCoordinatesCollide(x, z, radius, secretPassageClosed)) return false;
   }
   return true;
 }
@@ -290,10 +293,9 @@ export function dungeonProjectileStoneContact(start: Vec2, target: Vec2, radius 
   const samples = Math.max(1, Math.ceil(distance / 0.2));
   for (let index = 0; index <= samples; index += 1) {
     const progress = index / samples;
-    if (dungeonCollides({
-      x: start.x + (target.x - start.x) * progress,
-      z: start.z + (target.z - start.z) * progress,
-    }, radius, secretPassageClosed)) return progress;
+    const x = start.x + (target.x - start.x) * progress;
+    const z = start.z + (target.z - start.z) * progress;
+    if (dungeonCoordinatesCollide(x, z, radius, secretPassageClosed)) return progress;
   }
   return undefined;
 }

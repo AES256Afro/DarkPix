@@ -96,6 +96,7 @@ Status: Complete for the current map
 - Remedy and throwing-weapon HUD summaries scan recovered and packed items into caller-owned records instead of rebuilding and filtering quick-slot arrays every frame
 - Immutable weapon and armor power are calculated once per raid instead of rescanning packed gear on every enemy awareness check, footstep, or projectile impact
 - Wall-flame animation walks a fixed torch registry instead of traversing the full dungeon scene graph every rendered frame
+- Sight and projectile sampling reuse the immutable wall and pillar registries directly instead of rebuilding geometry arrays and point records for every sample
 - Threat awareness reuses targeting vectors, and Warden guidance finds the nearest living target in one allocation-free scan instead of filtering and sorting every frame
 - Player and hostile missiles reuse contact vectors, while player shots find the first living impact in one ordered scan instead of allocating and sorting threat arrays every frame
 - Reduced motion suppresses decorative loading, camera, enemy-step, loot, flame, and portal loops while retaining functional combat telegraphs; pause sleeps continuous rendering and cancels queued audio feedback before it can replay in a later raid state

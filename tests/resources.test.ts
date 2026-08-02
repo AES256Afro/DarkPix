@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
 import { disposeSceneResources } from "../src/game/resources";
 import gameSource from "../src/game/game.ts?raw";
+import dungeonSource from "../src/game/dungeon.ts?raw";
 
 describe("raid resource cleanup", () => {
   it("disposes shared GPU resources exactly once", () => {
@@ -43,5 +44,21 @@ describe("raid resource cleanup", () => {
     expect(gameSource).toContain("this.animatedTorches.push({ flame, light, phase })");
     expect(animateWorld).toContain("for (const torch of this.animatedTorches)");
     expect(animateWorld).not.toContain("this.scene.traverse");
+  });
+
+  it("samples sight and projectile paths without rebuilding dungeon geometry", () => {
+    const collision = dungeonSource.slice(
+      dungeonSource.indexOf("function dungeonCoordinatesCollide"),
+      dungeonSource.indexOf("export function encounterPosition"),
+    );
+    const lineOfSight = dungeonSource.slice(
+      dungeonSource.indexOf("export function dungeonLineOfSight"),
+      dungeonSource.indexOf("export function dungeonProjectilePathClear"),
+    );
+    expect(collision).toContain("for (const wall of DUNGEON.walls)");
+    expect(collision).toContain("for (const pillar of DUNGEON.pillars)");
+    expect(collision).not.toContain("DUNGEON.pillars.map");
+    expect(lineOfSight).toContain("dungeonCoordinatesCollide(x, z");
+    expect(lineOfSight).not.toContain("dungeonCollides({");
   });
 });
