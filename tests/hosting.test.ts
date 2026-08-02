@@ -35,8 +35,8 @@ describe("production asset routing", () => {
 
   it("keeps the HTML shell out of Cloudflare edge storage", () => {
     expect(nginx).toContain('~^/(?:index\\.html)?$ "no-store";');
-    expect(deployScript).toContain("cloudflare-cdn-cache-control:.*no-store");
     expect(deployScript).toContain('cf-cache-status: *HIT');
+    expect(deployScript).toMatch(/cf-cache-status: \*HIT[^\n]+\$public_headers/);
     expect(workflow).toContain("^cloudflare-cdn-cache-control: no-store");
   });
 

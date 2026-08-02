@@ -80,7 +80,7 @@ The deploy script refuses tracked or untracked worktree changes before calculati
 
 Both supported verification clients, curl and wget, must observe HTTP 405 for a write attempt against the public health route before a rollout or rollback is accepted.
 
-The HTML shell revalidates in browsers and carries `Cloudflare-CDN-Cache-Control: no-store`; deployment rejects a cached edge HIT so a new worker cannot be paired with stale navigation HTML.
+The HTML shell revalidates in browsers and the origin supplies `Cloudflare-CDN-Cache-Control: no-store`. Cloudflare consumes that directive, so CI verifies it at the origin while deployment rejects an observable edge HIT; a new worker cannot be paired with stale navigation HTML.
 
 ## Roll back
 
