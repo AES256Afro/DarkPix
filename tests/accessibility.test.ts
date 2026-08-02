@@ -187,6 +187,13 @@ describe("lobby accessibility contracts", () => {
     expect(gameSource).toMatch(/if \(event\.code === "Space"\) event\.preventDefault\(\);[\s\S]+if \(event\.code === "Space" && !event\.repeat\)/);
   });
 
+  it("removes sliding and transition motion from the raid HUD when requested", () => {
+    expect(styles).toContain(".raid-shell.reduced-motion .event-feed.show { animation: feed-show-reduced");
+    expect(styles).toContain("@keyframes feed-show-reduced");
+    expect(styles).toContain(".raid-shell.reduced-motion .damage-direction");
+    expect(styles).toContain(".raid-shell.reduced-motion .bar i { transition: none; }");
+  });
+
   it("exposes held ritual progress and its committed destination semantically", () => {
     const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
     expect(gameSource).toContain('class="extract-meter" role="progressbar"');

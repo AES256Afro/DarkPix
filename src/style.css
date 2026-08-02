@@ -268,6 +268,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .raid-shell[data-raid-mode="iron_soul"] { box-shadow: inset 0 0 120px rgba(155, 18, 14, .28); }
 .raid-shell.reduced-motion .pixel-grid { opacity: .08; }
 .raid-shell.reduced-motion .damage-flash.pulse, .raid-shell.reduced-motion .raid-clock.urgent, .raid-shell.reduced-flashes .damage-flash.pulse, .raid-shell.reduced-flashes .raid-clock.urgent { animation: none; }
+.raid-shell.reduced-motion .event-feed.show { animation: feed-show-reduced 3.4s steps(1, end) both; }
+.raid-shell.reduced-motion .damage-direction, .raid-shell.reduced-motion .sound-direction, .raid-shell.reduced-motion .threat-vitals, .raid-shell.reduced-motion .attack-direction, .raid-shell.reduced-motion .interaction-prompt, .raid-shell.reduced-motion .bar i { transition: none; }
 .raid-shell.reduced-flashes .damage-flash.pulse { opacity: .18; }
 .raid-shell.high-contrast-hud .contract-panel, .raid-shell.high-contrast-hud .objective-panel, .raid-shell.high-contrast-hud .interaction-prompt, .raid-shell.high-contrast-hud .quick-slots > div, .raid-shell.high-contrast-hud .bar { border-color: rgba(232,221,202,.72); background-color: rgba(2,2,2,.94); }
 .raid-shell.high-contrast-hud .contract-panel > .zone-copy, .raid-shell.high-contrast-hud .contract-panel > .journal-copy, .raid-shell.high-contrast-hud .objective-panel > span:last-child, .raid-shell.high-contrast-hud .quick-slots small, .raid-shell.high-contrast-hud .attack-direction, .raid-shell.high-contrast-hud .stealth-cue, .raid-shell.high-contrast-hud .bar span { color: #f0e8dc; opacity: 1; }
@@ -321,6 +323,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .event-feed[data-tone="rival"] { color: #c5829e; }
 .event-feed[data-tone="system"] { color: #75d5cf; }
 @keyframes feed-show { 0% { opacity: 0; transform: translate(-50%,-8px); } 8%, 80% { opacity: 1; transform: translate(-50%,0); } 100% { opacity: 0; } }
+@keyframes feed-show-reduced { 0% { opacity: 1; transform: translate(-50%,0); } 100% { opacity: 0; transform: translate(-50%,0); } }
 .threat-vitals { position: absolute; top: calc(50% - 95px); left: 50%; display: grid; width: 220px; gap: 4px; transform: translateX(-50%); opacity: 0; transition: opacity .16s; text-align: center; text-shadow: 0 2px 5px #000; }
 .threat-vitals.visible { opacity: 1; }
 .threat-vitals strong { color: #c9bbab; font: 800 9px ui-monospace, monospace; letter-spacing: .12em; }
