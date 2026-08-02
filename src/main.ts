@@ -1042,7 +1042,13 @@ function finishRaid(result: RaidResult): void {
 if (profileLoad.status === "incompatible") renderIncompatibleProfileRecovery();
 else renderLobby();
 window.addEventListener("storage", (event) => {
-  if (event.key === RAID_ESCROW_KEY) lockForForeignRaidJournal();
+  if (event.key === RAID_ESCROW_KEY) {
+    if (event.newValue === null && foreignRaidLease) {
+      location.reload();
+      return;
+    }
+    lockForForeignRaidJournal();
+  }
   if (event.key === PROFILE_KEY) refreshIdleProfileFromStorage();
   if (event.key === PREFERENCES_KEY) refreshIdlePreferencesFromStorage();
 });

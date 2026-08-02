@@ -32,6 +32,7 @@ Status: Complete for local-first play
 - Malformed or future active-raid journals stay quarantined behind raw download and explicit two-step discard instead of silently bypassing the raid's risk
 - A 12-second page-owner lease heartbeats every three seconds, preventing another tab from treating a live raid as an interruption or overwriting its escrow
 - Already-open idle tabs observe the shared journal, invalidate pending lobby imports, and enter the same non-destructive lock as soon as another tab begins a leased raid
+- A quarantined idle tab reloads into the durable profile as soon as the owning tab safely removes its settled journal
 - Idle tabs adopt durable profile writes from one another, discard stale sale intent, and keep only packed selections that still exist in the refreshed stash
 - Durable preferences also refresh across tabs only while the lobby is visible, leaving active raids, verdicts, and recovery screens undisturbed
 - An unsecured live or recovered verdict locks mutable lobby state behind a storage retry, while the settled-journal high-water mark prevents an exact or older retained escrow from being applied twice

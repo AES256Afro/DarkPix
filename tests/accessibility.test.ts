@@ -64,6 +64,11 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain("preferences = loadPreferences()");
   });
 
+  it("automatically releases an idle tab after the owning raid clears its journal", () => {
+    expect(mainSource).toContain("event.newValue === null && foreignRaidLease");
+    expect(mainSource).toMatch(/event\.newValue === null && foreignRaidLease[\s\S]+location\.reload\(\);[\s\S]+return;/);
+  });
+
   it("recovers an update prompt after another tab activates its worker", () => {
     expect(mainSource).toContain("const waitingWorker = updateRegistration?.waiting");
     expect(mainSource).toContain("RELOADING APPLIED UPDATE...");
