@@ -133,6 +133,7 @@ The public service accepts only `GET` and `HEAD`; write methods are rejected bef
 - Render-independent 20 Hz HUD refreshes while movement, combat, missiles, traps, and darkness continue at simulation cadence
 - Caller-owned projectile target and impact records with scalar first-contact ordering during missile flight
 - Allocation-free finite-number guards in projectile, masonry, ash-vent, and footstep cadence math
+- Once-per-frame passive awareness and spawn-grace derivation across all active enemies
 - Year-long immutable caching for every content-hashed production asset
 - Canvas-generated nearest-neighbor dungeon textures
 - Web Audio synthesis for the dungeon drone and action feedback

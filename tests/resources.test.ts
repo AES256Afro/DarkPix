@@ -121,4 +121,14 @@ describe("raid resource cleanup", () => {
     expect(footstepCadence).not.toContain(".every(Number.isFinite)");
     expect(dungeonSource).not.toMatch(/dungeonProjectileStoneContact[\s\S]+\.every\(Number\.isFinite\)/);
   });
+
+  it("derives passive enemy awareness once per simulation frame", () => {
+    const updateEnemies = gameSource.slice(gameSource.indexOf("private updateEnemies"), gameSource.indexOf("private resolveBossToll"));
+    const enemyLoop = updateEnemies.indexOf("for (const enemy of this.enemies)");
+    expect(updateEnemies.indexOf("const passiveAcquisitionEnabled")).toBeLessThan(enemyLoop);
+    expect(updateEnemies.indexOf("const awareness = passiveAwarenessRange")).toBeLessThan(enemyLoop);
+    expect(updateEnemies.match(/passiveAwarenessRange\(/g)).toHaveLength(1);
+    expect(updateEnemies.match(/this\.phaseElapsed\(\)/g)).toHaveLength(1);
+    expect(updateEnemies.match(/depthRules\(this\.depth\)/g)).toHaveLength(1);
+  });
 });

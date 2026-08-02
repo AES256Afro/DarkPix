@@ -2293,6 +2293,14 @@ export class DarkPixGame {
 
   private updateEnemies(delta: number): void {
     const player = this.camera.position;
+    const passiveAcquisitionEnabled = this.phaseElapsed() >= depthRules(this.depth).spawnGrace && this.concealmentTimer <= 0;
+    const awareness = passiveAwarenessRange(
+      this.torchLit,
+      this.crouching,
+      this.sprinting,
+      this.moving,
+      this.armorPower,
+    );
     for (const enemy of this.enemies) {
       if (this.ended) return;
       if (!enemy.alive) continue;
@@ -2310,14 +2318,7 @@ export class DarkPixGame {
       const toPlayerX = player.x - enemy.group.position.x;
       const toPlayerZ = player.z - enemy.group.position.z;
       const distance = Math.hypot(toPlayerX, toPlayerZ);
-      const awareness = passiveAwarenessRange(
-        this.torchLit,
-        this.crouching,
-        this.sprinting,
-        this.moving,
-        this.armorPower,
-      );
-      if (this.phaseElapsed() >= depthRules(this.depth).spawnGrace && this.concealmentTimer <= 0 && distance < awareness && this.hasDungeonSightBetween(
+      if (passiveAcquisitionEnabled && distance < awareness && this.hasDungeonSightBetween(
         player.x,
         player.z,
         enemy.group.position.x,
