@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { disposeSceneResources } from "../src/game/resources";
 import gameSource from "../src/game/game.ts?raw";
 import dungeonSource from "../src/game/dungeon.ts?raw";
+import projectileSource from "../src/game/projectile.ts?raw";
+import audioSource from "../src/game/audio.ts?raw";
 
 describe("raid resource cleanup", () => {
   it("disposes shared GPU resources exactly once", () => {
@@ -109,5 +111,14 @@ describe("raid resource cleanup", () => {
     expect(enemyProjectiles).not.toContain("let enemyContact: {");
     expect(playerProjectiles).not.toContain("{ x: previous.x");
     expect(enemyProjectiles).not.toContain("{ x: previous.x");
+  });
+
+  it("validates frame-hot projectile and footstep scalars without temporary arrays", () => {
+    const projectileSweep = projectileSource.slice(projectileSource.indexOf("export function projectileSegmentContact"), projectileSource.indexOf("export function projectileTargetContact"));
+    const footstepCadence = audioSource.slice(audioSource.indexOf("export function footstepCadenceCrossed"), audioSource.indexOf("function createBrowserAudioContext"));
+    expect(projectileSweep).toContain("Number.isFinite(start.x)");
+    expect(projectileSweep).not.toContain(".every(Number.isFinite)");
+    expect(footstepCadence).not.toContain(".every(Number.isFinite)");
+    expect(dungeonSource).not.toMatch(/dungeonProjectileStoneContact[\s\S]+\.every\(Number\.isFinite\)/);
   });
 });

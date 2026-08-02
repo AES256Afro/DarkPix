@@ -288,7 +288,7 @@ export function dungeonLineOfSight(start: Vec2, target: Vec2, radius = 0.06, sec
 }
 
 export function dungeonProjectileStoneContact(start: Vec2, target: Vec2, radius = 0.04, secretPassageClosed = false): number | undefined {
-  if (![start.x, start.z, target.x, target.z, radius].every(Number.isFinite) || radius < 0) return 0;
+  if (!Number.isFinite(start.x) || !Number.isFinite(start.z) || !Number.isFinite(target.x) || !Number.isFinite(target.z) || !Number.isFinite(radius) || radius < 0) return 0;
   const distance = Math.hypot(target.x - start.x, target.z - start.z);
   const samples = Math.max(1, Math.ceil(distance / 0.2));
   for (let index = 0; index <= samples; index += 1) {

@@ -107,7 +107,7 @@ export function projectileImpactConnects(
   currentTarget: Pick<ProjectilePoint, "x" | "z">,
   radius: number,
 ): boolean {
-  if (![committedImpact.x, committedImpact.z, currentTarget.x, currentTarget.z, radius].every(Number.isFinite) || radius < 0) return false;
+  if (!Number.isFinite(committedImpact.x) || !Number.isFinite(committedImpact.z) || !Number.isFinite(currentTarget.x) || !Number.isFinite(currentTarget.z) || !Number.isFinite(radius) || radius < 0) return false;
   return Math.hypot(committedImpact.x - currentTarget.x, committedImpact.z - currentTarget.z) <= radius;
 }
 
@@ -116,7 +116,12 @@ export function projectileSegmentConnects(start: ProjectilePoint, end: Projectil
 }
 
 export function projectileSegmentContact(start: ProjectilePoint, end: ProjectilePoint, target: ProjectilePoint, radius: number): number | undefined {
-  if (![start.x, start.y, start.z, end.x, end.y, end.z, target.x, target.y, target.z, radius].every(Number.isFinite) || radius < 0) return undefined;
+  if (
+    !Number.isFinite(start.x) || !Number.isFinite(start.y) || !Number.isFinite(start.z)
+    || !Number.isFinite(end.x) || !Number.isFinite(end.y) || !Number.isFinite(end.z)
+    || !Number.isFinite(target.x) || !Number.isFinite(target.y) || !Number.isFinite(target.z)
+    || !Number.isFinite(radius) || radius < 0
+  ) return undefined;
   const segmentX = end.x - start.x;
   const segmentY = end.y - start.y;
   const segmentZ = end.z - start.z;
@@ -151,7 +156,11 @@ export function projectileContactPrecedes(contact: number | undefined, competing
 }
 
 export function projectileContactPoint(start: ProjectilePoint, end: ProjectilePoint, contact: number | undefined, target?: ProjectilePoint): ProjectilePoint | undefined {
-  if (![start.x, start.y, start.z, end.x, end.y, end.z, contact].every(Number.isFinite) || contact! < 0 || contact! > 1) return undefined;
+  if (
+    !Number.isFinite(start.x) || !Number.isFinite(start.y) || !Number.isFinite(start.z)
+    || !Number.isFinite(end.x) || !Number.isFinite(end.y) || !Number.isFinite(end.z)
+    || !Number.isFinite(contact) || contact! < 0 || contact! > 1
+  ) return undefined;
   const point = target ?? { x: 0, y: 0, z: 0 };
   point.x = start.x + (end.x - start.x) * contact!;
   point.y = start.y + (end.y - start.y) * contact!;

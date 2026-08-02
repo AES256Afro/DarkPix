@@ -71,7 +71,7 @@ export const ASH_VENTS = [
 ] satisfies AshVentSpec[];
 
 export function ashVentHits(origin: { x: number; z: number }, target: { x: number; z: number }, radius = ASH_VENT_RADIUS): boolean {
-  if (![origin.x, origin.z, target.x, target.z, radius].every(Number.isFinite) || radius < 0) return false;
+  if (!Number.isFinite(origin.x) || !Number.isFinite(origin.z) || !Number.isFinite(target.x) || !Number.isFinite(target.z) || !Number.isFinite(radius) || radius < 0) return false;
   return Math.hypot(target.x - origin.x, target.z - origin.z) <= radius;
 }
 

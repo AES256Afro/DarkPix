@@ -104,6 +104,7 @@ Status: Complete for the current map
 - Player and threat collision plus floor and dart-trap scans use early-exit loops and scalar overlap math instead of allocating frame-hot callbacks and coordinate pairs
 - Combat and hazard simulation remain frame-rate driven while inventory summaries, wayfinding, bars, countdown text, and transient visibility refresh at a bounded 20 Hz
 - Projectile flight keeps first-contact progress in scalars and reuses target and impact records instead of constructing collision-result objects while missiles cross a frame
+- Projectile sweeps, masonry samples, ash-vent range checks, and movement cadence use direct finite-number guards instead of temporary validation arrays
 - Threat awareness reuses targeting vectors, and Warden guidance finds the nearest living target in one allocation-free scan instead of filtering and sorting every frame
 - Player and hostile missiles reuse contact vectors, while player shots find the first living impact in one ordered scan instead of allocating and sorting threat arrays every frame
 - Reduced motion suppresses decorative loading, camera, enemy-step, loot, flame, and portal loops while retaining functional combat telegraphs; pause sleeps continuous rendering and cancels queued audio feedback before it can replay in a later raid state

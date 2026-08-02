@@ -3,7 +3,7 @@ import type { ThreatKind } from "./types";
 export type AudioContextFactory = () => AudioContext | undefined;
 
 export function footstepCadenceCrossed(previousDistance: number, currentDistance: number, strideLength: number): boolean {
-  if (![previousDistance, currentDistance, strideLength].every(Number.isFinite) || previousDistance < 0 || currentDistance < previousDistance || strideLength <= 0) return false;
+  if (!Number.isFinite(previousDistance) || !Number.isFinite(currentDistance) || !Number.isFinite(strideLength) || previousDistance < 0 || currentDistance < previousDistance || strideLength <= 0) return false;
   return Math.floor(previousDistance / strideLength) < Math.floor(currentDistance / strideLength);
 }
 

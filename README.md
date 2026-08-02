@@ -132,6 +132,7 @@ The public service accepts only `GET` and `HEAD`; write methods are rejected bef
 - Early-exit scalar collision and trap scans for frame-hot delver, threat, floor-spike, and wall-dart checks
 - Render-independent 20 Hz HUD refreshes while movement, combat, missiles, traps, and darkness continue at simulation cadence
 - Caller-owned projectile target and impact records with scalar first-contact ordering during missile flight
+- Allocation-free finite-number guards in projectile, masonry, ash-vent, and footstep cadence math
 - Year-long immutable caching for every content-hashed production asset
 - Canvas-generated nearest-neighbor dungeon textures
 - Web Audio synthesis for the dungeon drone and action feedback
