@@ -304,6 +304,21 @@ describe("migrating darkness", () => {
     expect(cardinalDirection(directionToZoneCenter({ x: 8, z: -1 }, zone))).toBe("NW");
   });
 
+  it("can update caller-owned darkness records without changing their identity", () => {
+    const zone = { progress: 0, center: { x: 0, z: 0 }, radius: 0 };
+    const center = zone.center;
+    const updated = zoneState(115, 210, DUNGEON.portal, zone);
+    const direction = { x: 0, z: 0 };
+    expect(updated).toBe(zone);
+    expect(updated.center).toBe(center);
+    expect(updated.progress).toBeGreaterThan(0);
+    expect(directionToZoneCenter(DUNGEON.playerStart, updated, direction)).toBe(direction);
+    expect(direction).toEqual({
+      x: updated.center.x - DUNGEON.playerStart.x,
+      z: updated.center.z - DUNGEON.playerStart.z,
+    });
+  });
+
   it("paces darkness damage independently from ordinary hit recovery", () => {
     expect(DARKNESS_PULSE_SECONDS).toBe(0.32);
     expect(darknessPulseReady(0.1, 0)).toBe(true);

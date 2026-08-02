@@ -68,4 +68,13 @@ describe("raid resource cleanup", () => {
     expect(gameSource).toContain("private hasDungeonSightBetween(");
     expect(gameSource).not.toMatch(/this\.hasDungeonSight\(\s*\{ x:/);
   });
+
+  it("updates darkness geometry in raid-owned scratch state", () => {
+    const updateZone = gameSource.slice(gameSource.indexOf("private updateZone"), gameSource.indexOf("private updateInteraction"));
+    expect(gameSource).toContain("private readonly scratchZone: ZoneState");
+    expect(updateZone).toContain("this.scratchZone");
+    expect(updateZone).toContain("this.scratchDirection");
+    expect(updateZone).not.toContain("distanceOutsideZone");
+    expect(updateZone).not.toContain("{ x: this.camera.position.x");
+  });
 });

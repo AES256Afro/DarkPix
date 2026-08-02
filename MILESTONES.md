@@ -98,6 +98,7 @@ Status: Complete for the current map
 - Wall-flame animation walks a fixed torch registry instead of traversing the full dungeon scene graph every rendered frame
 - Sight and projectile sampling reuse the immutable wall and pillar registries directly instead of rebuilding geometry arrays and point records for every sample
 - Repeated threat, rival, ability, attack, and stealth sight checks write through two raid-owned coordinate records instead of creating caller-side point pairs
+- Migrating darkness updates one raid-owned zone record, measures player distance once, and reuses the direction scratch record only when the delver is outside safety
 - Threat awareness reuses targeting vectors, and Warden guidance finds the nearest living target in one allocation-free scan instead of filtering and sorting every frame
 - Player and hostile missiles reuse contact vectors, while player shots find the first living impact in one ordered scan instead of allocating and sorting threat arrays every frame
 - Reduced motion suppresses decorative loading, camera, enemy-step, loot, flame, and portal loops while retaining functional combat telegraphs; pause sleeps continuous rendering and cancels queued audio feedback before it can replay in a later raid state

@@ -23,7 +23,7 @@ import { channelCommitmentLabel, channelInterruptionReason, continuousHold, held
 import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, enemyProjectileTargetsThreat, playerProjectileDuration, playerProjectilePosition, projectileContactPoint, projectileContactPrecedes, projectileSegmentContact, projectileStoneOutcome, projectileTargetContact, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
 import { advanceJournalRetry } from "./persistence";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
-import { DARKNESS_PULSE_SECONDS, darknessPulseReady, directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "./zone";
+import { DARKNESS_PULSE_SECONDS, darknessPulseReady, directionToZoneCenter, distanceFromZoneCenter, zoneState, type ZoneState } from "./zone";
 
 interface WallCollider {
   x: number;
@@ -230,6 +230,7 @@ export class DarkPixGame {
   private readonly scratchInteractionTarget: Vec2 = { x: 0, z: 0 };
   private readonly scratchSightStart: Vec2 = { x: 0, z: 0 };
   private readonly scratchSightTarget: Vec2 = { x: 0, z: 0 };
+  private readonly scratchZone: ZoneState = { progress: 0, center: { x: 0, z: 0 }, radius: 0 };
   private readonly audio: AudioDirector;
   private readonly lifecycleTimers = new LifecycleTimers();
   private readonly keys = new Set<string>();
@@ -3081,11 +3082,11 @@ export class DarkPixGame {
   private updateZone(_delta: number): void {
     const floorRules = depthRules(this.depth);
     const floorElapsed = this.phaseElapsed();
-    const zone = zoneState(floorElapsed, floorRules.duration, this.portalSite);
-    const distance = distanceFromZoneCenter({ x: this.camera.position.x, z: this.camera.position.z }, zone);
-    const outsideDistance = distanceOutsideZone({ x: this.camera.position.x, z: this.camera.position.z }, zone);
+    const zone = zoneState(floorElapsed, floorRules.duration, this.portalSite, this.scratchZone);
+    const distance = distanceFromZoneCenter(this.camera.position, zone);
+    const outsideDistance = Math.max(0, distance - Math.max(0, zone.radius));
     setTextIfChanged(this.zoneHud, outsideDistance > 0
-      ? `DARK · ${Math.ceil(outsideDistance)}m out · ${cardinalDirection(directionToZoneCenter(this.camera.position, zone))} to safety`
+      ? `DARK · ${Math.ceil(outsideDistance)}m out · ${cardinalDirection(directionToZoneCenter(this.camera.position, zone, this.scratchDirection))} to safety`
       : floorElapsed < floorRules.spawnGrace
       ? `warding veil ${Math.ceil(floorRules.spawnGrace - floorElapsed)}s`
       : zone.progress === 0
