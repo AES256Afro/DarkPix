@@ -5,7 +5,7 @@ ENV VITE_DARKPIX_VERSION=$DARKPIX_RELEASE
 
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 COPY index.html tsconfig.json vite.config.ts ./
 COPY public ./public

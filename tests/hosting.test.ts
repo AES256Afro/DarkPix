@@ -71,6 +71,13 @@ describe("production asset routing", () => {
     expect(actionUses.every((entry) => /uses: actions\/[a-z-]+@[a-f0-9]{40} # v\d+$/.test(entry))).toBe(true);
   });
 
+  it("does not run dependency lifecycle scripts in CI or image builds", () => {
+    expect(workflow).toContain("npm ci --ignore-scripts");
+    expect(dockerfile).toContain("RUN npm ci --ignore-scripts");
+    expect(workflow).not.toMatch(/- run: npm ci\s*$/m);
+    expect(dockerfile).not.toMatch(/^RUN npm ci\s*$/m);
+  });
+
   it("bounds public access-log growth inside the DarkPix service", () => {
     expect(compose).toMatch(/logging:\s+driver: json-file\s+options:\s+max-size: "10m"\s+max-file: "3"/);
   });

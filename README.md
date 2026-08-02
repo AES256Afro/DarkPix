@@ -110,7 +110,7 @@ The automated release gate covers dependency advisories, loot rarity, determinis
 
 The repository includes a hardened Docker and Nginx deployment for BigBox. It binds only to `127.0.0.1:8092`, joins the existing private Cloudflare Tunnel network without copying or exposing the tunnel token, and requires each public route to expose non-cacheable live health plus a version endpoint matching the deployed commit. Host-scoped one-year HSTS enforces HTTPS without making assumptions about unrelated subdomains, and both CI and the release script verify the header. See [DEPLOY_BIGBOX.md](./DEPLOY_BIGBOX.md) for health checks, Cloudflare routes, updates, and rollback.
 
-The CI runner uses immutable commit identities for its official checkout and Node setup actions, alongside digest-pinned production images and the dependency advisory gate.
+The CI runner uses immutable commit identities for its official checkout and Node setup actions, alongside digest-pinned production images and the dependency advisory gate. CI and image builds also suppress third-party dependency lifecycle scripts before testing and compilation.
 
 ## Technology
 
