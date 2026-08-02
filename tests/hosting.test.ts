@@ -17,6 +17,7 @@ describe("production asset routing", () => {
     expect(deployScript).toContain("rollback_previous_release()");
     expect(deployScript).toContain("docker image tag darkpix-web:rollback darkpix-web:local");
     expect(deployScript).toContain("docker compose up -d --no-build --force-recreate darkpix");
+    expect(deployScript.match(/docker image rm darkpix-web:rollback/g)?.length).toBe(2);
     expect(deployScript.match(/rollback_previous_release \|\| true/g)?.length).toBeGreaterThanOrEqual(4);
   });
 });

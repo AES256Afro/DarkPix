@@ -63,6 +63,7 @@ rollback_previous_release() {
         return 1
       fi
       echo "Automatic rollback restored loopback release $restored_release." >&2
+      docker image rm darkpix-web:rollback >/dev/null 2>&1 || true
       return 0
     fi
     sleep 1
