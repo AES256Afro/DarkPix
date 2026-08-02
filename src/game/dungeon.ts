@@ -142,10 +142,11 @@ export function selectRaidVariation(seed: number): RaidVariation {
   };
 }
 
-export function dungeonCollides(position: Vec2, radius = 0.38): boolean {
+export function dungeonCollides(position: Vec2, radius = 0.38, secretPassageClosed = false): boolean {
   const walls: WallSpec[] = [
     ...DUNGEON.walls,
     ...DUNGEON.pillars.map((pillar) => ({ ...pillar, width: 1.1, depth: 1.1 })),
+    ...(secretPassageClosed ? [DUNGEON.secretPassage] : []),
   ];
   return walls.some((wall) =>
     Math.abs(position.x - wall.x) < wall.width / 2 + radius &&
@@ -161,7 +162,7 @@ function snap(value: number, step: number): number {
   return Math.round(value / step) * step;
 }
 
-function nearestOpenGridPoint(point: Vec2, radius: number, step: number): Vec2 | undefined {
+function nearestOpenGridPoint(point: Vec2, radius: number, step: number, secretPassageClosed: boolean): Vec2 | undefined {
   const half = DUNGEON.size / 2;
   const snapped = { x: snap(point.x, step), z: snap(point.z, step) };
   for (let ring = 0; ring <= 4; ring += 1) {
@@ -172,7 +173,7 @@ function nearestOpenGridPoint(point: Vec2, radius: number, step: number): Vec2 |
           x: snapped.x + xOffset * step,
           z: snapped.z + zOffset * step,
         };
-        if (Math.abs(candidate.x) > half || Math.abs(candidate.z) > half || dungeonCollides(candidate, radius)) continue;
+        if (Math.abs(candidate.x) > half || Math.abs(candidate.z) > half || dungeonCollides(candidate, radius, secretPassageClosed)) continue;
         return candidate;
       }
     }
@@ -180,7 +181,7 @@ function nearestOpenGridPoint(point: Vec2, radius: number, step: number): Vec2 |
   return undefined;
 }
 
-function simplifyPath(start: Vec2, path: Vec2[], radius: number): Vec2[] {
+function simplifyPath(start: Vec2, path: Vec2[], radius: number, secretPassageClosed: boolean): Vec2[] {
   const simplified: Vec2[] = [];
   let anchor = start;
   let cursor = 0;
@@ -188,7 +189,7 @@ function simplifyPath(start: Vec2, path: Vec2[], radius: number): Vec2[] {
     let farthest = cursor;
     for (let candidate = path.length - 1; candidate > cursor; candidate -= 1) {
       const target = path[candidate];
-      if (target && dungeonLineOfSight(anchor, target, radius)) {
+      if (target && dungeonLineOfSight(anchor, target, radius, secretPassageClosed)) {
         farthest = candidate;
         break;
       }
@@ -202,9 +203,9 @@ function simplifyPath(start: Vec2, path: Vec2[], radius: number): Vec2[] {
   return simplified;
 }
 
-export function dungeonPath(start: Vec2, target: Vec2, radius = 0.3, step = 0.5): Vec2[] {
-  const origin = nearestOpenGridPoint(start, radius, step);
-  const destination = nearestOpenGridPoint(target, radius, step);
+export function dungeonPath(start: Vec2, target: Vec2, radius = 0.3, step = 0.5, secretPassageClosed = false): Vec2[] {
+  const origin = nearestOpenGridPoint(start, radius, step, secretPassageClosed);
+  const destination = nearestOpenGridPoint(target, radius, step, secretPassageClosed);
   if (!origin || !destination) return [];
 
   const key = (point: Vec2) => `${point.x.toFixed(2)}:${point.z.toFixed(2)}`;
@@ -244,15 +245,15 @@ export function dungeonPath(start: Vec2, target: Vec2, radius = 0.3, step = 0.5)
         if (point && backtrackKey !== originKey) path.push(point);
       }
       path.reverse();
-      if (!dungeonCollides(target, radius)) path[path.length - 1] = { ...target };
-      return simplifyPath(start, path, radius);
+      if (!dungeonCollides(target, radius, secretPassageClosed)) path[path.length - 1] = { ...target };
+      return simplifyPath(start, path, radius, secretPassageClosed);
     }
 
     open.delete(currentKey);
     const currentCost = cost.get(currentKey) ?? Number.POSITIVE_INFINITY;
     for (const [dx, dz] of [[step, 0], [-step, 0], [0, step], [0, -step]] as const) {
       const next = { x: current.x + dx, z: current.z + dz };
-      if (Math.abs(next.x) > half || Math.abs(next.z) > half || dungeonCollides(next, radius)) continue;
+      if (Math.abs(next.x) > half || Math.abs(next.z) > half || dungeonCollides(next, radius, secretPassageClosed)) continue;
       const nextKey = key(next);
       const nextCost = currentCost + step;
       if (nextCost >= (cost.get(nextKey) ?? Number.POSITIVE_INFINITY)) continue;
@@ -265,11 +266,11 @@ export function dungeonPath(start: Vec2, target: Vec2, radius = 0.3, step = 0.5)
   return [];
 }
 
-export function dungeonPathExists(start: Vec2, target: Vec2, radius = 0.38, step = 0.5): boolean {
-  return dungeonPath(start, target, radius, step).length > 0;
+export function dungeonPathExists(start: Vec2, target: Vec2, radius = 0.38, step = 0.5, secretPassageClosed = false): boolean {
+  return dungeonPath(start, target, radius, step, secretPassageClosed).length > 0;
 }
 
-export function dungeonLineOfSight(start: Vec2, target: Vec2, radius = 0.06): boolean {
+export function dungeonLineOfSight(start: Vec2, target: Vec2, radius = 0.06, secretPassageClosed = false): boolean {
   const distance = Math.hypot(target.x - start.x, target.z - start.z);
   const samples = Math.max(1, Math.ceil(distance / 0.2));
   for (let index = 1; index < samples; index += 1) {
@@ -278,12 +279,12 @@ export function dungeonLineOfSight(start: Vec2, target: Vec2, radius = 0.06): bo
       x: start.x + (target.x - start.x) * progress,
       z: start.z + (target.z - start.z) * progress,
     };
-    if (dungeonCollides(point, radius)) return false;
+    if (dungeonCollides(point, radius, secretPassageClosed)) return false;
   }
   return true;
 }
 
-export function dungeonProjectileStoneContact(start: Vec2, target: Vec2, radius = 0.04): number | undefined {
+export function dungeonProjectileStoneContact(start: Vec2, target: Vec2, radius = 0.04, secretPassageClosed = false): number | undefined {
   if (![start.x, start.z, target.x, target.z, radius].every(Number.isFinite) || radius < 0) return 0;
   const distance = Math.hypot(target.x - start.x, target.z - start.z);
   const samples = Math.max(1, Math.ceil(distance / 0.2));
@@ -292,13 +293,13 @@ export function dungeonProjectileStoneContact(start: Vec2, target: Vec2, radius 
     if (dungeonCollides({
       x: start.x + (target.x - start.x) * progress,
       z: start.z + (target.z - start.z) * progress,
-    }, radius)) return progress;
+    }, radius, secretPassageClosed)) return progress;
   }
   return undefined;
 }
 
-export function dungeonProjectilePathClear(start: Vec2, target: Vec2, radius = 0.04): boolean {
-  return dungeonProjectileStoneContact(start, target, radius) === undefined;
+export function dungeonProjectilePathClear(start: Vec2, target: Vec2, radius = 0.04, secretPassageClosed = false): boolean {
+  return dungeonProjectileStoneContact(start, target, radius, secretPassageClosed) === undefined;
 }
 
 export function dartTrapTargetDistance(origin: Vec2, direction: Vec2, range: number, target: Vec2, laneRadius = 0.5): number {

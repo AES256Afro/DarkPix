@@ -37,8 +37,14 @@ describe("Crypt of the Pale Toll topology", () => {
   it("keeps the hidden reliquary alcove sealed by one discoverable gap", () => {
     const passage = DUNGEON.secretPassage;
     const outside = { x: passage.x + 1.5, z: passage.z };
+    const inside = { x: passage.x - 1.5, z: passage.z };
     expect(dungeonCollides(passage, 0.1)).toBe(false);
+    expect(dungeonCollides(passage, 0.1, true)).toBe(true);
     expect(dungeonPathExists(outside, DUNGEON.shrine, 0.3)).toBe(true);
+    expect(dungeonPathExists(outside, DUNGEON.shrine, 0.3, 0.5, true)).toBe(false);
+    expect(dungeonLineOfSight(outside, inside, 0.04)).toBe(true);
+    expect(dungeonLineOfSight(outside, inside, 0.04, true)).toBe(false);
+    expect(dungeonProjectileStoneContact(outside, inside, 0.04, true)).toBeDefined();
     expect(DUNGEON.walls.some((wall) => wall.x === passage.x && wall.z < passage.z)).toBe(true);
     expect(DUNGEON.walls.some((wall) => wall.x === passage.x && wall.z > passage.z)).toBe(true);
   });
