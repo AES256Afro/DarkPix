@@ -14,6 +14,9 @@ export class AudioDirector {
   private master?: GainNode;
   private drone?: OscillatorNode;
   private droneGain?: GainNode;
+  private playbackAllowed = false;
+  private playbackEpoch = 0;
+  private readonly delayedTones = new Set<ReturnType<typeof globalThis.setTimeout>>();
   private readonly volume: number;
 
   constructor(
@@ -26,9 +29,14 @@ export class AudioDirector {
 
   start(): void {
     if (!this.enabled) return;
+    const epoch = ++this.playbackEpoch;
     if (this.context) {
-      if (this.context.state !== "closed") void this.context.resume().catch(() => undefined);
-      return;
+      if (this.context.state !== "closed") {
+        this.playbackAllowed = true;
+        this.resumeContext(this.context, epoch);
+        return;
+      }
+      this.releaseGraph();
     }
     const context = this.contextFactory();
     if (!context) return;
@@ -47,34 +55,45 @@ export class AudioDirector {
       this.master = master;
       this.drone = drone;
       this.droneGain = droneGain;
-      if (context.state !== "running") void context.resume().catch(() => undefined);
+      this.playbackAllowed = true;
+      this.resumeContext(context, epoch);
     } catch {
+      this.playbackAllowed = false;
       void context.close().catch(() => undefined);
     }
   }
 
   pause(): void {
-    if (this.context?.state === "running") void this.context.suspend().catch(() => undefined);
+    this.playbackEpoch += 1;
+    this.playbackAllowed = false;
+    this.clearDelayedTones();
+    if (this.context && this.context.state !== "closed") {
+      void this.context.suspend().catch(() => undefined);
+    }
   }
 
   tone(frequency: number, duration = 0.09, type: OscillatorType = "square", volume = 0.11): void {
-    if (!this.enabled) return;
+    if (!this.enabled || !this.playbackAllowed) return;
     if (!this.context || !this.master) return;
-    const now = this.context.currentTime;
-    const oscillator = this.context.createOscillator();
-    const gain = this.context.createGain();
-    oscillator.type = type;
-    oscillator.frequency.setValueAtTime(frequency, now);
-    oscillator.frequency.exponentialRampToValueAtTime(Math.max(24, frequency * 0.7), now + duration);
-    gain.gain.setValueAtTime(volume, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-    oscillator.connect(gain).connect(this.master);
-    oscillator.onended = () => {
-      oscillator.disconnect();
-      gain.disconnect();
-    };
-    oscillator.start(now);
-    oscillator.stop(now + duration);
+    try {
+      const now = this.context.currentTime;
+      const oscillator = this.context.createOscillator();
+      const gain = this.context.createGain();
+      oscillator.type = type;
+      oscillator.frequency.setValueAtTime(frequency, now);
+      oscillator.frequency.exponentialRampToValueAtTime(Math.max(24, frequency * 0.7), now + duration);
+      gain.gain.setValueAtTime(volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      oscillator.connect(gain).connect(this.master);
+      oscillator.onended = () => {
+        oscillator.disconnect();
+        gain.disconnect();
+      };
+      oscillator.start(now);
+      oscillator.stop(now + duration);
+    } catch {
+      // Browser audio may disappear during a tab or device lifecycle change.
+    }
   }
 
   attack(): void {
@@ -86,13 +105,15 @@ export class AudioDirector {
   }
 
   loot(): void {
+    if (!this.playbackAllowed) return;
     this.tone(390, 0.08, "sine", 0.12);
-    window.setTimeout(() => this.tone(585, 0.12, "sine", 0.1), 65);
+    this.delayTone(() => this.tone(585, 0.12, "sine", 0.1), 65);
   }
 
   portal(): void {
+    if (!this.playbackAllowed) return;
     this.tone(180, 0.35, "sine", 0.12);
-    window.setTimeout(() => this.tone(360, 0.5, "sine", 0.1), 160);
+    this.delayTone(() => this.tone(360, 0.5, "sine", 0.1), 160);
   }
 
   danger(): void {
@@ -100,15 +121,44 @@ export class AudioDirector {
   }
 
   stop(): void {
+    this.playbackEpoch += 1;
+    this.playbackAllowed = false;
+    this.clearDelayedTones();
     try {
       this.drone?.stop();
     } catch {
       // The context may already have ended after a browser lifecycle interruption.
     }
+    void this.context?.close().catch(() => undefined);
+    this.releaseGraph();
+  }
+
+  private resumeContext(context: AudioContext, epoch: number): void {
+    if (context.state === "running") return;
+    void context.resume().catch(() => {
+      if (this.context !== context || this.playbackEpoch !== epoch) return;
+      this.playbackAllowed = false;
+      this.clearDelayedTones();
+    });
+  }
+
+  private delayTone(callback: () => void, delay: number): void {
+    const timer = globalThis.setTimeout(() => {
+      this.delayedTones.delete(timer);
+      if (this.playbackAllowed) callback();
+    }, delay);
+    this.delayedTones.add(timer);
+  }
+
+  private clearDelayedTones(): void {
+    for (const timer of this.delayedTones) globalThis.clearTimeout(timer);
+    this.delayedTones.clear();
+  }
+
+  private releaseGraph(): void {
     this.drone?.disconnect();
     this.droneGain?.disconnect();
     this.master?.disconnect();
-    void this.context?.close().catch(() => undefined);
     this.context = undefined;
     this.master = undefined;
     this.drone = undefined;

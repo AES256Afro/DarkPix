@@ -52,6 +52,7 @@ describe("raid audio lifecycle", () => {
     harness.context.state = "running";
     audio.pause();
     expect(harness.context.suspend).toHaveBeenCalledOnce();
+    harness.context.state = "suspended";
     audio.start();
     expect(factory).toHaveBeenCalledTimes(1);
     expect(harness.context.resume).toHaveBeenCalledTimes(2);
@@ -69,5 +70,66 @@ describe("raid audio lifecycle", () => {
     const fallback = audioHarness();
     new AudioDirector(true, Number.NaN, () => fallback.context as unknown as AudioContext).start();
     expect(fallback.master.gain.value).toBe(0.18);
+  });
+
+  it("cancels queued feedback when the raid pauses or stops", () => {
+    vi.useFakeTimers();
+    try {
+      const harness = audioHarness();
+      const audio = new AudioDirector(true, 1, () => harness.context as unknown as AudioContext);
+      audio.start();
+      harness.context.state = "running";
+      audio.loot();
+      expect(harness.context.createOscillator).toHaveBeenCalledTimes(2);
+      audio.pause();
+      vi.advanceTimersByTime(200);
+      expect(harness.context.createOscillator).toHaveBeenCalledTimes(2);
+
+      harness.context.state = "suspended";
+      audio.start();
+      audio.portal();
+      expect(harness.context.createOscillator).toHaveBeenCalledTimes(3);
+      vi.advanceTimersByTime(160);
+      expect(harness.context.createOscillator).toHaveBeenCalledTimes(4);
+      audio.stop();
+      audio.loot();
+      vi.runAllTimers();
+      expect(harness.context.createOscillator).toHaveBeenCalledTimes(4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("rebuilds audio after the browser closes its context", () => {
+    const first = audioHarness();
+    const second = audioHarness();
+    const factory = vi.fn()
+      .mockReturnValueOnce(first.context as unknown as AudioContext)
+      .mockReturnValueOnce(second.context as unknown as AudioContext);
+    const audio = new AudioDirector(true, 1, factory);
+    audio.start();
+    first.context.state = "closed";
+    audio.start();
+    expect(factory).toHaveBeenCalledTimes(2);
+    expect(first.master.disconnect).toHaveBeenCalledOnce();
+    expect(second.oscillator.start).toHaveBeenCalledOnce();
+  });
+
+  it("ignores an old resume failure after a newer playback request", async () => {
+    const harness = audioHarness();
+    let rejectFirstResume: (reason?: unknown) => void = () => undefined;
+    harness.context.resume = vi.fn()
+      .mockImplementationOnce(() => new Promise<void>((_resolve, reject) => {
+        rejectFirstResume = reject;
+      }))
+      .mockResolvedValue(undefined);
+    const audio = new AudioDirector(true, 1, () => harness.context as unknown as AudioContext);
+    audio.start();
+    audio.pause();
+    audio.start();
+    rejectFirstResume(new Error("superseded browser request"));
+    await Promise.resolve();
+    audio.attack();
+    expect(harness.context.createOscillator).toHaveBeenCalledTimes(2);
   });
 });
