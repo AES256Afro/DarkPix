@@ -56,12 +56,23 @@ function responseMatchesCacheKey(cacheKey, response) {
   return false;
 }
 
+async function responseMatchesCurrentReleaseShell(response) {
+  if (!responseMatchesCacheKey("/", response)) return false;
+  try {
+    const html = await response.clone().text();
+    return html.includes(`<meta name="darkpix-release" content="${RELEASE_ID}"`);
+  } catch {
+    return false;
+  }
+}
+
 async function cacheBuildAssets() {
   const cache = await caches.open(CACHE_NAME);
   await cache.addAll(SHELL_URLS);
   const shell = await cache.match("/");
   if (!shell) throw new Error("Release shell is missing from its offline cache");
   if (!responseMatchesCacheKey("/", shell)) throw new Error("Release shell has an invalid content type");
+  if (!(await responseMatchesCurrentReleaseShell(shell))) throw new Error("Release shell belongs to another release");
   for (const shellUrl of SHELL_URLS) {
     const response = shellUrl === "/" ? shell : await cache.match(shellUrl);
     if (!response) throw new Error(`Release shell asset is missing: ${shellUrl}`);
@@ -132,7 +143,9 @@ self.addEventListener("fetch", (event) => {
       try {
         const response = await fetch(request);
         if (response.ok && cacheKey && responseMatchesCacheKey(cacheKey, response)) {
-          await updateCurrentCache(cacheKey, response.clone());
+          if (cacheKey !== "/" || await responseMatchesCurrentReleaseShell(response)) {
+            await updateCurrentCache(cacheKey, response.clone());
+          }
           return response;
         }
         const cached = cacheKey ? await matchCurrentCache(cacheKey) : undefined;

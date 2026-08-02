@@ -19,6 +19,7 @@ Status: Complete
 - Standard, High Toll, and Iron Soul contracts with distinct loss and reward rules
 - Raid teardown owns and cancels delayed audio, transient visual, and verdict callbacks before renderer disposal
 - Offline fallbacks and runtime writes stay inside the active release's bounded shell and hashed-asset paths, quoted build imports and CSS asset URLs are walked recursively, cache-write failure preserves valid network responses, incomplete install graphs are rejected and cleaned, and the worker script bypasses runtime caching
+- Every HTML shell identifies its build; workers reject a mismatched install shell and never overwrite an intact older offline fallback with newer navigation HTML before activation
 
 Exit evidence: automated domain tests, production TypeScript build, container health, and exact public release checks.
 

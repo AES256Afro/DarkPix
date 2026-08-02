@@ -3,6 +3,8 @@ import manifestSource from "../public/manifest.webmanifest?raw";
 import worker from "../public/sw.js?raw";
 import indexSource from "../index.html?raw";
 
+const releaseShellHtml = (release: string, body = ""): string => `<meta name="darkpix-release" content="${release}">${body}`;
+
 describe("installable offline shell", () => {
   it("publishes a scoped standalone game manifest", () => {
     const manifest = JSON.parse(manifestSource) as Record<string, unknown>;
@@ -11,6 +13,7 @@ describe("installable offline shell", () => {
     expect(JSON.stringify(manifest.icons)).toContain("/darkpix-icon.svg?v=app");
     expect(indexSource).toContain("/manifest.webmanifest?v=%VITE_DARKPIX_VERSION%");
     expect(indexSource).toContain("/darkpix-icon.svg?v=%VITE_DARKPIX_VERSION%");
+    expect(indexSource).toContain('<meta name="darkpix-release" content="%VITE_DARKPIX_VERSION%"');
   });
 
   it("keeps release identity online while caching the playable shell", () => {
@@ -23,6 +26,7 @@ describe("installable offline shell", () => {
     expect(worker).toContain("encodeURIComponent(RELEASE_ID)");
     expect(worker).toContain('throw new Error("Release shell is missing from its offline cache")');
     expect(worker).toContain('throw new Error("Release shell has an invalid content type")');
+    expect(worker).toContain('throw new Error("Release shell belongs to another release")');
     expect(worker).toContain("Release shell asset is missing:");
     expect(worker).toContain("Release shell asset has an invalid content type:");
     expect(worker).toContain("Refused invalid content type");
@@ -78,12 +82,47 @@ describe("installable offline shell", () => {
     expect(deleteCache).toHaveBeenCalledWith("darkpix-runtime-broken-release");
   });
 
+  it("rejects and cleans an install shell from a different release", async () => {
+    const handlers = new Map<string, (event: { waitUntil(promise: Promise<unknown>): void }) => void>();
+    const shell = {
+      url: "https://darkpix.test/",
+      headers: { get: (name: string) => name === "content-type" ? "text/html" : null },
+      clone: () => ({ text: async () => releaseShellHtml("newer-release", '<script src="/assets/app.js"></script>') }),
+    };
+    const fixedAssets = new Map<string, unknown>([
+      ["/", shell],
+      ["/manifest.webmanifest", { headers: { get: () => "application/manifest+json" } }],
+      ["/darkpix-icon.svg", { headers: { get: () => "image/svg+xml" } }],
+      ["/assets/darkpix-title.jpg", { headers: { get: () => "image/jpeg" } }],
+    ]);
+    const cache = {
+      addAll: vi.fn(async () => undefined),
+      match: vi.fn(async (key: string) => fixedAssets.get(new URL(key, "https://darkpix.test").pathname)),
+      put: vi.fn(async () => undefined),
+    };
+    const deleteCache = vi.fn(async () => true);
+    const workerScope = {
+      location: { href: "https://darkpix.test/sw.js?v=expected-release", origin: "https://darkpix.test" },
+      clients: { claim: vi.fn(async () => undefined) },
+      skipWaiting: vi.fn(async () => undefined),
+      addEventListener: (name: string, handler: (event: { waitUntil(promise: Promise<unknown>): void }) => void) => handlers.set(name, handler),
+    };
+    const cacheStorage = { open: vi.fn(async () => cache), keys: vi.fn(async () => []), delete: deleteCache };
+    new Function("self", "caches", "fetch", worker)(workerScope, cacheStorage, vi.fn());
+    let installation: Promise<unknown> | undefined;
+    handlers.get("install")?.({ waitUntil: (promise) => { installation = promise; } });
+
+    await expect(installation).rejects.toThrow("Release shell belongs to another release");
+    expect(cache.put).not.toHaveBeenCalled();
+    expect(deleteCache).toHaveBeenCalledWith("darkpix-runtime-expected-release");
+  });
+
   it("walks quoted build imports and unquoted CSS asset URLs", async () => {
     const handlers = new Map<string, (event: { waitUntil(promise: Promise<unknown>): void }) => void>();
     const shell = {
       url: "https://darkpix.test/",
       headers: { get: (name: string) => name === "content-type" ? "text/html" : null },
-      clone: () => ({ text: async () => '<link href="/assets/app.css"><script src="/assets/app.js"></script>' }),
+      clone: () => ({ text: async () => releaseShellHtml("complete-release", '<link href="/assets/app.css"><script src="/assets/app.js"></script>') }),
     };
     const assetBodies = new Map([
       ["https://darkpix.test/assets/app.css", { type: "text/css", body: ".title{background:url(/assets/title.jpg)}" }],
@@ -142,7 +181,7 @@ describe("installable offline shell", () => {
     const shell = {
       url: "https://darkpix.test/",
       headers: { get: (name: string) => name === "content-type" ? "text/html" : null },
-      clone: () => ({ text: async () => '<script src="/assets/app.js"></script>' }),
+      clone: () => ({ text: async () => releaseShellHtml("mime-release", '<script src="/assets/app.js"></script>') }),
     };
     const fixedAssets = new Map<string, unknown>([
       ["/", shell],
@@ -179,7 +218,7 @@ describe("installable offline shell", () => {
     const shell = {
       url: "https://darkpix.test/",
       headers: { get: (name: string) => name === "content-type" ? "text/html" : null },
-      clone: () => ({ text: async () => '<script src="/assets/app.js"></script>' }),
+      clone: () => ({ text: async () => releaseShellHtml("fixed-mime-release", '<script src="/assets/app.js"></script>') }),
     };
     const fixedAssets = new Map<string, unknown>([
       ["/", shell],
@@ -269,5 +308,34 @@ describe("installable offline shell", () => {
     });
     await responsePromise;
     expect(put.mock.calls.at(-1)?.[0]).toBe("/darkpix-icon.svg?v=bounded-release");
+
+    const writesBeforeNavigation = put.mock.calls.length;
+    const newerShell = {
+      ok: true,
+      headers: { get: (name: string) => name === "content-type" ? "text/html" : null },
+      clone: () => newerShell,
+      text: async () => releaseShellHtml("newer-release"),
+    };
+    fetchNetwork.mockResolvedValueOnce(newerShell);
+    fetchHandler?.({
+      request: { method: "GET", mode: "navigate", url: "https://darkpix.test/" },
+      respondWith: (promise: Promise<unknown>) => { responsePromise = promise; },
+    });
+    await expect(responsePromise).resolves.toBe(newerShell);
+    expect(put).toHaveBeenCalledTimes(writesBeforeNavigation);
+
+    const currentShell = {
+      ok: true,
+      headers: { get: (name: string) => name === "content-type" ? "text/html" : null },
+      clone: () => currentShell,
+      text: async () => releaseShellHtml("bounded-release"),
+    };
+    fetchNetwork.mockResolvedValueOnce(currentShell);
+    fetchHandler?.({
+      request: { method: "GET", mode: "navigate", url: "https://darkpix.test/" },
+      respondWith: (promise: Promise<unknown>) => { responsePromise = promise; },
+    });
+    await expect(responsePromise).resolves.toBe(currentShell);
+    expect(put.mock.calls.at(-1)?.[0]).toBe("/");
   });
 });
