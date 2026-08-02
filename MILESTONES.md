@@ -142,6 +142,7 @@ Status: Complete
 - CI executes official checkout and Node setup actions by immutable commit identity while retaining their audited major-version annotations
 - CI and production image dependency installation suppress third-party package lifecycle scripts before tests and compilation
 - Every deploy rejects a dirty source tree, snapshots the prior image, inspects effective runtime hardening, verifies Cloudflare-uncached live health and release identity, real missing-asset 404s, executable MIME types and immutable caching for every HTML-referenced build asset, and the exact commit through both `ne-gro.com` and `www.ne-gro.com`; rollback must prove the restored constraints, read-only method gate, version, HTML release marker, and both public routes before discarding its snapshot
+- Public write-method rejection is enforced by both curl and wget deployment-verification paths, including rollback recovery
 - The release script rejects any environment override that differs from the checked-out Git commit, preventing a clean image from carrying a false version marker
 - CI and every public rollout require the HTML build marker to equal the image and `/version.txt` release identity before accepting its asset graph
 

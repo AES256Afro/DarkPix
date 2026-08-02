@@ -261,6 +261,9 @@ check_public_release() {
     worker_headers="$(wget -q -T 8 --server-response --spider "$public_url/sw.js?v=$darkpix_release" 2>&1)" || return 1
     missing_asset_status="$(wget -T 8 --server-response --spider "$public_url/assets/missing-$darkpix_release.js" 2>&1 || true)"
     grep -Eq 'HTTP/[0-9.]+ 404' <<<"$missing_asset_status" || return 1
+    write_method_status="$(wget -T 8 --server-response --method=POST --body-data='' -O /dev/null "$public_url/healthz" 2>&1 || true)"
+    grep -Eq 'HTTP/[0-9.]+ 405' <<<"$write_method_status" || return 1
+    write_method_status="405"
   else
     echo "curl or wget is required to verify the public release." >&2
     return 1
@@ -277,7 +280,7 @@ check_public_release() {
   if grep -qi 'cf-cache-status: *HIT' <<<"$release_headers"; then return 1; fi
   [[ "$health_body" == "ok" ]] || return 1
   if command -v curl >/dev/null 2>&1; then [[ "$missing_asset_status" == "404" ]] || return 1; fi
-  if command -v curl >/dev/null 2>&1; then [[ "$write_method_status" == "405" ]] || return 1; fi
+  [[ "$write_method_status" == "405" ]] || return 1
   grep -qi 'cache-control:.*no-store' <<<"$health_headers" || return 1
   if grep -qi 'cf-cache-status: *HIT' <<<"$health_headers"; then return 1; fi
   grep -qi 'content-type:.*json' <<<"$manifest_headers" || return 1

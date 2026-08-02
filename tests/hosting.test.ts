@@ -14,7 +14,9 @@ describe("production asset routing", () => {
   it("rejects non-read methods before every static and synthetic route", () => {
     expect(nginx).toMatch(/if \(\$request_method !~ \^\(GET\|HEAD\)\$\)\s*\{\s*return 405;/);
     expect(deployScript).toContain('-X POST "$public_url/healthz"');
+    expect(deployScript.match(/--method=POST --body-data='' -O \/dev\/null "\$public_url\/healthz"/g)?.length).toBe(2);
     expect(deployScript).toContain('[[ "$write_method_status" == "405" ]] || return 1');
+    expect(deployScript).not.toContain('if command -v curl >/dev/null 2>&1; then [[ "$write_method_status" == "405" ]]');
     expect(workflow).toContain("-X POST http://127.0.0.1:18092/healthz");
   });
 
