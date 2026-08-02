@@ -25,4 +25,10 @@ describe("production asset routing", () => {
     expect(deployScript).toContain("Automatic rollback restored loopback and public release");
     expect(deployScript).toContain("public route recovery was not verified");
   });
+
+  it("refuses to attach a clean commit identity to modified source", () => {
+    expect(deployScript).toContain('git status --porcelain --untracked-files=normal');
+    expect(deployScript).toContain("Refusing to deploy a dirty DarkPix worktree because its release identity would be false.");
+    expect(deployScript.indexOf("git status --porcelain")).toBeLessThan(deployScript.indexOf('darkpix_release="${DARKPIX_RELEASE'));
+  });
 });

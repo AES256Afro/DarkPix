@@ -4,6 +4,13 @@ set -euo pipefail
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_dir"
 
+if [[ -n "$(git status --porcelain --untracked-files=normal)" ]]; then
+  echo "Refusing to deploy a dirty DarkPix worktree because its release identity would be false." >&2
+  echo "Commit, stash, or remove the reported changes before deploying." >&2
+  git status --short >&2
+  exit 1
+fi
+
 command -v docker >/dev/null 2>&1 || {
   echo "Docker is required." >&2
   exit 1
