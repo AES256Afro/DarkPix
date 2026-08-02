@@ -52,4 +52,18 @@ describe("adaptive raid resolution", () => {
     expect(wayfinder).not.toContain(".filter(");
     expect(wayfinder).not.toContain(".sort(");
   });
+
+  it("scans projectile contacts without frame-hot threat arrays or vectors", () => {
+    const playerStart = gameSource.indexOf("private updatePlayerProjectiles");
+    const playerProjectiles = gameSource.slice(playerStart, gameSource.indexOf("private resolvePlayerProjectileHit", playerStart));
+    const enemyStart = gameSource.indexOf("private updateEnemyProjectiles");
+    const enemyProjectiles = gameSource.slice(enemyStart, gameSource.indexOf("private resolveEnemyProjectileHit", enemyStart));
+    expect(playerProjectiles).toContain("for (const candidate of this.enemies)");
+    expect(playerProjectiles).toContain("this.scratchProjectileBody.copy");
+    expect(playerProjectiles).not.toContain(".filter(");
+    expect(playerProjectiles).not.toContain(".sort(");
+    expect(playerProjectiles).not.toContain("new THREE.Vector3");
+    expect(enemyProjectiles).toContain("this.scratchProjectileBody.copy");
+    expect(enemyProjectiles).not.toContain("new THREE.Vector3");
+  });
 });

@@ -214,6 +214,9 @@ export class DarkPixGame {
   private readonly clock = new THREE.Clock();
   private readonly scratchForward = new THREE.Vector3();
   private readonly scratchToTarget = new THREE.Vector3();
+  private readonly scratchProjectilePrevious = new THREE.Vector3();
+  private readonly scratchProjectileBody = new THREE.Vector3();
+  private readonly scratchProjectileHead = new THREE.Vector3();
   private readonly scratchDirection: Vec2 = { x: 0, z: 0 };
   private readonly audio: AudioDirector;
   private readonly lifecycleTimers = new LifecycleTimers();
@@ -1869,28 +1872,31 @@ export class DarkPixGame {
   private updatePlayerProjectiles(delta: number): void {
     for (let index = this.playerProjectiles.length - 1; index >= 0; index -= 1) {
       const projectile = this.playerProjectiles[index]!;
-      const previous = projectile.mesh.position.clone();
+      const previous = this.scratchProjectilePrevious.copy(projectile.mesh.position);
       projectile.elapsed = Math.min(projectile.duration, projectile.elapsed + delta);
       const position = playerProjectilePosition(projectile.start, projectile.end, projectile.elapsed, projectile.duration, projectile.kind);
       projectile.mesh.position.set(position.x, position.y, position.z);
       const nextPosition = playerProjectilePosition(projectile.start, projectile.end, projectile.elapsed + 0.02, projectile.duration, projectile.kind);
       projectile.mesh.lookAt(nextPosition.x, nextPosition.y, nextPosition.z);
       const stoneContact = this.projectileStoneContact({ x: previous.x, z: previous.z }, position, 0.04);
-      const enemy = this.enemies
-        .filter((candidate) => candidate.alive)
-        .map((candidate) => {
-          const lowThreat = candidate.kind === "crawler" || candidate.kind === "mimic";
-          const bodyHeight = lowThreat ? 0.36 : candidate.kind === "boss" ? 1.45 : 1.05;
-          const headHeight = lowThreat ? 0.72 : candidate.kind === "boss" ? 2.35 : 1.82;
-          const body = candidate.group.position.clone().add(new THREE.Vector3(0, bodyHeight, 0));
-          const head = candidate.group.position.clone().add(new THREE.Vector3(0, headHeight, 0));
-          const headContact = projectileSegmentContact(previous, position, head, lowThreat ? 0.2 : candidate.kind === "boss" ? 0.38 : 0.3);
-          const bodyContact = projectileSegmentContact(previous, position, body, lowThreat ? 0.42 : candidate.kind === "boss" ? 0.78 : 0.54);
-          return { enemy: candidate, contact: projectileTargetContact(headContact, bodyContact) };
-        })
-        .filter((candidate): candidate is { enemy: Enemy; contact: NonNullable<typeof candidate.contact> } => candidate.contact !== undefined)
-        .sort((left, right) => left.contact.progress - right.contact.progress)[0];
-      if (projectileContactPrecedes(stoneContact, enemy?.contact.progress)) {
+      let enemyContact: { enemy: Enemy; progress: number; headshot: boolean } | undefined;
+      for (const candidate of this.enemies) {
+        if (!candidate.alive) continue;
+        const lowThreat = candidate.kind === "crawler" || candidate.kind === "mimic";
+        const bodyHeight = lowThreat ? 0.36 : candidate.kind === "boss" ? 1.45 : 1.05;
+        const headHeight = lowThreat ? 0.72 : candidate.kind === "boss" ? 2.35 : 1.82;
+        const body = this.scratchProjectileBody.copy(candidate.group.position);
+        body.y += bodyHeight;
+        const head = this.scratchProjectileHead.copy(candidate.group.position);
+        head.y += headHeight;
+        const contact = projectileTargetContact(
+          projectileSegmentContact(previous, position, head, lowThreat ? 0.2 : candidate.kind === "boss" ? 0.38 : 0.3),
+          projectileSegmentContact(previous, position, body, lowThreat ? 0.42 : candidate.kind === "boss" ? 0.78 : 0.54),
+        );
+        if (!contact || (enemyContact && enemyContact.progress <= contact.progress)) continue;
+        enemyContact = { enemy: candidate, progress: contact.progress, headshot: contact.headshot };
+      }
+      if (projectileContactPrecedes(stoneContact, enemyContact?.progress)) {
         const outcome = projectileStoneOutcome(projectile.kind, projectile.thrownName);
         const impact = projectileContactPoint(previous, position, stoneContact) ?? position;
         this.removePlayerProjectile(index);
@@ -1899,9 +1905,9 @@ export class DarkPixGame {
         this.audio.tone(projectile.kind === "spell" ? 130 : 210, 0.09, "square", 0.045);
         continue;
       }
-      if (enemy) {
+      if (enemyContact) {
         this.removePlayerProjectile(index);
-        this.resolvePlayerProjectileHit(projectile, enemy.enemy, enemy.contact.headshot);
+        this.resolvePlayerProjectileHit(projectile, enemyContact.enemy, enemyContact.headshot);
         continue;
       }
       if (projectile.elapsed >= projectile.duration) {
@@ -2002,7 +2008,7 @@ export class DarkPixGame {
   private updateEnemyProjectiles(delta: number): void {
     for (let index = this.enemyProjectiles.length - 1; index >= 0; index -= 1) {
       const projectile = this.enemyProjectiles[index]!;
-      const previous = projectile.mesh.position.clone();
+      const previous = this.scratchProjectilePrevious.copy(projectile.mesh.position);
       projectile.elapsed = Math.min(projectile.duration, projectile.elapsed + delta);
       const position = enemyProjectilePosition(projectile.start, projectile.end, projectile.elapsed, projectile.duration, projectile.kind);
       projectile.mesh.position.set(position.x, position.y, position.z);
@@ -2013,7 +2019,8 @@ export class DarkPixGame {
       let enemyContact: { enemy: Enemy; progress: number } | undefined;
       for (const enemy of this.enemies) {
         if (!enemy.alive || !enemyProjectileTargetsThreat(projectile.sourceId, enemy.id)) continue;
-        const target = enemy.group.position.clone().add(new THREE.Vector3(0, 1, 0));
+        const target = this.scratchProjectileBody.copy(enemy.group.position);
+        target.y += 1;
         const progress = projectileSegmentContact(previous, position, target, enemy.kind === "boss" ? 0.72 : 0.5);
         if (progress === undefined || (enemyContact && enemyContact.progress <= progress)) continue;
         enemyContact = { enemy, progress };
