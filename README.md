@@ -135,6 +135,7 @@ The public service accepts only `GET` and `HEAD`; write methods are rejected bef
 - Allocation-free finite-number guards in projectile, masonry, ash-vent, and footstep cadence math
 - Once-per-frame passive awareness and spawn-grace derivation across all active enemies
 - Direct loose-loot animation loops without per-frame callback construction
+- Collision-resolved delver footsteps and camera motion without phantom movement against blocked masonry
 - Year-long immutable caching for every content-hashed production asset
 - Canvas-generated nearest-neighbor dungeon textures
 - Web Audio synthesis for the dungeon drone and action feedback

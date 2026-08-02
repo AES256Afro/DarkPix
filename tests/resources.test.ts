@@ -137,4 +137,11 @@ describe("raid resource cleanup", () => {
     expect(animateWorld).toContain("for (const pickup of this.pickups)");
     expect(animateWorld).not.toContain("this.pickups.forEach");
   });
+
+  it("drives delver footsteps from collision-resolved travel", () => {
+    const movement = gameSource.slice(gameSource.indexOf("private updateMovement"), gameSource.indexOf("private dodge():"));
+    expect(movement).toMatch(/const startX = this\.camera\.position\.x;[\s\S]+this\.moveWithCollision\(offset\.x, offset\.z\);[\s\S]+const traveled = Math\.hypot/);
+    expect(movement).toContain("this.footstepClock += traveled");
+    expect(movement).not.toContain("this.footstepClock += delta * speed");
+  });
 });

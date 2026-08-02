@@ -107,6 +107,7 @@ Status: Complete for the current map
 - Projectile sweeps, masonry samples, ash-vent range checks, and movement cadence use direct finite-number guards instead of temporary validation arrays
 - Passive enemy awareness and spawn-grace state are derived once per simulation frame, not once per living enemy
 - Loose-loot animation uses a direct loop without constructing a per-frame array callback
+- Delver footstep cadence, camera bob, and passive movement noise follow collision-resolved travel rather than requested speed against blocked stone
 - Threat awareness reuses targeting vectors, and Warden guidance finds the nearest living target in one allocation-free scan instead of filtering and sorting every frame
 - Player and hostile missiles reuse contact vectors, while player shots find the first living impact in one ordered scan instead of allocating and sorting threat arrays every frame
 - Reduced motion suppresses decorative loading, camera, enemy-step, loot, flame, and portal loops while retaining functional combat telegraphs; pause sleeps continuous rendering and cancels queued audio feedback before it can replay in a later raid state
