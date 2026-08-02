@@ -47,12 +47,22 @@ describe("adaptive raid resolution", () => {
     const wayfinderStart = gameSource.indexOf("private updateWayfinder");
     const wayfinder = gameSource.slice(wayfinderStart, gameSource.indexOf("private feed(", wayfinderStart));
     expect(stealthCue).toContain("this.scratchToTarget.copy");
+    expect(stealthCue).toContain("toEnemy.lengthSq()");
+    expect(stealthCue).not.toContain("toEnemy.length()");
     expect(stealthCue).not.toContain("new THREE.Vector3");
     expect(wayfinder).toContain("for (const enemy of this.enemies)");
     expect(wayfinder).toContain("for (const pickup of this.pickups)");
     expect(wayfinder).not.toContain(".find(");
     expect(wayfinder).not.toContain(".filter(");
     expect(wayfinder).not.toContain(".sort(");
+  });
+
+  it("selects rival scavenging targets with squared distance math", () => {
+    const scavengingStart = gameSource.indexOf("private updateRivalScavenging");
+    const scavenging = gameSource.slice(scavengingStart, gameSource.indexOf("private updateRivalSkirmish", scavengingStart));
+    expect(scavenging).toContain("nearestDistanceSquared");
+    expect(scavenging).toContain("offsetX * offsetX + offsetZ * offsetZ");
+    expect(scavenging).not.toContain("Math.hypot");
   });
 
   it("scans projectile contacts without frame-hot threat arrays or vectors", () => {

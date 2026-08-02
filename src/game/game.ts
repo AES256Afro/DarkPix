@@ -2586,25 +2586,24 @@ export class DarkPixGame {
 
   private updateRivalScavenging(enemy: Enemy, delta: number): boolean {
     let target: Pickup | undefined;
-    let nearest = 8.5;
+    let nearestDistanceSquared = 8.5 * 8.5;
     for (const pickup of this.pickups) {
       if (pickup.collected || !canRivalScavenge(enemy.carriedLoot, pickup.item)) continue;
-      const distance = Math.hypot(
-        pickup.group.position.x - enemy.group.position.x,
-        pickup.group.position.z - enemy.group.position.z,
-      );
-      if (distance >= nearest || !this.hasDungeonSightBetween(
+      const offsetX = pickup.group.position.x - enemy.group.position.x;
+      const offsetZ = pickup.group.position.z - enemy.group.position.z;
+      const distanceSquared = offsetX * offsetX + offsetZ * offsetZ;
+      if (distanceSquared >= nearestDistanceSquared || !this.hasDungeonSightBetween(
         enemy.group.position.x,
         enemy.group.position.z,
         pickup.group.position.x,
         pickup.group.position.z,
         0.12,
       )) continue;
-      nearest = distance;
+      nearestDistanceSquared = distanceSquared;
       target = pickup;
     }
     if (!target) return false;
-    if (nearest <= 0.72) {
+    if (nearestDistanceSquared <= 0.72 * 0.72) {
       target.collected = true;
       target.group.visible = false;
       enemy.carriedLoot.push(target.item);
@@ -2616,7 +2615,7 @@ export class DarkPixGame {
     }
     const movementX = target.group.position.x - enemy.group.position.x;
     const movementZ = target.group.position.z - enemy.group.position.z;
-    const movementLength = Math.hypot(movementX, movementZ);
+    const movementLength = Math.sqrt(nearestDistanceSquared);
     if (movementLength <= 0.001) return true;
     enemy.group.lookAt(target.group.position.x, enemy.group.position.y, target.group.position.z);
     const stepScale = (enemy.speed * 0.72 * delta) / movementLength;
@@ -3737,15 +3736,17 @@ export class DarkPixGame {
     const cameraPosition = this.camera.position;
     const forward = this.scratchForward.set(0, 0, -1).applyQuaternion(this.camera.quaternion).normalize();
     let target: Enemy | undefined;
-    let closest = Number.POSITIVE_INFINITY;
+    let closestDistanceSquared = Number.POSITIVE_INFINITY;
+    const maxReachSquared = maxReach * maxReach;
     for (const enemy of this.enemies) {
       if (!enemy.alive) continue;
       const targetHeight = enemy.kind === "crawler" || enemy.kind === "mimic" ? 0.72 : enemy.kind === "boss" ? 1.55 : 1.12;
       const toEnemy = this.scratchToTarget.copy(enemy.group.position);
       toEnemy.y += targetHeight;
       toEnemy.sub(cameraPosition);
-      const distance = toEnemy.length();
-      if (distance > maxReach || distance >= closest || toEnemy.normalize().dot(forward) <= 0.985) continue;
+      const distanceSquared = toEnemy.lengthSq();
+      if (distanceSquared <= 0.000001 || distanceSquared > maxReachSquared || distanceSquared >= closestDistanceSquared) continue;
+      if (toEnemy.dot(forward) / Math.sqrt(distanceSquared) <= 0.985) continue;
       if (!this.hasDungeonSightBetween(
         cameraPosition.x,
         cameraPosition.z,
@@ -3753,7 +3754,7 @@ export class DarkPixGame {
         enemy.group.position.z,
       )) continue;
       target = enemy;
-      closest = distance;
+      closestDistanceSquared = distanceSquared;
     }
     if (!target) {
       this.stealthCueHud.classList.remove("visible");
