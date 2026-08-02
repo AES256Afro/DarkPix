@@ -23,7 +23,15 @@ if ! docker network inspect gridless_gridless >/dev/null 2>&1; then
   exit 1
 fi
 
-darkpix_release="${DARKPIX_RELEASE:-$(git rev-parse --short HEAD 2>/dev/null || printf 'unknown')}"
+git_release="$(git rev-parse --short HEAD 2>/dev/null)" || {
+  echo "DarkPix deployment requires a Git commit identity." >&2
+  exit 1
+}
+if [[ -n "${DARKPIX_RELEASE:-}" && "$DARKPIX_RELEASE" != "$git_release" ]]; then
+  echo "Refusing release override $DARKPIX_RELEASE because the checked-out commit is $git_release." >&2
+  exit 1
+fi
+darkpix_release="$git_release"
 darkpix_public_urls=("https://ne-gro.com" "https://www.ne-gro.com")
 if [[ -n "${DARKPIX_PUBLIC_URL:-}" ]]; then
   darkpix_public_urls=("$DARKPIX_PUBLIC_URL")

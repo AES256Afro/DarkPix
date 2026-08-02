@@ -65,7 +65,14 @@ describe("production asset routing", () => {
   it("refuses to attach a clean commit identity to modified source", () => {
     expect(deployScript).toContain('git status --porcelain --untracked-files=normal');
     expect(deployScript).toContain("Refusing to deploy a dirty DarkPix worktree because its release identity would be false.");
-    expect(deployScript.indexOf("git status --porcelain")).toBeLessThan(deployScript.indexOf('darkpix_release="${DARKPIX_RELEASE'));
+    expect(deployScript.indexOf("git status --porcelain")).toBeLessThan(deployScript.indexOf('git_release="$(git rev-parse'));
+  });
+
+  it("rejects a release override that differs from the checked-out commit", () => {
+    expect(deployScript).toContain('git_release="$(git rev-parse --short HEAD');
+    expect(deployScript).toContain('"$DARKPIX_RELEASE" != "$git_release"');
+    expect(deployScript).toContain("Refusing release override");
+    expect(deployScript).toContain('darkpix_release="$git_release"');
   });
 
   it("pins both production image stages to immutable registry digests", () => {
