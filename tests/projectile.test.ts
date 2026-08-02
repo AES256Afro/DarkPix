@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, enemyProjectileTargetsThreat, playerProjectileDuration, playerProjectilePosition, projectileContactPrecedes, projectileImpactConnects, projectileSegmentConnects, projectileSegmentContact, projectileStoneOutcome, projectileTargetContact } from "../src/game/projectile";
+import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, enemyProjectileTargetsThreat, playerProjectileDuration, playerProjectilePosition, projectileContactPoint, projectileContactPrecedes, projectileImpactConnects, projectileSegmentConnects, projectileSegmentContact, projectileStoneOutcome, projectileTargetContact } from "../src/game/projectile";
 
 describe("player projectile travel", () => {
   it("gives arrows and spells bounded nonzero travel time", () => {
@@ -103,5 +103,16 @@ describe("player projectile travel", () => {
     expect(projectileContactPrecedes(0.4, undefined)).toBe(true);
     expect(projectileContactPrecedes(undefined, 0.4)).toBe(false);
     expect(projectileContactPrecedes(Number.NaN, 0.4)).toBe(false);
+  });
+
+  it("places impact feedback at the first swept contact instead of the frame endpoint", () => {
+    const start = { x: -2, y: 1.2, z: 4 };
+    const end = { x: 2, y: 1.6, z: 0 };
+    expect(projectileContactPoint(start, end, 0.25)).toEqual({ x: -1, y: 1.3, z: 3 });
+    expect(projectileContactPoint(start, end, 0)).toEqual(start);
+    expect(projectileContactPoint(start, end, 1)).toEqual(end);
+    expect(projectileContactPoint(start, end, Number.NaN)).toBeUndefined();
+    expect(projectileContactPoint(start, end, -0.1)).toBeUndefined();
+    expect(projectileContactPoint({ ...start, x: Number.NaN }, end, 0.5)).toBeUndefined();
   });
 });

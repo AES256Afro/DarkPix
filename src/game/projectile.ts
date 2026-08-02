@@ -141,6 +141,15 @@ export function projectileContactPrecedes(contact: number | undefined, competing
   return first !== undefined && (competing === undefined || first <= competing);
 }
 
+export function projectileContactPoint(start: ProjectilePoint, end: ProjectilePoint, contact: number | undefined): ProjectilePoint | undefined {
+  if (![start.x, start.y, start.z, end.x, end.y, end.z, contact].every(Number.isFinite) || contact! < 0 || contact! > 1) return undefined;
+  return {
+    x: start.x + (end.x - start.x) * contact!,
+    y: start.y + (end.y - start.y) * contact!,
+    z: start.z + (end.z - start.z) * contact!,
+  };
+}
+
 export function projectileStoneOutcome(kind: PlayerProjectileKind | EnemyProjectileKind, thrownName?: string): ProjectileStoneOutcome {
   if (kind === "arrow") return { cue: "SHOT BLOCKED", message: "ARROW BROKEN · stone stops the shot." };
   if (kind === "spell") return { cue: "SHOT BLOCKED", message: "SPELL SPENT · stone grounds the bolt." };

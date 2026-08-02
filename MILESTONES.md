@@ -66,7 +66,7 @@ Status: Complete for the current map
 - Player missiles resolve the earliest swept target and the earliest body or head volume instead of array order
 - Projectile masonry checks include both frame endpoints and the swept path, including malformed-coordinate rejection
 - Projectile impacts order masonry, the delver, and every living threat by first swept contact within the same frame
-- Masonry impacts replace stale flight warnings with explicit weapon-specific safe verdicts and break feedback
+- Masonry impacts replace stale flight warnings with explicit weapon-specific safe verdicts and place break feedback at the first physical contact instead of behind the wall
 - Intervening living threats screen hostile missiles through first-contact crossfire without player kill credit or source self-hits
 - Overlapping ordinary impacts share one acceptance gate, preventing a rejected wound from silently draining guard stamina
 - Distance-driven footsteps and AI acquisition distinguish stillness, crouch, steady movement, sprint, and packed armor without changing cadence with frame rate

@@ -20,7 +20,7 @@ import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, poi
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
 import { channelCommitmentLabel, channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
-import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, enemyProjectileTargetsThreat, playerProjectileDuration, playerProjectilePosition, projectileContactPrecedes, projectileSegmentContact, projectileStoneOutcome, projectileTargetContact, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
+import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, enemyProjectileTargetsThreat, playerProjectileDuration, playerProjectilePosition, projectileContactPoint, projectileContactPrecedes, projectileSegmentContact, projectileStoneOutcome, projectileTargetContact, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
 import { advanceJournalRetry } from "./persistence";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
 import { DARKNESS_PULSE_SECONDS, darknessPulseReady, directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "./zone";
@@ -1874,9 +1874,10 @@ export class DarkPixGame {
         .sort((left, right) => left.contact.progress - right.contact.progress)[0];
       if (projectileContactPrecedes(stoneContact, enemy?.contact.progress)) {
         const outcome = projectileStoneOutcome(projectile.kind, projectile.thrownName);
+        const impact = projectileContactPoint(previous, position, stoneContact) ?? position;
         this.removePlayerProjectile(index);
         this.feed(outcome.message, "system");
-        this.showDirectionalCue(position, outcome.cue, 0.45, "impact");
+        this.showDirectionalCue(impact, outcome.cue, 0.45, "impact");
         this.audio.tone(projectile.kind === "spell" ? 130 : 210, 0.09, "square", 0.045);
         continue;
       }
@@ -2002,9 +2003,10 @@ export class DarkPixGame {
       const livingContact = Math.min(playerContact ?? Number.POSITIVE_INFINITY, enemyContact?.progress ?? Number.POSITIVE_INFINITY);
       if (projectileContactPrecedes(stoneContact, Number.isFinite(livingContact) ? livingContact : undefined)) {
         const outcome = projectileStoneOutcome(projectile.kind);
+        const impact = projectileContactPoint(previous, position, stoneContact) ?? position;
         this.removeEnemyProjectile(index);
         this.feed(outcome.message, "system");
-        this.showDirectionalCue(position, outcome.cue, 0.45, "impact");
+        this.showDirectionalCue(impact, outcome.cue, 0.45, "impact");
         this.audio.tone(150, 0.1, "square", 0.05);
         continue;
       }
