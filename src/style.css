@@ -347,6 +347,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .attack-direction { position: absolute; top: calc(50% + 22px); left: 50%; transform: translateX(-50%); color: rgba(196,183,162,.55); font: 700 7px ui-monospace, monospace; letter-spacing: .14em; opacity: .35; transition: opacity .12s; }
 .attack-direction.active { opacity: .9; }
 .attack-direction.danger { color: #dc765d; text-shadow: 0 0 8px rgba(207,72,47,.5); }
+.attack-direction.guarding { color: #9fd0c7; text-shadow: 0 0 8px rgba(79,164,153,.55); }
 .interaction-prompt { position: absolute; bottom: 162px; left: 50%; width: max-content; min-width: 270px; max-width: min(760px, calc(100vw - 34px)); padding: 9px 15px; transform: translateX(-50%); border: 1px solid rgba(167,140,101,.27); background: rgba(8,7,6,.82); color: #d8c7ac; font: 800 9px/1.45 ui-monospace, monospace; letter-spacing: .08em; text-align: center; opacity: 0; transition: opacity .15s; }
 .interaction-prompt.visible { opacity: 1; }
 .extract-meter { position: absolute; bottom: 150px; left: 50%; width: 270px; height: 3px; transform: translateX(-50%); background: rgba(34,54,55,.8); opacity: 0; }
@@ -375,6 +376,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .haul-panel { justify-self: end; display: flex; min-width: 205px; padding: 11px 13px; flex-direction: column; align-items: end; border-right: 2px solid #88643a; background: linear-gradient(-90deg, rgba(10,9,7,.82), transparent); }
 .haul-panel strong { margin: 4px 0; color: #d9c59e; font: 400 18px Georgia, serif; }
 .haul-panel > span:last-child { color: #735e49; font: 700 7px ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; }
+.raid-inventory { position: absolute; z-index: 7; top: 12%; right: 5%; width: min(520px, 90vw); padding: 14px; border: 1px solid #69513a; background: rgba(8,7,6,.94); box-shadow: 0 20px 70px #000; color: #b7aa98; pointer-events: none; }
+.raid-inventory[hidden] { display: none; }
+.raid-inventory header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #302921; padding-bottom: 10px; }
+.raid-inventory header span { display: flex; flex-direction: column; gap: 3px; }.raid-inventory header small, .raid-inventory-body small { color: #70675c; font: 6px ui-monospace, monospace; letter-spacing: .1em; }.raid-inventory header strong { color: #d1c2ad; font: 16px Georgia, serif; }.raid-inventory kbd { color: #d09a62; font: 8px ui-monospace, monospace; }
+.raid-inventory > p, .raid-inventory footer { margin: 9px 0; color: #a96f55; font: 7px ui-monospace, monospace; letter-spacing: .08em; text-align: center; }.raid-inventory footer { margin-bottom: 0; color: #776c60; }
+.raid-inventory-summary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; }.raid-inventory-summary span { display: flex; min-height: 40px; padding: 8px; flex-direction: column; justify-content: center; border: 1px solid #2b2721; background: #11100e; }.raid-inventory-summary strong { margin-top: 4px; color: #b7aa98; font: 9px Georgia, serif; }
 .lock-overlay { position: absolute; inset: 0; z-index: 10; display: flex; padding: 28px; border: 0; flex-direction: column; align-items: center; justify-content: center; overflow: auto; background: radial-gradient(circle, rgba(13,15,14,.62), rgba(3,3,3,.94)); color: #d9d0c2; backdrop-filter: blur(3px); }
 .lock-overlay.hidden { display: none; }
 .sigil-mark { display: grid; width: 72px; height: 72px; margin-bottom: 18px; place-items: center; border: 1px solid #826041; color: #d99b5d; font: 400 20px Georgia, serif; transform: rotate(45deg); }

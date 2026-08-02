@@ -330,6 +330,8 @@ export class DarkPixGame {
   private throwableHud!: HTMLElement;
   private torchHud!: HTMLElement;
   private pauseLedger!: HTMLElement;
+  private raidInventory!: HTMLElement;
+  private raidInventoryBody!: HTMLElement;
   private animationFrame = 0;
   private enemyId = 0;
   private elapsed = 0;
@@ -362,6 +364,9 @@ export class DarkPixGame {
   private pointerLockPending = false;
   private pointerLockEpoch = 0;
   private blocking = false;
+  private guardHeld = false;
+  private inventoryOpen = false;
+  private inventorySignature = "";
   private crouching = false;
   private sprinting = false;
   private moving = false;
@@ -502,6 +507,12 @@ export class DarkPixGame {
             </section>
           </div>
         </div>
+        <aside class="raid-inventory" hidden aria-labelledby="raid-inventory-title">
+          <header><span><small>LIVE RAID LEDGER</small><strong id="raid-inventory-title">PACK &amp; SPOILS</strong></span><kbd>TAB / I</kbd></header>
+          <p>RAID CONTINUES · MOVEMENT REMAINS LIVE</p>
+          <div class="raid-inventory-body"></div>
+          <footer>C / B cycle · F use · V throw · G drop · Tab / I close</footer>
+        </aside>
         <div class="lock-overlay" role="dialog" aria-modal="true" aria-labelledby="raid-lock-title" aria-describedby="raid-lock-detail" aria-busy="false">
           <span class="sigil-mark" aria-hidden="true">DP</span>
           <strong id="raid-lock-title" role="heading" aria-level="1" data-lock-title>ENTER THE CRYPT</strong>
@@ -512,7 +523,7 @@ export class DarkPixGame {
             <button class="retry-journal hidden" type="button">RETRY JOURNAL WRITE</button>
             <button class="abandon-raid" type="button">ABANDON RAID</button>
           </span>
-          <span class="control-line">WASD move · mouse look · LMB strike · RMB guard · Space sidestep · Ctrl crouch · Q ability · 1/2 spells · E interact · R red descent · F use remedy · C cycle remedy · V throw · B cycle throw · G drop · T torch · Shift sprint</span>
+          <span class="control-line">WASD move · mouse look · LMB strike · hold RMB guard · Tab / I inventory · Space sidestep · Ctrl crouch · Q ability · 1/2 spells · E interact · R red descent · F use remedy · C cycle remedy · V throw · B cycle throw · G drop · T torch · Shift sprint</span>
         </div>
       </div>`;
     const host = this.mount.querySelector<HTMLElement>(".render-host");
@@ -558,6 +569,8 @@ export class DarkPixGame {
     this.throwableHud = this.mount.querySelector<HTMLElement>(".throwable-slot small")!;
     this.torchHud = this.mount.querySelector<HTMLElement>(".torch-slot small")!;
     this.pauseLedger = this.mount.querySelector<HTMLElement>(".pause-ledger")!;
+    this.raidInventory = this.mount.querySelector<HTMLElement>(".raid-inventory")!;
+    this.raidInventoryBody = this.mount.querySelector<HTMLElement>(".raid-inventory-body")!;
     this.updatePauseLedger();
   }
 
@@ -1096,7 +1109,7 @@ export class DarkPixGame {
     window.addEventListener("blur", this.onWindowBlur);
     this.renderer.domElement.addEventListener("webglcontextlost", this.onContextLost);
     this.renderer.domElement.addEventListener("webglcontextrestored", this.onContextRestored);
-    this.renderer.domElement.addEventListener("contextmenu", this.onContextMenu);
+    document.addEventListener("contextmenu", this.onContextMenu);
     this.renderer.domElement.addEventListener("click", this.requestPointerLock);
     this.resumeButton.addEventListener("click", this.requestPointerLock);
     this.retryJournalButton.addEventListener("click", this.onRetryJournal);
@@ -1106,8 +1119,21 @@ export class DarkPixGame {
   private onKeyDown = (event: KeyboardEvent): void => {
     if (this.trapLockOverlayFocus(event)) return;
     if (this.paused || this.ended) return;
+    if (event.code === "Tab" || event.code === "KeyI") {
+      event.preventDefault();
+      if (!event.repeat) this.toggleRaidInventory();
+      return;
+    }
     if (event.code === "Space") event.preventDefault();
     this.keys.add(event.code);
+    if (this.inventoryOpen) {
+      if (event.code === "KeyF" && !event.repeat) this.useConsumable();
+      if (event.code === "KeyC" && !event.repeat) this.cycleConsumable();
+      if (event.code === "KeyV" && !event.repeat) this.throwItem();
+      if (event.code === "KeyB" && !event.repeat) this.cycleThrowable();
+      if (event.code === "KeyG" && !event.repeat) this.dropLowestHaul();
+      return;
+    }
     if (event.code === "KeyE" && !event.repeat && !this.remedyBlocks("INTERACT")) this.interactHeld = true;
     if (event.code === "KeyR" && !event.repeat && !this.remedyBlocks("INTERACT")) this.descendHeld = true;
     if (event.code === "KeyF" && !event.repeat) this.useConsumable();
@@ -1158,37 +1184,54 @@ export class DarkPixGame {
   };
 
   private onMouseDown = (event: MouseEvent): void => {
-    if (this.paused || this.ended) return;
+    if (this.paused || this.ended || this.inventoryOpen) return;
     if (event.button === 0) this.attack();
     if (event.button === 2) {
-      if (this.remedyBlocks("GUARD")) return;
-      const denial = guardDenialReason(this.stamina, this.guardBreakTimer, this.attackCooldown, this.dodgeCooldown);
-      if (denial === "guard_broken") {
-        this.feed(`GUARD BROKEN · ${this.guardBreakTimer.toFixed(1)}s`, "danger");
-        return;
-      }
-      if (denial === "action_recovery") {
-        this.feed(`GUARD DENIED · action recovery ${this.attackCooldown.toFixed(1)}s`, "danger");
-        return;
-      }
-      if (denial === "sidestep_recovery") {
-        this.feed(`GUARD DENIED · sidestep recovery ${this.dodgeCooldown.toFixed(1)}s`, "danger");
-        return;
-      }
-      if (denial === "stamina") {
-        this.feed("GUARD NEEDS STAMINA", "danger");
-        return;
-      }
-      this.blocking = true;
-      this.blockAge = 0;
+      event.preventDefault();
+      this.guardHeld = true;
+      this.tryRaiseGuard(true);
     }
   };
 
   private onMouseUp = (event: MouseEvent): void => {
-    if (event.button === 2) this.blocking = false;
+    if (event.button === 2) {
+      this.guardHeld = false;
+      this.blocking = false;
+    }
   };
 
-  private onContextMenu = (event: MouseEvent): void => event.preventDefault();
+  private onContextMenu = (event: MouseEvent): void => {
+    if (document.pointerLockElement === this.renderer.domElement) event.preventDefault();
+  };
+
+  private tryRaiseGuard(announce: boolean): void {
+    if (!this.guardHeld || this.blocking || this.inventoryOpen || this.remedyItemId) return;
+    const denial = guardDenialReason(this.stamina, this.guardBreakTimer, this.attackCooldown, this.dodgeCooldown);
+    if (denial) {
+      if (announce) {
+        const wait = denial === "guard_broken" ? this.guardBreakTimer : denial === "action_recovery" ? this.attackCooldown : this.dodgeCooldown;
+        this.feed(denial === "stamina" ? "GUARD NEEDS STAMINA" : `GUARD DENIED · ${denial.replaceAll("_", " ")} ${wait.toFixed(1)}s`, "danger");
+      }
+      return;
+    }
+    this.blocking = true;
+    this.blockAge = 0;
+  }
+
+  private toggleRaidInventory(): void {
+    this.inventoryOpen = !this.inventoryOpen;
+    this.raidInventory.hidden = !this.inventoryOpen;
+    this.guardHeld = false;
+    this.blocking = false;
+    this.interactHeld = false;
+    this.descendHeld = false;
+    this.resetInteractionChannel();
+    if (this.inventoryOpen) {
+      this.inventorySignature = "";
+      this.updateRaidInventory();
+      this.feed("INVENTORY OPEN · the raid continues", "system");
+    }
+  }
 
   private onPointerLockChange = (): void => {
     const lockMatchesCanvas = document.pointerLockElement === this.renderer.domElement;
@@ -1226,7 +1269,10 @@ export class DarkPixGame {
 
   private clearHeldInputs(): void {
     this.keys.clear();
+    this.guardHeld = false;
     this.blocking = false;
+    this.inventoryOpen = false;
+    this.raidInventory.hidden = true;
     this.crouching = false;
     this.sprinting = false;
     this.moving = false;
@@ -1512,6 +1558,7 @@ export class DarkPixGame {
     this.attackCooldown = Math.max(0, this.attackCooldown - delta);
     this.dodgeCooldown = Math.max(0, this.dodgeCooldown - delta);
     this.guardBreakTimer = Math.max(0, this.guardBreakTimer - delta);
+    this.tryRaiseGuard(false);
     if (this.remedyItemId) {
       this.remedyTimer = Math.max(0, this.remedyTimer - delta);
       if (this.remedyTimer <= 0) this.completeConsumableUse();
@@ -1917,7 +1964,7 @@ export class DarkPixGame {
     this.attackCooldown = attackDelay;
     this.swingDirection = this.attackDirection;
     this.concealmentTimer = 0;
-    this.swingDuration = Math.min(0.42, attackDelay * 0.72);
+    this.swingDuration = attackDelay;
     this.swingClock = this.swingDuration;
     this.stamina = Math.max(0, this.stamina - staminaCost);
     if (this.options.classId === "hexbound") this.spellCharges -= 1;
@@ -1926,7 +1973,7 @@ export class DarkPixGame {
       spellId: this.selectedSpell,
       riposteMultiplier: riposteDamageMultiplier(this.options.classId, this.riposteTimer),
       abilityDamageMultiplier: classAbilityDamageMultiplier(this.options.classId, this.options.classId === "shapeshifter" ? this.wildshapeTimer : this.rageTimer),
-      impactRemaining: strikeImpactDelay(this.swingDuration),
+      impactRemaining: strikeImpactDelay(this.swingDuration, this.swingDirection),
     };
     this.mouseAccumulator.x = 0;
     this.mouseAccumulator.y = 0;
@@ -3779,14 +3826,17 @@ export class DarkPixGame {
       ? `${selectedThrowable.name} · ${throwableDamage(selectedThrowable)} dmg · ${throwables.count} left · B cycle`
       : "No throwing weapon · B cycle");
     setTextIfChanged(this.torchHud, `${this.torchLit ? "Hood" : "Unhood"} torch · ${Math.ceil(this.torchFuel)}s`);
+    if (this.inventoryOpen) this.updateRaidInventory();
     this.updateStealthProgress();
     this.updateStealthCue(Math.max(this.definition.reach, selectedThrowable ? 10 : 0));
     this.updateWayfinder();
     const strikeStamina = attackStaminaCost(this.options.classId, this.attackDirection);
-    const combatOverride = this.guardBreakTimer > 0 || Boolean(this.remedyItemId) || this.attackCooldown > 0 || this.dodgeCooldown > 0 || this.riposteTimer > 0;
+    const combatOverride = this.guardBreakTimer > 0 || this.blocking || Boolean(this.remedyItemId) || this.attackCooldown > 0 || this.dodgeCooldown > 0 || this.riposteTimer > 0;
     const strikeExhausted = !combatOverride && this.stamina < strikeStamina;
     setTextIfChanged(this.directionHud, this.guardBreakTimer > 0
       ? `GUARD BROKEN · ${this.guardBreakTimer.toFixed(1)}s`
+      : this.blocking
+        ? "GUARD RAISED · HOLD RMB · FACE THE THREAT"
       : this.remedyItemId
         ? `TREATING · ${this.remedyTimer.toFixed(1)}s`
       : this.pendingStrike
@@ -3800,6 +3850,7 @@ export class DarkPixGame {
         : `${this.attackDirection} · ${strikeExhausted ? "NEED" : "COST"} ${strikeStamina} STA`);
     this.directionHud.classList.toggle("active", combatOverride || strikeExhausted || this.mouseAccumulator.x !== 0 || this.mouseAccumulator.y !== 0);
     this.directionHud.classList.toggle("danger", this.guardBreakTimer > 0 || strikeExhausted);
+    this.directionHud.classList.toggle("guarding", this.blocking);
     this.damageDirectionHud.classList.toggle("visible", this.damageDirectionTimer > 0);
     this.soundDirectionHud.classList.toggle("visible", this.soundDirectionTimer > 0);
     this.threatHud.classList.toggle("visible", this.threatTimer > 0);
@@ -3807,6 +3858,19 @@ export class DarkPixGame {
       this.portalAnnounced = true;
       this.feed("The dark advances. Wardens carry what the passage needs.", "danger");
     }
+  }
+
+  private updateRaidInventory(): void {
+    const packed = this.options.equipped.filter((item) => !this.consumedIds.includes(item.id));
+    const remedies = this.availableConsumables();
+    const throwables = this.availableThrowables();
+    const signature = [...packed, ...this.raidLoot, ...remedies, ...throwables].map((item) => item.id).join("|") + `:${this.selectedConsumableId}:${this.selectedThrowableId}`;
+    if (signature === this.inventorySignature) return;
+    this.inventorySignature = signature;
+    const row = (item: Item, status: string): string => `<span class="pause-ledger-item" style="--rarity:${RARITY_COLOR[item.rarity]}"><i></i><b>${escapeHtml(item.name)}</b><small>${status} · ${item.value}g</small></span>`;
+    const selectedRemedy = remedies.find((item) => item.id === this.selectedConsumableId) ?? remedies[0];
+    const selectedThrow = throwables.find((item) => item.id === this.selectedThrowableId) ?? throwables[0];
+    this.raidInventoryBody.innerHTML = `<div class="raid-inventory-summary"><span><small>PACKED RISK</small><strong>${packed.length} ITEMS</strong></span><span><small>UNSECURED HAUL</small><strong>${haulCount(this.raidLoot)} / ${HAUL_CAPACITY} · ${treasureGoldTotal(this.raidLoot)}G</strong></span><span><small>REMEDY [F]</small><strong>${escapeHtml(selectedRemedy?.name ?? "NONE")}</strong></span><span><small>THROW [V]</small><strong>${escapeHtml(selectedThrow?.name ?? "NONE")}</strong></span></div><div class="pause-ledger-items">${packed.map((item) => row(item, "PACKED")).join("")}${this.raidLoot.map((item) => row(item, item.kind === "sigil" ? "CONTRACT" : "HAUL")).join("")}${packed.length || this.raidLoot.length ? "" : '<span class="pause-ledger-empty">Your pack and haul are empty.</span>'}</div>`;
   }
 
   private updateStealthProgress(): void {
@@ -3966,7 +4030,7 @@ export class DarkPixGame {
     window.removeEventListener("blur", this.onWindowBlur);
     this.renderer.domElement.removeEventListener("webglcontextlost", this.onContextLost);
     this.renderer.domElement.removeEventListener("webglcontextrestored", this.onContextRestored);
-    this.renderer.domElement.removeEventListener("contextmenu", this.onContextMenu);
+    document.removeEventListener("contextmenu", this.onContextMenu);
     this.renderer.domElement.removeEventListener("click", this.requestPointerLock);
     this.resumeButton.removeEventListener("click", this.requestPointerLock);
     this.retryJournalButton.removeEventListener("click", this.onRetryJournal);

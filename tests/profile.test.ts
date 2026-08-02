@@ -1170,10 +1170,12 @@ describe("directional combat damage", () => {
     expect(delverRecoveryActive(Number.NaN, Number.NaN, Number.NaN, Number.NaN, false)).toBe(false);
   });
 
-  it("resolves committed strikes near the visible middle of a bounded swing", () => {
-    expect(strikeImpactDelay(0.42)).toBeCloseTo(0.21);
+  it("resolves committed strikes at direction-specific points in the visible action", () => {
+    expect(strikeImpactDelay(0.42)).toBeCloseTo(0.1848);
+    expect(strikeImpactDelay(0.94, "OVERHEAD")).toBeCloseTo(0.52);
+    expect(strikeImpactDelay(0.72, "SWEEP")).toBeCloseTo(0.36);
     expect(strikeImpactDelay(0.1)).toBe(0.08);
-    expect(strikeImpactDelay(2)).toBe(0.24);
+    expect(strikeImpactDelay(2)).toBe(0.52);
     expect(strikeImpactDelay(Number.NaN)).toBe(0.12);
   });
 

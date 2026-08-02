@@ -68,9 +68,10 @@ export function delverRecoveryActive(
     .some((remaining) => Number.isFinite(remaining) && remaining > 0);
 }
 
-export function strikeImpactDelay(swingDuration: number): number {
+export function strikeImpactDelay(swingDuration: number, direction: AttackDirection = "THRUST"): number {
   if (!Number.isFinite(swingDuration)) return 0.12;
-  return Math.min(0.24, Math.max(0.08, swingDuration * 0.5));
+  const commitment = direction === "OVERHEAD" ? 0.58 : direction === "SWEEP" ? 0.5 : 0.44;
+  return Math.min(0.52, Math.max(0.08, swingDuration * commitment));
 }
 
 export function safeDamageAmount(amount: number): number {

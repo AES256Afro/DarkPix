@@ -82,6 +82,9 @@ Status: Complete for the current map
 - Contract-critical locations remain reachable in topology tests
 - The hidden reliquary stone blocks AI routing, perception, footsteps, melee sight, and every projectile until its channel completes
 - Facing-locked threat windups with cover, evasion, and range verdicts, directional pre-hit and impact markers, guard cone, pre-action strike stamina cost, readable crouch and sprint noise, crosshair awareness and unique unseen marks, chain telegraphs, safe annulus, darkness bearing, channel interruption reasons, crosshair scaling, rarity rank marks, and loose-loot silhouettes expose actionable state
+- Tab and I expose a non-pausing raid inventory with packed risk, unsecured haul, selected remedies, and selected throwables while movement and keyboard quick-item actions remain live
+- Held right-click guard intent survives committed attack, sidestep, and guard-break recovery, suppresses the pointer-locked context menu, and announces the raised guard state in the combat HUD
+- Class cadence owns the full visible weapon action, with thrust, sweep, and overhead impacts committed at distinct points before readable follow-through releases the hands
 - Nearby ash-vent windups and the Tollkeeper's marked ring pair their world telegraphs with directional text and shape cues through the full reaction window
 - Nearby loot, coffers, rests, shrines, and passages require an unobstructed dungeon sightline, while the false-stone seam remains intentionally usable as the wall target itself
 - Discarded haul and relics recovered from defeated rivals search backward from their desired landing points and stay on the delver's side of walls, pillars, and the sealed false stone
@@ -224,6 +227,7 @@ Status: Not started
 Required exit criteria:
 
 - Match service owns player positions, health, stamina, inventory, loot ownership, AI state, zone state, combat resolution, death, and extraction
+- Browser and native clients share simulation commands and network contracts behind separate rendering, HUD, persistence, and input adapters
 - Short-lived authenticated session identity with reconnect rules and no trust in client damage or inventory claims
 - Solo, duo, and trio party formation with explicit friendly-fire behavior
 - Bounded state replication and interpolation for multiple human delvers

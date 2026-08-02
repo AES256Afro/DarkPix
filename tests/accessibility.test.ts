@@ -215,6 +215,22 @@ describe("lobby accessibility contracts", () => {
     expect(styles).toContain(".lock-actions .retry-journal.hidden { display: none; }");
   });
 
+  it("exposes a real-time raid inventory on both familiar inventory keys", () => {
+    const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
+    expect(gameSource).toContain('class="raid-inventory" hidden aria-labelledby="raid-inventory-title"');
+    expect(gameSource).toContain('event.code === "Tab" || event.code === "KeyI"');
+    expect(gameSource).toContain("RAID CONTINUES · MOVEMENT REMAINS LIVE");
+    expect(gameSource).toContain("if (this.inventoryOpen) this.updateRaidInventory()");
+  });
+
+  it("holds and retries right-click guard through committed recovery", () => {
+    const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
+    expect(gameSource).toContain("this.guardHeld = true");
+    expect(gameSource).toContain("this.tryRaiseGuard(false)");
+    expect(gameSource).toContain("GUARD RAISED · HOLD RMB · FACE THE THREAT");
+    expect(gameSource).toContain('document.addEventListener("contextmenu", this.onContextMenu)');
+  });
+
   it("keeps keyboard focus on the raid resume action across paused control states", () => {
     const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
     expect(gameSource).toContain("private focusResumeAction()");
