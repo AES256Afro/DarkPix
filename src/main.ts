@@ -50,7 +50,6 @@ let updateRegistration: ServiceWorkerRegistration | undefined;
 let reloadForUpdate = false;
 let activeRaidStartedAt = 0;
 let lostRaidLeaseStartedAt = 0;
-let raidLeaseLossPending = false;
 let interruptedSettlementPending = false;
 let interruptedSettlementNotice = "";
 const raidEscrowLoad = profileLoad.status === "incompatible" ? undefined : loadRaidEscrowState();
@@ -94,20 +93,15 @@ function stopRaidHeartbeat(): void {
 }
 
 function queueRaidLeaseLoss(): void {
-  if (raidLeaseLossPending || activeRaidStartedAt <= 0) return;
-  raidLeaseLossPending = true;
+  if (activeRaidStartedAt <= 0) return;
   queueMicrotask(() => {
-    raidLeaseLossPending = false;
-    if (activeRaidStartedAt <= 0) return;
-    const journal = loadRaidEscrowState();
-    if (journal.status !== "loaded" || raidEscrowOwnedBy(journal.escrow, raidOwnerId, activeRaidStartedAt)) return;
+    if (!activeRaidJournalOwnershipLost()) return;
     lostRaidLeaseStartedAt = activeRaidStartedAt;
     stopRaidHeartbeat();
     activeGame?.destroy();
     activeGame = undefined;
     activeRaidStartedAt = 0;
     foreignRaidLease = true;
-    merchantNotice = "Another tab won a concurrent raid claim. This local descent stopped without touching its journal or profile.";
     lobbyEpoch += 1;
     renderForeignRaidLease();
   });
@@ -117,6 +111,18 @@ function activeRaidJournalOwned(): boolean {
   if (activeRaidStartedAt <= 0) return false;
   const journal = loadRaidEscrowState();
   return journal.status === "loaded" && raidEscrowOwnedBy(journal.escrow, raidOwnerId, activeRaidStartedAt);
+}
+
+function activeRaidJournalOwnershipLost(): boolean {
+  if (activeRaidStartedAt <= 0) return false;
+  const journal = loadRaidEscrowState();
+  return journal.status === "loaded" && !raidEscrowOwnedBy(journal.escrow, raidOwnerId, activeRaidStartedAt);
+}
+
+function renewActiveRaidEscrow(escrow: ReturnType<typeof createRaidEscrow>): boolean {
+  const renewal = renewRaidEscrow(escrow);
+  if (renewal === "ownership_lost") queueRaidLeaseLoss();
+  return renewal === "secure";
 }
 
 function loadGameModule(): Promise<typeof import("./game/game")> {
@@ -954,9 +960,7 @@ async function startRaid(): Promise<void> {
         return;
       }
       escrow = createRaidEscrow(escrow.classId, escrow.raidMode, escrow.equippedIds, escrow.startedAt, escrow.depthReached, escrow.kills, escrow.goldBeforeEntry, escrow.killsByKind, escrow.variationSeed, escrow.unseenStrikes, raidOwnerId, Date.now());
-      const renewal = renewRaidEscrow(escrow);
-      if (renewal === "ownership_lost") queueRaidLeaseLoss();
-      else if (renewal === "write_failed") console.warn("DarkPix could not renew the loading raid escrow lease");
+      renewActiveRaidEscrow(escrow);
     }, 3_000);
     profile.gold = escrow.goldAfterEntry ?? Math.max(0, goldBeforeEntry - rules.entryFee);
     if (!saveProfile(profile)) {
@@ -992,10 +996,7 @@ async function startRaid(): Promise<void> {
       variationSeed,
       onCheckpoint: (depthReached, kills, killsByKind, unseenStrikes) => {
         escrow = createRaidEscrow(escrow.classId, escrow.raidMode, escrow.equippedIds, escrow.startedAt, depthReached, kills, escrow.goldBeforeEntry, killsByKind, escrow.variationSeed, unseenStrikes, raidOwnerId, Date.now());
-        const renewal = renewRaidEscrow(escrow);
-        if (renewal === "ownership_lost") queueRaidLeaseLoss();
-        if (renewal !== "secure") console.warn("DarkPix could not update the active raid escrow checkpoint");
-        return renewal === "secure";
+        return renewActiveRaidEscrow(escrow);
       },
       onFinish: finishRaid,
     });
@@ -1014,8 +1015,7 @@ async function startRaid(): Promise<void> {
 }
 
 function finishRaid(result: RaidResult): void {
-  const currentJournal = loadRaidEscrowState();
-  if (currentJournal.status === "loaded" && !raidEscrowOwnedBy(currentJournal.escrow, raidOwnerId, activeRaidStartedAt)) {
+  if (activeRaidJournalOwnershipLost()) {
     queueRaidLeaseLoss();
     return;
   }
@@ -1127,8 +1127,7 @@ function finishRaid(result: RaidResult): void {
         () => clearOwnedRaidEscrow(raidOwnerId, activeRaidStartedAt),
       );
       if (!verdictSecured) {
-        const journal = loadRaidEscrowState();
-        if (journal.status === "loaded" && !raidEscrowOwnedBy(journal.escrow, raidOwnerId, activeRaidStartedAt)) queueRaidLeaseLoss();
+        if (activeRaidJournalOwnershipLost()) queueRaidLeaseLoss();
         const notice = app.querySelector<HTMLElement>(".result-persistence");
         if (notice) notice.textContent = "The browser still refused the verdict. Keep this page open, check private-browsing or storage settings, then retry.";
         return;
@@ -1150,12 +1149,9 @@ window.addEventListener("storage", (event) => {
       location.reload();
       return;
     }
-    if (activeRaidStartedAt > 0) {
-      const journal = loadRaidEscrowState();
-      if (journal.status === "loaded" && !raidEscrowOwnedBy(journal.escrow, raidOwnerId, activeRaidStartedAt)) {
-        queueRaidLeaseLoss();
-        return;
-      }
+    if (activeRaidJournalOwnershipLost()) {
+      queueRaidLeaseLoss();
+      return;
     }
     lockForForeignRaidJournal();
   }

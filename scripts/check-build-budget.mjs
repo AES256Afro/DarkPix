@@ -16,7 +16,7 @@ const assetNames = await readdir(assetDirectory);
 async function compressedTotal(extension) {
   let total = 0;
   for (const name of assetNames.filter((asset) => asset.endsWith(extension))) {
-    total += gzipSync(await readFile(join(assetDirectory.pathname, name))).byteLength;
+    total += gzipSync(await readFile(join(assetDirectory.pathname, name)), { level: 9 }).byteLength;
   }
   return total;
 }

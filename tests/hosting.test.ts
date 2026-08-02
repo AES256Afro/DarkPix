@@ -5,8 +5,14 @@ import dockerfile from "../Dockerfile?raw";
 import compose from "../compose.yml?raw";
 import workflow from "../.github/workflows/ci.yml?raw";
 import copyStyleScript from "../scripts/check-copy-style.mjs?raw";
+import budgetScript from "../scripts/check-build-budget.mjs?raw";
 
 describe("production asset routing", () => {
+  it("measures compressed assets at an explicit best-compression level", () => {
+    expect(budgetScript).toContain("{ level: 9 }");
+    expect(budgetScript).toContain("javascriptGzip: 185 * KIB");
+  });
+
   it("returns a real 404 for missing hashed assets instead of the HTML shell", () => {
     expect(nginx).toMatch(/location \^~ \/assets\/\s*\{\s*try_files \$uri =404;\s*\}/);
     expect(nginx).toMatch(/healthz\|version\\\.txt\|sw\\\.js\|manifest\\\.webmanifest/);
