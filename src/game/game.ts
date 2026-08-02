@@ -269,6 +269,7 @@ export class DarkPixGame {
   private wayfinderHud!: HTMLElement;
   private lockOverlay!: HTMLElement;
   private resumeButton!: HTMLButtonElement;
+  private retryJournalButton!: HTMLButtonElement;
   private abandonButton!: HTMLButtonElement;
   private damageOverlay!: HTMLElement;
   private damageDirectionHud!: HTMLElement;
@@ -455,6 +456,7 @@ export class DarkPixGame {
           <section class="pause-ledger" aria-label="Current raid risk ledger"></section>
           <span class="lock-actions">
             <button class="resume-raid" type="button">BIND CURSOR / RESUME</button>
+            <button class="retry-journal hidden" type="button">RETRY JOURNAL WRITE</button>
             <button class="abandon-raid" type="button">ABANDON RAID</button>
           </span>
           <span class="control-line">WASD move · mouse look · LMB strike · RMB guard · Space sidestep · Ctrl crouch · 1/2 spells · E interact · R red descent · F use remedy · C cycle remedy · V throw · B cycle throw · G drop · T torch · Shift sprint</span>
@@ -484,6 +486,7 @@ export class DarkPixGame {
     this.wayfinderHud = this.mount.querySelector<HTMLElement>(".wayfinder")!;
     this.lockOverlay = this.mount.querySelector<HTMLElement>(".lock-overlay")!;
     this.resumeButton = this.mount.querySelector<HTMLButtonElement>(".resume-raid")!;
+    this.retryJournalButton = this.mount.querySelector<HTMLButtonElement>(".retry-journal")!;
     this.abandonButton = this.mount.querySelector<HTMLButtonElement>(".abandon-raid")!;
     this.damageOverlay = this.mount.querySelector<HTMLElement>(".damage-flash")!;
     this.damageDirectionHud = this.mount.querySelector<HTMLElement>(".damage-direction")!;
@@ -1036,6 +1039,7 @@ export class DarkPixGame {
     this.renderer.domElement.addEventListener("contextmenu", this.onContextMenu);
     this.renderer.domElement.addEventListener("click", this.requestPointerLock);
     this.resumeButton.addEventListener("click", this.requestPointerLock);
+    this.retryJournalButton.addEventListener("click", this.onRetryJournal);
     this.abandonButton.addEventListener("click", this.onAbandonRaid);
   }
 
@@ -2166,6 +2170,8 @@ export class DarkPixGame {
     this.journalRetryTimer = saved ? 0 : 3;
     this.journalHud.textContent = saved ? "journal secure" : "journal write failed · do not refresh";
     this.journalHud.classList.toggle("failed", !saved);
+    this.retryJournalButton.classList.toggle("hidden", saved);
+    if (this.paused) this.updatePauseLedger();
     if (saved && !wasSecure) {
       this.feed("JOURNAL RESTORED · raid progress is secure", "system");
       this.audio.tone(460, 0.12, "sine", 0.055);
@@ -2177,6 +2183,11 @@ export class DarkPixGame {
     this.journalRetryTimer = retry.remaining;
     if (retry.due) this.checkpointRaid();
   }
+
+  private onRetryJournal = (): void => {
+    if (this.ended || this.journalSecure) return;
+    this.checkpointRaid();
+  };
 
   private recordUnseenStrike(enemy: Enemy): boolean {
     if (!markUnseenStrike(this.markedUnseenThreats, enemy)) return false;
@@ -3652,6 +3663,7 @@ export class DarkPixGame {
     this.renderer.domElement.removeEventListener("contextmenu", this.onContextMenu);
     this.renderer.domElement.removeEventListener("click", this.requestPointerLock);
     this.resumeButton.removeEventListener("click", this.requestPointerLock);
+    this.retryJournalButton.removeEventListener("click", this.onRetryJournal);
     this.abandonButton.removeEventListener("click", this.onAbandonRaid);
     this.audio.stop();
     this.clearPlayerProjectiles();

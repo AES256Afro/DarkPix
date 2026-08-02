@@ -388,6 +388,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .lock-actions button:hover { filter: brightness(1.18); }
 .lock-actions .abandon-raid { border-color: #3a332c; background: rgba(16,14,12,.84); color: #766d63; }
 .lock-actions .abandon-raid.armed { border-color: #8d3d30; background: #381713; color: #e0a296; }
+.lock-actions .retry-journal { border-color: #80642f; background: #2b240f; color: #dccb85; }
+.lock-actions .retry-journal.hidden { display: none; }
 .lock-actions button:disabled { cursor: wait; opacity: .65; }
 .control-line { margin-top: 38px; color: #666057; font: 8px ui-monospace, monospace; letter-spacing: .07em; }
 

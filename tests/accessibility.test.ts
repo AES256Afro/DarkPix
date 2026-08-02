@@ -24,6 +24,13 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain('"RETRY SECURING VERDICT"');
   });
 
+  it("offers a paused live-journal retry without resuming the raid", () => {
+    const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
+    expect(gameSource).toContain('class="retry-journal hidden"');
+    expect(gameSource).toContain('this.retryJournalButton.addEventListener("click", this.onRetryJournal)');
+    expect(styles).toContain(".lock-actions .retry-journal.hidden { display: none; }");
+  });
+
   it("keeps occluded movement cues separate from combat impact announcements", () => {
     expect(readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8")).toContain('class="sound-direction" role="status" aria-live="polite"');
     expect(styles).toContain(".raid-shell.high-contrast-hud .damage-direction, .raid-shell.high-contrast-hud .sound-direction");
