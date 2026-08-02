@@ -1650,9 +1650,10 @@ export class DarkPixGame {
       trap.active = Math.max(0, trap.active - delta);
       const targetScale = trap.active > 0 ? 1 : 0.04;
       trap.spikes.scale.y = THREE.MathUtils.lerp(trap.spikes.scale.y, targetScale, delta * 22);
-      const distance = Math.hypot(this.camera.position.x - trap.group.position.x, this.camera.position.z - trap.group.position.z);
       if (trap.cooldown > 0) continue;
-      if (distance < 0.82) {
+      const playerOffsetX = this.camera.position.x - trap.group.position.x;
+      const playerOffsetZ = this.camera.position.z - trap.group.position.z;
+      if (playerOffsetX * playerOffsetX + playerOffsetZ * playerOffsetZ < 0.82 * 0.82) {
         trap.cooldown = 3.2;
         trap.active = 0.72;
         this.hurt(trap.damage, "a floor trap", true, { x: trap.group.position.x, z: trap.group.position.z });
@@ -1661,10 +1662,11 @@ export class DarkPixGame {
       }
       let victim: Enemy | undefined;
       for (const enemy of this.enemies) {
-        if (!enemy.alive || Math.hypot(
-          enemy.group.position.x - trap.group.position.x,
-          enemy.group.position.z - trap.group.position.z,
-        ) >= (enemy.kind === "boss" ? 1.05 : 0.78)) continue;
+        if (!enemy.alive) continue;
+        const enemyOffsetX = enemy.group.position.x - trap.group.position.x;
+        const enemyOffsetZ = enemy.group.position.z - trap.group.position.z;
+        const triggerRadius = enemy.kind === "boss" ? 1.05 : 0.78;
+        if (enemyOffsetX * enemyOffsetX + enemyOffsetZ * enemyOffsetZ >= triggerRadius * triggerRadius) continue;
         victim = enemy;
         break;
       }

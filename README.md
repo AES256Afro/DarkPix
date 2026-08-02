@@ -129,7 +129,7 @@ The public service accepts only `GET` and `HEAD`; write methods are rejected bef
 - Allocation-free wall and pillar scans for repeated sightline and projectile-path samples
 - Raid-owned coordinate scratch records for frame-hot awareness, rival, and stealth sight checks
 - Caller-owned migrating-darkness state with one player-distance calculation per active frame
-- Early-exit scalar collision and trap scans for frame-hot delver, threat, floor-spike, and wall-dart checks
+- Early-exit squared-distance collision and trap scans for frame-hot delver, threat, floor-spike, and wall-dart checks
 - Render-independent 20 Hz HUD refreshes while movement, combat, missiles, traps, and darkness continue at simulation cadence
 - Caller-owned projectile target and impact records with scalar first-contact ordering during missile flight
 - Allocation-free finite-number guards in projectile, masonry, ash-vent, and footstep cadence math

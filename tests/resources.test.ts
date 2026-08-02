@@ -88,6 +88,8 @@ describe("raid resource cleanup", () => {
     expect(collides).not.toContain(".some(");
     expect(traps).not.toContain(".find(");
     expect(traps).not.toContain(".reduce(");
+    expect(traps).not.toContain("Math.hypot(");
+    expect(traps).toContain("triggerRadius * triggerRadius");
     expect(enemyCollision).not.toContain(".some(");
     expect(enemyCollision).not.toContain("{ x, z }");
   });

@@ -101,7 +101,7 @@ Status: Complete for the current map
 - Sight and projectile sampling reuse the immutable wall and pillar registries directly instead of rebuilding geometry arrays and point records for every sample
 - Repeated threat, rival, ability, attack, and stealth sight checks write through two raid-owned coordinate records instead of creating caller-side point pairs
 - Migrating darkness updates one raid-owned zone record, measures player distance once, and reuses the direction scratch record only when the delver is outside safety
-- Player and threat collision plus floor and dart-trap scans use early-exit loops and scalar overlap math instead of allocating frame-hot callbacks and coordinate pairs
+- Player and threat collision plus floor and dart-trap scans use early-exit loops and squared scalar overlap math instead of frame-hot square roots, callbacks, and coordinate pairs
 - Combat and hazard simulation remain frame-rate driven while inventory summaries, wayfinding, bars, countdown text, and transient visibility refresh at a bounded 20 Hz
 - Projectile flight keeps first-contact progress in scalars and reuses target and impact records instead of constructing collision-result objects while missiles cross a frame
 - Projectile sweeps, masonry samples, ash-vent range checks, and movement cadence use direct finite-number guards instead of temporary validation arrays
