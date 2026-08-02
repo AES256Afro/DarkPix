@@ -149,7 +149,11 @@ async function activateCurrentRelease() {
   const priorKeys = keys.filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME);
   const retained = new Set(priorKeys.slice(-PRIOR_RELEASE_LIMIT));
   await Promise.allSettled(priorKeys.filter((key) => !retained.has(key)).map((key) => caches.delete(key)));
-  await self.clients.claim();
+  try {
+    await self.clients.claim();
+  } catch {
+    // A complete cache may activate even if current tabs cannot be claimed immediately.
+  }
 }
 
 self.addEventListener("activate", (event) => {
@@ -157,7 +161,7 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("message", (event) => {
-  if (event.data?.type === "SKIP_WAITING") void self.skipWaiting();
+  if (event.data?.type === "SKIP_WAITING") void self.skipWaiting().catch(() => undefined);
 });
 
 self.addEventListener("fetch", (event) => {

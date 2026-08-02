@@ -156,6 +156,7 @@ Status: Complete
 - Release-isolated worker caches recover old hashed chunks from real asset 404s instead of accepting the HTML shell
 - Worker activation retains only two prior release caches so an older claimed lobby can still lazy-load its valid hashed game chunk, while stale caches and every prior HTML shell remain outside fallback resolution
 - A complete current worker still claims clients when obsolete-cache enumeration or deletion is unavailable; cleanup failure cannot invalidate its staged shell
+- A complete worker also survives transient immediate-client-claim failure, and rejected waiting-worker activation requests are contained instead of leaking unhandled promises
 - Install and runtime cache writes reject response types that do not match their navigation, script, style, image, font, or manifest key, including every fixed shell entry staged by `addAll`
 - Runtime executable and style requests fail closed to a valid cached response or a network error when an upstream `200` carries the wrong content type, rather than returning an HTML fallback downstream
 - Runtime manifest, icon, and title requests canonicalize to one current-release key, preventing arbitrary query variants from multiplying fixed-shell cache entries

@@ -88,6 +88,41 @@ describe("installable offline shell", () => {
     expect(claim).toHaveBeenCalledOnce();
   });
 
+  it("keeps a complete release active when immediate client claiming fails", async () => {
+    const handlers = new Map<string, (event: { waitUntil(promise: Promise<unknown>): void }) => void>();
+    const claim = vi.fn(async () => { throw new Error("client control unavailable"); });
+    const workerScope = {
+      location: { href: "https://darkpix.test/sw.js?v=current-release", origin: "https://darkpix.test" },
+      clients: { claim },
+      skipWaiting: vi.fn(async () => undefined),
+      addEventListener: (name: string, handler: (event: { waitUntil(promise: Promise<unknown>): void }) => void) => handlers.set(name, handler),
+    };
+    const cacheStorage = { open: vi.fn(), keys: vi.fn(async () => ["darkpix-runtime-current-release"]), delete: vi.fn(async () => true) };
+    new Function("self", "caches", "fetch", worker)(workerScope, cacheStorage, vi.fn());
+    let activation: Promise<unknown> | undefined;
+    handlers.get("activate")?.({ waitUntil: (promise) => { activation = promise; } });
+
+    await expect(activation).resolves.toBeUndefined();
+    expect(claim).toHaveBeenCalledOnce();
+  });
+
+  it("contains a rejected request to activate a waiting worker", async () => {
+    const handlers = new Map<string, (event: { data?: { type?: string } }) => void>();
+    const skipWaiting = vi.fn(async () => { throw new Error("activation unavailable"); });
+    const workerScope = {
+      location: { href: "https://darkpix.test/sw.js?v=current-release", origin: "https://darkpix.test" },
+      clients: { claim: vi.fn(async () => undefined) },
+      skipWaiting,
+      addEventListener: (name: string, handler: (event: { data?: { type?: string } }) => void) => handlers.set(name, handler),
+    };
+    const cacheStorage = { open: vi.fn(), keys: vi.fn(async () => []), delete: vi.fn(async () => true) };
+    new Function("self", "caches", "fetch", worker)(workerScope, cacheStorage, vi.fn());
+
+    handlers.get("message")?.({ data: { type: "SKIP_WAITING" } });
+    await Promise.resolve();
+    expect(skipWaiting).toHaveBeenCalledOnce();
+  });
+
   it("rejects and cleans an incomplete release cache before activation", () => {
     const installFunction = worker.slice(worker.indexOf("async function installCurrentRelease"), worker.indexOf('self.addEventListener("install"'));
     expect(installFunction).toContain("await cacheBuildAssets()");
