@@ -49,4 +49,12 @@ describe("production asset routing", () => {
     expect(compose).toMatch(/mem_limit: 384m/);
     expect(compose).toMatch(/cpus: 1\.5/);
   });
+
+  it("rejects a rollout when Docker does not apply the required runtime boundaries", () => {
+    expect(deployScript).toContain("check_container_hardening()");
+    expect(deployScript).toContain('check_container_hardening "$darkpix_container_id"');
+    expect(deployScript).toContain('check_container_hardening "$rollback_container_id"');
+    expect(deployScript).toContain("nginx|true|false|64|402653184|1500000000");
+    expect(deployScript).toContain('"HostIp":"127.0.0.1","HostPort":"8092"');
+  });
 });

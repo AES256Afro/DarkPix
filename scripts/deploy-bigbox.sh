@@ -40,6 +40,18 @@ check_darkpix_health() {
   fi
 }
 
+check_container_hardening() {
+  local container_id="$1"
+  local core_limits
+  core_limits="$(docker inspect --format '{{.Config.User}}|{{.HostConfig.ReadonlyRootfs}}|{{.HostConfig.Privileged}}|{{.HostConfig.PidsLimit}}|{{.HostConfig.Memory}}|{{.HostConfig.NanoCpus}}' "$container_id" 2>/dev/null)" || return 1
+  [[ "$core_limits" == "nginx|true|false|64|402653184|1500000000" ]] || return 1
+  [[ "$(docker inspect --format '{{json .HostConfig.CapDrop}}' "$container_id" 2>/dev/null)" == '["ALL"]' ]] || return 1
+  [[ "$(docker inspect --format '{{json .HostConfig.SecurityOpt}}' "$container_id" 2>/dev/null)" == '["no-new-privileges:true"]' ]] || return 1
+  [[ "$(docker inspect --format '{{index .HostConfig.Tmpfs "/tmp"}}' "$container_id" 2>/dev/null)" == "rw,noexec,nosuid,size=32m" ]] || return 1
+  [[ "$(docker inspect --format '{{index .HostConfig.LogConfig.Config "max-size"}}|{{index .HostConfig.LogConfig.Config "max-file"}}' "$container_id" 2>/dev/null)" == "10m|3" ]] || return 1
+  docker inspect --format '{{json .HostConfig.PortBindings}}' "$container_id" 2>/dev/null | grep -Fq '"HostIp":"127.0.0.1","HostPort":"8092"'
+}
+
 previous_container_id="$(docker compose ps -q darkpix 2>/dev/null || true)"
 previous_image_id=""
 previous_release=""
@@ -80,7 +92,8 @@ rollback_previous_release() {
     rollback_container_id="$(docker compose ps -q darkpix)"
     if [[ -n "$rollback_container_id" ]] &&
       [[ "$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$rollback_container_id")" == "healthy" ]] &&
-      check_darkpix_health; then
+      check_darkpix_health &&
+      check_container_hardening "$rollback_container_id"; then
       local restored_release
       restored_release="$(docker compose exec -T darkpix wget -q -O - http://127.0.0.1:8080/version.txt)"
       if [[ -n "$previous_release" && "$restored_release" != "$previous_release" ]]; then
@@ -140,6 +153,13 @@ for attempt in {1..30}; do
   fi
   sleep 1
 done
+
+if ! check_container_hardening "$darkpix_container_id"; then
+  echo "DarkPix became healthy without the required unprivileged, read-only, loopback-only resource limits." >&2
+  rollback_previous_release || true
+  exit 1
+fi
+echo "DarkPix container hardening and resource limits verified from Docker runtime state."
 
 docker compose ps
 echo "Deployed release: $(docker compose exec -T darkpix wget -q -O - http://127.0.0.1:8080/version.txt)"
