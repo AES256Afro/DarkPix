@@ -292,6 +292,7 @@ export class DarkPixGame {
   private blocking = false;
   private crouching = false;
   private sprinting = false;
+  private moving = false;
   private blockAge = 0;
   private guardBreakTimer = 0;
   private attackCooldown = 0;
@@ -1134,6 +1135,7 @@ export class DarkPixGame {
     this.blocking = false;
     this.crouching = false;
     this.sprinting = false;
+    this.moving = false;
     this.blockAge = 0;
     this.interactHeld = false;
     this.descendHeld = false;
@@ -1431,6 +1433,7 @@ export class DarkPixGame {
     const sprinting = moving && !crouching && (this.keys.has("ShiftLeft") || this.keys.has("ShiftRight")) && this.stamina > 1 && !this.blocking && !this.remedyItemId;
     this.crouching = crouching;
     this.sprinting = sprinting;
+    this.moving = moving;
     const sprintMultiplier = sprinting ? (this.options.classId === "cutpurse" ? 1.65 : 1.48) : 1;
     const movementPenalty = (this.blocking ? 0.55 : this.guardBreakTimer > 0 ? 0.42 : this.remedyItemId ? 0.62 : 1) * (crouching ? 0.58 : 1);
     const speed = this.definition.speed * this.loadoutBonuses.movementMultiplier * classMovementMultiplier(this.options.classId, this.wildshapeTimer) * sprintMultiplier * movementPenalty;
@@ -2073,7 +2076,13 @@ export class DarkPixGame {
       const toPlayerX = player.x - enemy.group.position.x;
       const toPlayerZ = player.z - enemy.group.position.z;
       const distance = Math.hypot(toPlayerX, toPlayerZ);
-      const awareness = passiveAwarenessRange(this.torchLit, this.crouching, this.sprinting);
+      const awareness = passiveAwarenessRange(
+        this.torchLit,
+        this.crouching,
+        this.sprinting,
+        this.moving,
+        equippedPower(this.options.equipped, "armor"),
+      );
       if (this.phaseElapsed() >= depthRules(this.depth).spawnGrace && this.concealmentTimer <= 0 && distance < awareness && dungeonLineOfSight(
         { x: player.x, z: player.z },
         { x: enemy.group.position.x, z: enemy.group.position.z },
@@ -3331,7 +3340,7 @@ export class DarkPixGame {
   }
 
   private updateStealthProgress(): void {
-    const noise = this.sprinting ? "sprint loud" : this.crouching ? "crouch quiet" : "steady";
+    const noise = this.sprinting ? "sprint loud" : this.crouching && this.moving ? "crouch quiet" : this.moving ? "walk steady" : "still";
     this.stealthHud.textContent = `unseen marks ${Math.min(QUIET_KNIVES_TARGET, this.unseenStrikes)} / ${QUIET_KNIVES_TARGET} · ${noise}`;
   }
 

@@ -59,10 +59,12 @@ export function movementOffset(yaw: number, strafe: number, forward: number, dis
   };
 }
 
-export function passiveAwarenessRange(torchLit: boolean, crouching: boolean, sprinting = false): number {
+export function passiveAwarenessRange(torchLit: boolean, crouching: boolean, sprinting = false, moving = true, armorWeight = 0): number {
   const base = torchLit ? 10.5 : 6.5;
-  if (crouching) return base * 0.66;
-  return sprinting ? base * 1.35 : base;
+  const movementNoise = crouching ? (moving ? 0.66 : 0.56) : !moving ? 0.78 : sprinting ? 1.35 : 1;
+  const safeArmor = Number.isFinite(armorWeight) ? Math.min(22, Math.max(0, armorWeight)) : 0;
+  const armorNoise = moving ? 1 + safeArmor * 0.01 : 1;
+  return base * movementNoise * armorNoise;
 }
 
 export type RecoveryNeed = "MEMORY" | "VIGOR" | "STAMINA" | "TORCH" | undefined;
