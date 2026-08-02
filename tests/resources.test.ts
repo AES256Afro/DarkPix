@@ -37,4 +37,11 @@ describe("raid resource cleanup", () => {
     expect(gameSource).toContain('this.weaponPower = equippedPower(options.equipped, "weapon")');
     expect(gameSource).not.toContain("equippedPower(this.options.equipped");
   });
+
+  it("animates registered wall torches without traversing the whole scene each frame", () => {
+    const animateWorld = gameSource.slice(gameSource.indexOf("private animateWorld"), gameSource.indexOf("private updateHud"));
+    expect(gameSource).toContain("this.animatedTorches.push({ flame, light, phase })");
+    expect(animateWorld).toContain("for (const torch of this.animatedTorches)");
+    expect(animateWorld).not.toContain("this.scene.traverse");
+  });
 });

@@ -148,6 +148,12 @@ interface AshVent {
   active: number;
 }
 
+interface AnimatedTorch {
+  flame: THREE.Object3D;
+  light: THREE.PointLight;
+  phase: number;
+}
+
 export interface DarkPixGameOptions {
   classId: ClassId;
   classLevel: number;
@@ -232,6 +238,7 @@ export class DarkPixGame {
   private readonly traps: FloorTrap[] = [];
   private readonly dartTraps: DartTrap[] = [];
   private readonly ashVents: AshVent[] = [];
+  private readonly animatedTorches: AnimatedTorch[] = [];
   private readonly raidLoot: Item[] = [];
   private readonly carriedConsumables: Item[];
   private readonly carriedThrowables: Item[];
@@ -639,16 +646,14 @@ export class DarkPixGame {
     const flame = new THREE.Mesh(new THREE.OctahedronGeometry(0.18, 0), material(0xff6d20, 0xff3100));
     flame.position.set(0, 0.43, 0);
     flame.scale.set(0.7, 1.45, 0.7);
-    flame.userData.flamePhase = phase;
     torch.add(handle, flame);
     const light = new THREE.PointLight(0xff6c2a, 1.7, 9, 2);
     light.position.y = 0.4;
     light.castShadow = phase % 3 === 0;
     light.shadow.mapSize.set(256, 256);
-    light.userData.torchLight = true;
-    light.userData.phase = phase;
     torch.add(light);
     this.scene.add(torch);
+    this.animatedTorches.push({ flame, light, phase });
   }
 
   private createChest(x: number, z: number, depthBonus: number, mimic: boolean): void {
@@ -3485,15 +3490,10 @@ export class DarkPixGame {
   private animateWorld(delta: number): void {
     const reducedMotion = this.options.preferences.reducedMotion;
     const reducedFlashes = this.options.preferences.reducedFlashes;
-    this.scene.traverse((object) => {
-      if (object.userData.torchLight) {
-        const light = object as THREE.PointLight;
-        light.intensity = reducedFlashes ? 1.55 : 1.55 + Math.sin(this.elapsed * 13 + Number(object.userData.phase)) * 0.28;
-      }
-      if (object.userData.flamePhase !== undefined) {
-        object.scale.y = reducedMotion ? 1 : 0.92 + Math.sin(this.elapsed * 17 + Number(object.userData.flamePhase)) * 0.17;
-      }
-    });
+    for (const torch of this.animatedTorches) {
+      torch.light.intensity = reducedFlashes ? 1.55 : 1.55 + Math.sin(this.elapsed * 13 + torch.phase) * 0.28;
+      torch.flame.scale.y = reducedMotion ? 1 : 0.92 + Math.sin(this.elapsed * 17 + torch.phase) * 0.17;
+    }
     this.pickups.forEach((pickup) => {
       if (pickup.collected) return;
       if (!reducedMotion) pickup.group.rotation.y += delta * 1.5;
