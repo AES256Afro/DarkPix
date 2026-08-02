@@ -60,6 +60,45 @@ container_file_sha() {
   docker compose exec -T darkpix sha256sum "/usr/share/nginx/html/$relative_path" </dev/null 2>/dev/null | awk '{print $1}'
 }
 
+container_build_asset_shas() {
+  local references
+  local asset_name
+  local normalized_asset_path
+  local asset_sha
+  local captured_assets=0
+  references="$(docker compose exec -T darkpix sh -c 'for asset_file in /usr/share/nginx/html/assets/*.js /usr/share/nginx/html/assets/*.css; do [ -f "$asset_file" ] && basename "$asset_file"; done' </dev/null 2>/dev/null | sort -u)" || return 1
+  [[ -n "$references" ]] || return 1
+  while IFS= read -r asset_name; do
+    [[ -n "$asset_name" ]] || continue
+    normalized_asset_path="assets/$asset_name"
+    [[ "$normalized_asset_path" =~ ^assets/[A-Za-z0-9._-]+\.(js|css)$ ]] || return 1
+    asset_sha="$(container_file_sha "$normalized_asset_path")" || return 1
+    [[ "$asset_sha" =~ ^[0-9a-f]{64}$ ]] || return 1
+    printf '%s|%s\n' "$normalized_asset_path" "$asset_sha"
+    captured_assets=$((captured_assets + 1))
+  done <<<"$references"
+  [[ "$captured_assets" -ge 2 ]]
+}
+
+check_public_asset_shas() {
+  local public_url="$1"
+  local asset_records="$2"
+  local query_suffix="$3"
+  local asset_path
+  local expected_sha
+  local asset_url
+  local verified_assets=0
+  while IFS='|' read -r asset_path expected_sha; do
+    [[ "$asset_path" =~ ^assets/[A-Za-z0-9._-]+\.(js|css)$ ]] || return 1
+    [[ "$expected_sha" =~ ^[0-9a-f]{64}$ ]] || return 1
+    asset_url="$public_url/$asset_path"
+    if [[ -n "$query_suffix" ]]; then asset_url="$asset_url?$query_suffix"; fi
+    [[ "$(public_body_sha "$asset_url")" == "$expected_sha" ]] || return 1
+    verified_assets=$((verified_assets + 1))
+  done <<<"$asset_records"
+  [[ "$verified_assets" -ge 2 ]]
+}
+
 check_darkpix_health() {
   if command -v curl >/dev/null 2>&1; then
     curl -fsS http://127.0.0.1:8092/healthz >/dev/null
@@ -89,6 +128,7 @@ previous_worker_sha=""
 previous_manifest_sha=""
 previous_icon_sha=""
 previous_title_sha=""
+previous_build_asset_shas=""
 if [[ -n "$previous_container_id" ]]; then
   previous_image_id="$(docker inspect --format '{{.Image}}' "$previous_container_id" 2>/dev/null || true)"
   previous_release="$(docker compose exec -T darkpix wget -q -O - http://127.0.0.1:8080/version.txt 2>/dev/null || true)"
@@ -106,6 +146,10 @@ if [[ -n "$previous_container_id" ]]; then
       exit 1
     fi
   done
+  if ! previous_build_asset_shas="$(container_build_asset_shas)"; then
+    echo "Refusing to replace the running DarkPix container because its rollback build-asset graph is incomplete." >&2
+    exit 1
+  fi
   docker image tag "$previous_image_id" darkpix-web:rollback
 fi
 
@@ -146,6 +190,7 @@ check_restored_public_routes() {
     if [[ "$previous_title_sha" =~ ^[0-9a-f]{64}$ ]]; then
       [[ "$(public_body_sha "$public_url/assets/darkpix-title.jpg?v=rollback-$previous_release")" == "$previous_title_sha" ]] || return 1
     fi
+    check_public_asset_shas "$public_url" "$previous_build_asset_shas" "rollback=$previous_release" || return 1
   done
 }
 
@@ -231,10 +276,16 @@ if ! check_container_hardening "$darkpix_container_id"; then
 fi
 echo "DarkPix container hardening and resource limits verified from Docker runtime state."
 
-current_worker_sha="$(container_file_sha sw.js)"
-current_manifest_sha="$(container_file_sha manifest.webmanifest)"
-current_icon_sha="$(container_file_sha darkpix-icon.svg)"
-current_title_sha="$(container_file_sha assets/darkpix-title.jpg)"
+current_worker_sha="$(container_file_sha sw.js || true)"
+current_manifest_sha="$(container_file_sha manifest.webmanifest || true)"
+current_icon_sha="$(container_file_sha darkpix-icon.svg || true)"
+current_title_sha="$(container_file_sha assets/darkpix-title.jpg || true)"
+current_build_asset_shas=""
+if ! current_build_asset_shas="$(container_build_asset_shas)"; then
+  echo "The running container did not expose a complete build-asset checksum set." >&2
+  rollback_previous_release || true
+  exit 1
+fi
 for current_fixed_sha in "$current_worker_sha" "$current_manifest_sha" "$current_icon_sha" "$current_title_sha"; do
   if [[ ! "$current_fixed_sha" =~ ^[0-9a-f]{64}$ ]]; then
     echo "The running container did not expose a valid fixed-shell checksum." >&2
@@ -370,6 +421,7 @@ check_public_release() {
   [[ "$(public_body_sha "$public_url/manifest.webmanifest?v=$darkpix_release")" == "$current_manifest_sha" ]] || return 1
   [[ "$(public_body_sha "$public_url/darkpix-icon.svg?v=$darkpix_release")" == "$current_icon_sha" ]] || return 1
   [[ "$(public_body_sha "$public_url/assets/darkpix-title.jpg?v=$darkpix_release")" == "$current_title_sha" ]] || return 1
+  check_public_asset_shas "$public_url" "$current_build_asset_shas" "release=$darkpix_release" || return 1
   for fixed_headers in "$manifest_headers" "$icon_headers" "$title_headers" "$worker_headers"; do
     if grep -qi 'cf-cache-status: *HIT' <<<"$fixed_headers"; then return 1; fi
   done

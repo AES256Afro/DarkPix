@@ -117,6 +117,17 @@ describe("production asset routing", () => {
     expect(deployScript.indexOf("for previous_fixed_sha")).toBeLessThan(deployScript.indexOf('docker image tag "$previous_image_id" darkpix-web:rollback'));
   });
 
+  it("requires every restored build asset to match the prior container bytes", () => {
+    expect(deployScript).toContain("container_build_asset_shas()");
+    expect(deployScript).toContain("/usr/share/nginx/html/assets/*.js /usr/share/nginx/html/assets/*.css");
+    expect(deployScript).toContain('previous_build_asset_shas="$(container_build_asset_shas)"');
+    expect(deployScript).toContain("rollback build-asset graph is incomplete");
+    expect(deployScript).toContain("check_public_asset_shas()");
+    expect(deployScript).toContain('check_public_asset_shas "$public_url" "$previous_build_asset_shas" "rollback=$previous_release"');
+    expect(deployScript).toContain('check_public_asset_shas "$public_url" "$current_build_asset_shas" "release=$darkpix_release"');
+    expect(deployScript.indexOf('previous_build_asset_shas="$(container_build_asset_shas)"')).toBeLessThan(deployScript.indexOf('docker image tag "$previous_image_id" darkpix-web:rollback'));
+  });
+
   it("refuses to attach a clean commit identity to modified source", () => {
     expect(deployScript).toContain('git status --porcelain --untracked-files=normal');
     expect(deployScript).toContain("Refusing to deploy a dirty DarkPix worktree because its release identity would be false.");
