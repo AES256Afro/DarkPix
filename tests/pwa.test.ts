@@ -18,6 +18,8 @@ describe("installable offline shell", () => {
     expect(worker).toContain("cacheBuildAssets");
     expect(worker).toContain('throw new Error("Release shell is missing from its offline cache")');
     expect(worker).toContain('throw new Error("Release shell has an invalid content type")');
+    expect(worker).toContain("Release shell asset is missing:");
+    expect(worker).toContain("Release shell asset has an invalid content type:");
     expect(worker).toContain("Refused invalid content type");
     expect(worker).toContain("responseMatchesCacheKey(cacheKey, response)");
     expect(worker).toContain('throw new Error("Release shell exposed no cacheable build assets")');
@@ -85,7 +87,13 @@ describe("installable offline shell", () => {
       ["https://darkpix.test/assets/chunk.js", { type: "application/javascript", body: "export{}" }],
     ]);
     const put = vi.fn(async () => undefined);
-    const cache = { addAll: vi.fn(async () => undefined), match: vi.fn(async () => shell), put };
+    const fixedAssets = new Map<string, unknown>([
+      ["/", shell],
+      ["/manifest.webmanifest", { headers: { get: () => "application/manifest+json" } }],
+      ["/darkpix-icon.svg", { headers: { get: () => "image/svg+xml" } }],
+      ["/assets/darkpix-title.jpg", { headers: { get: () => "image/jpeg" } }],
+    ]);
+    const cache = { addAll: vi.fn(async () => undefined), match: vi.fn(async (key: string) => fixedAssets.get(key)), put };
     const workerScope = {
       location: { href: "https://darkpix.test/sw.js?v=complete-release", origin: "https://darkpix.test" },
       clients: { claim: vi.fn(async () => undefined) },
@@ -125,7 +133,13 @@ describe("installable offline shell", () => {
       headers: { get: (name: string) => name === "content-type" ? "text/html" : null },
       clone: () => ({ text: async () => '<script src="/assets/app.js"></script>' }),
     };
-    const cache = { addAll: vi.fn(async () => undefined), match: vi.fn(async () => shell), put: vi.fn(async () => undefined) };
+    const fixedAssets = new Map<string, unknown>([
+      ["/", shell],
+      ["/manifest.webmanifest", { headers: { get: () => "application/manifest+json" } }],
+      ["/darkpix-icon.svg", { headers: { get: () => "image/svg+xml" } }],
+      ["/assets/darkpix-title.jpg", { headers: { get: () => "image/jpeg" } }],
+    ]);
+    const cache = { addAll: vi.fn(async () => undefined), match: vi.fn(async (key: string) => fixedAssets.get(key)), put: vi.fn(async () => undefined) };
     const deleteCache = vi.fn(async () => true);
     const workerScope = {
       location: { href: "https://darkpix.test/sw.js?v=mime-release", origin: "https://darkpix.test" },
@@ -147,6 +161,41 @@ describe("installable offline shell", () => {
     await expect(installation).rejects.toThrow("Refused invalid content type for https://darkpix.test/assets/app.js");
     expect(cache.put).not.toHaveBeenCalled();
     expect(deleteCache).toHaveBeenCalledWith("darkpix-runtime-mime-release");
+  });
+
+  it("rejects and cleans a release whose fixed manifest is an HTML fallback", async () => {
+    const handlers = new Map<string, (event: { waitUntil(promise: Promise<unknown>): void }) => void>();
+    const shell = {
+      url: "https://darkpix.test/",
+      headers: { get: (name: string) => name === "content-type" ? "text/html" : null },
+      clone: () => ({ text: async () => '<script src="/assets/app.js"></script>' }),
+    };
+    const fixedAssets = new Map<string, unknown>([
+      ["/", shell],
+      ["/manifest.webmanifest", { headers: { get: () => "text/html" } }],
+      ["/darkpix-icon.svg", { headers: { get: () => "image/svg+xml" } }],
+      ["/assets/darkpix-title.jpg", { headers: { get: () => "image/jpeg" } }],
+    ]);
+    const cache = {
+      addAll: vi.fn(async () => undefined),
+      match: vi.fn(async (key: string) => fixedAssets.get(key)),
+      put: vi.fn(async () => undefined),
+    };
+    const deleteCache = vi.fn(async () => true);
+    const workerScope = {
+      location: { href: "https://darkpix.test/sw.js?v=fixed-mime-release", origin: "https://darkpix.test" },
+      clients: { claim: vi.fn(async () => undefined) },
+      skipWaiting: vi.fn(async () => undefined),
+      addEventListener: (name: string, handler: (event: { waitUntil(promise: Promise<unknown>): void }) => void) => handlers.set(name, handler),
+    };
+    const cacheStorage = { open: vi.fn(async () => cache), keys: vi.fn(async () => []), delete: deleteCache };
+    new Function("self", "caches", "fetch", worker)(workerScope, cacheStorage, vi.fn());
+    let installation: Promise<unknown> | undefined;
+    handlers.get("install")?.({ waitUntil: (promise) => { installation = promise; } });
+
+    await expect(installation).rejects.toThrow("Release shell asset has an invalid content type: /manifest.webmanifest");
+    expect(cache.put).not.toHaveBeenCalled();
+    expect(deleteCache).toHaveBeenCalledWith("darkpix-runtime-fixed-mime-release");
   });
 
   it("bounds runtime writes to owned shell and asset paths", async () => {

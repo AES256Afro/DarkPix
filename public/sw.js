@@ -60,6 +60,13 @@ async function cacheBuildAssets() {
   const shell = await cache.match("/");
   if (!shell) throw new Error("Release shell is missing from its offline cache");
   if (!responseMatchesCacheKey("/", shell)) throw new Error("Release shell has an invalid content type");
+  for (const shellUrl of SHELL_URLS) {
+    const response = shellUrl === "/" ? shell : await cache.match(shellUrl);
+    if (!response) throw new Error(`Release shell asset is missing: ${shellUrl}`);
+    if (!responseMatchesCacheKey(shellUrl, response)) {
+      throw new Error(`Release shell asset has an invalid content type: ${shellUrl}`);
+    }
+  }
   const queue = assetReferences(await shell.clone().text(), shell.url);
   if (queue.length === 0) throw new Error("Release shell exposed no cacheable build assets");
   const visited = new Set();
