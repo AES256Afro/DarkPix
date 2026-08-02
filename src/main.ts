@@ -233,7 +233,7 @@ function focusFirstRecoveryAction(): void {
 }
 
 function renderIncompatibleProfileRecovery(): void {
-  app.innerHTML = `<main class="game-mount" aria-label="DarkPix profile recovery"><section class="runtime-error persistence-recovery"><span>†</span><h1>A NEWER LEDGER IS SEALED HERE</h1><p role="alert">This DarkPix release cannot safely read the stored profile. Lobby actions are locked so unknown progress is not overwritten. Download the raw save, then update DarkPix or return to the newer release that created it.</p><button type="button">DOWNLOAD RAW SAVE</button></section></main>`;
+  app.innerHTML = `<main class="game-mount" aria-label="DarkPix profile recovery"><section class="runtime-error persistence-recovery"><span aria-hidden="true">†</span><h1>A NEWER LEDGER IS SEALED HERE</h1><p role="alert">This DarkPix release cannot safely read the stored profile. Lobby actions are locked so unknown progress is not overwritten. Download the raw save, then update DarkPix or return to the newer release that created it.</p><button type="button">DOWNLOAD RAW SAVE</button></section></main>`;
   app.querySelector<HTMLButtonElement>("button")?.addEventListener("click", () => {
     if (profileRecovery === undefined) return;
     downloadTextFile(profileRecovery, `darkpix-newer-profile-${new Date().toISOString().slice(0, 10)}.json`, "application/json");
@@ -267,7 +267,7 @@ function journalDate(completedAt: number): string {
 function renderInterruptedSettlementRecovery(): void {
   activeGame?.destroy();
   activeGame = undefined;
-  app.innerHTML = `<main class="game-mount" aria-label="DarkPix raid recovery"><section class="runtime-error persistence-recovery"><span>†</span><h1>THE LEDGER IS NOT SECURE</h1><p role="alert">The raid transaction was resolved in memory, but the browser has not stored and cleared it. The Last Lantern remains locked so this journal cannot be applied twice.</p><button type="button">RETRY SECURING VERDICT</button></section></main>`;
+  app.innerHTML = `<main class="game-mount" aria-label="DarkPix raid recovery"><section class="runtime-error persistence-recovery"><span aria-hidden="true">†</span><h1>THE LEDGER IS NOT SECURE</h1><p role="alert">The raid transaction was resolved in memory, but the browser has not stored and cleared it. The Last Lantern remains locked so this journal cannot be applied twice.</p><button type="button">RETRY SECURING VERDICT</button></section></main>`;
   app.querySelector<HTMLButtonElement>("button")?.addEventListener("click", () => {
     const secured = persistBeforeClearingEscrow(() => saveProfile(profile), clearRaidEscrow);
     if (!secured) {
@@ -286,7 +286,7 @@ function renderInterruptedSettlementRecovery(): void {
 function renderDamagedRaidJournalRecovery(): void {
   activeGame?.destroy();
   activeGame = undefined;
-  app.innerHTML = `<main class="game-mount" aria-label="DarkPix damaged raid journal recovery"><section class="runtime-error persistence-recovery"><span>†</span><h1>THE RAID JOURNAL IS DAMAGED</h1><p role="alert">An active-raid journal exists, but this release cannot safely settle it. The Last Lantern remains locked so corrupted storage cannot erase the raid's risk. Download the raw journal before choosing whether to discard it.</p><div class="recovery-actions"><button type="button" data-journal-action="download">DOWNLOAD RAW JOURNAL</button><button type="button" data-journal-action="discard">DISCARD DAMAGED JOURNAL</button></div></section></main>`;
+  app.innerHTML = `<main class="game-mount" aria-label="DarkPix damaged raid journal recovery"><section class="runtime-error persistence-recovery"><span aria-hidden="true">†</span><h1>THE RAID JOURNAL IS DAMAGED</h1><p role="alert">An active-raid journal exists, but this release cannot safely settle it. The Last Lantern remains locked so corrupted storage cannot erase the raid's risk. Download the raw journal before choosing whether to discard it.</p><div class="recovery-actions"><button type="button" data-journal-action="download">DOWNLOAD RAW JOURNAL</button><button type="button" data-journal-action="discard">DISCARD DAMAGED JOURNAL</button></div></section></main>`;
   app.querySelector<HTMLButtonElement>('[data-journal-action="download"]')?.addEventListener("click", () => {
     if (damagedRaidJournal === undefined) return;
     downloadTextFile(damagedRaidJournal, `darkpix-damaged-raid-${new Date().toISOString().slice(0, 10)}.txt`, "text/plain");
@@ -313,7 +313,7 @@ function renderDamagedRaidJournalRecovery(): void {
 }
 
 function renderForeignRaidLease(): void {
-  app.innerHTML = `<main class="game-mount" aria-label="DarkPix raid journal conflict"><section class="runtime-error persistence-recovery"><span>⌛</span><h1>THE RAID JOURNAL CHANGED</h1><p role="alert">Another tab replaced, damaged, or removed the active raid journal. This tab stopped immediately so it cannot settle, overwrite, clear, or mutate the shared stash behind that gear risk. Close the other raid, then reload to reconcile the remaining evidence.</p><button type="button">CHECK RAID JOURNAL AGAIN</button></section></main>`;
+  app.innerHTML = `<main class="game-mount" aria-label="DarkPix raid journal conflict"><section class="runtime-error persistence-recovery"><span aria-hidden="true">⌛</span><h1>THE RAID JOURNAL CHANGED</h1><p role="alert">Another tab replaced, damaged, or removed the active raid journal. This tab stopped immediately so it cannot settle, overwrite, clear, or mutate the shared stash behind that gear risk. Close the other raid, then reload to reconcile the remaining evidence.</p><button type="button">CHECK RAID JOURNAL AGAIN</button></section></main>`;
   app.querySelector<HTMLButtonElement>("button")?.addEventListener("click", () => location.reload());
   focusFirstRecoveryAction();
 }
@@ -572,47 +572,47 @@ function renderLobby(): void {
               <div class="risk-total"><span>TOTAL CONTRACT RISK</span><strong>${contractRiskValue}G · ${equippedIds.size} / 2 ITEMS${classXpAtRisk ? ` · ${classXpAtRisk} XP` : ""}</strong></div>
             </section>
             <section class="contract-card" id="contracts">
-              <span class="wax-seal">I</span>
+              <span class="wax-seal" aria-hidden="true">I</span>
               <div><small>THE TAVERNER'S FIRST DEBT</small><strong>${profile.extracts > 0 ? "Debt honored" : "Escape the Pale Toll"}</strong><p>${profile.extracts > 0 ? "The 100g bounty was paid. The tavern remembers your name." : "Return alive once with anything worth keeping. Reward: 100g."}</p></div>
               <b>${profile.extracts > 0 ? "PAID" : "0 / 1"}</b>
             </section>
             <section class="contract-card">
-              <span class="wax-seal">II</span>
+              <span class="wax-seal" aria-hidden="true">II</span>
               <div><small>THE PALE TOLL BROKEN</small><strong>${profile.bossVictories > 0 ? "Keeper answered" : "Kill the Tollkeeper and escape"}</strong><p>${profile.bossVictories > 0 ? `${profile.bossVictories} victorious return${profile.bossVictories === 1 ? "" : "s"}. The first 150g bounty was paid.` : "Slay the keeper, then survive the blue passage. Reward: 150g."}</p></div>
               <b>${profile.bossVictories > 0 ? "PAID" : "0 / 1"}</b>
             </section>
             <section class="contract-card">
-              <span class="wax-seal">III</span>
+              <span class="wax-seal" aria-hidden="true">III</span>
               <div><small>THE DEEPER WAGER</small><strong>${profile.highTollExtracts > 0 ? "Wager returned" : "Escape the High Toll"}</strong><p>${profile.highTollExtracts > 0 ? `${profile.highTollExtracts} High Toll escape${profile.highTollExtracts === 1 ? "" : "s"}. The first 200g bounty was paid.` : "Pay the fee, survive the empowered crypt, and extract. Reward: 200g."}</p></div>
               <b>${profile.highTollExtracts > 0 ? "PAID" : "0 / 1"}</b>
             </section>
             <section class="contract-card">
-              <span class="wax-seal">IV</span>
+              <span class="wax-seal" aria-hidden="true">IV</span>
               <div><small>ASH BELOW ASH</small><strong>${profile.ashenExtracts > 0 ? "Depth answered" : "Return from the Ashen Depth"}</strong><p>${profile.ashenExtracts > 0 ? `${profile.ashenExtracts} Ashen return${profile.ashenExtracts === 1 ? "" : "s"}. The first 250g bounty was paid.` : "Slay the first keeper, descend red, and escape the second floor. Reward: 250g."}</p></div>
               <b>${profile.ashenExtracts > 0 ? "PAID" : "0 / 1"}</b>
             </section>
             <section class="contract-card">
-              <span class="wax-seal">V</span>
+              <span class="wax-seal" aria-hidden="true">V</span>
               <div><small>THE OSSUARY LEDGER</small><strong>${profile.boneBountyPaid ? "Bone tithe settled" : boneKills >= BONE_BOUNTY_TARGET ? "Return alive to claim" : "Cull cryptborn threats"}</strong><p>${profile.boneBountyPaid ? "The guild paid 175g for the completed bestiary ledger." : `Skeletons, crawlers, mimics, and wardens count. Reward: 175g on extraction.`}</p></div>
               <b>${profile.boneBountyPaid ? "PAID" : `${Math.min(BONE_BOUNTY_TARGET, boneKills)} / ${BONE_BOUNTY_TARGET}`}</b>
             </section>
             <section class="contract-card">
-              <span class="wax-seal">VI</span>
+              <span class="wax-seal" aria-hidden="true">VI</span>
               <div><small>KNIVES OF THE GUILDLESS</small><strong>${profile.rivalBountyPaid ? "Rival ledger settled" : profile.threatKills.rival >= RIVAL_BOUNTY_TARGET ? "Return alive to claim" : "Defeat rival delvers"}</strong><p>${profile.rivalBountyPaid ? "The guild paid 225g for three hostile delver marks." : "Kill three rival delvers across any contracts. Reward: 225g on extraction."}</p></div>
               <b>${profile.rivalBountyPaid ? "PAID" : `${Math.min(RIVAL_BOUNTY_TARGET, profile.threatKills.rival)} / ${RIVAL_BOUNTY_TARGET}`}</b>
             </section>
             <section class="contract-card">
-              <span class="wax-seal">VII</span>
+              <span class="wax-seal" aria-hidden="true">VII</span>
               <div><small>THREE RETURNS WITHOUT FUNERAL</small><strong>${profile.streakBountyPaid ? "Lantern oath honored" : "Extract three times in a row"}</strong><p>${profile.streakBountyPaid ? "The Ironmonger paid 300g for the completed survival oath." : "Any failed or abandoned contract breaks the chain. Reward: 300g on the third consecutive extraction."}</p></div>
               <b>${profile.streakBountyPaid ? "PAID" : `${Math.min(3, contractRecord.currentExtractStreak)} / 3`}</b>
             </section>
             <section class="contract-card">
-              <span class="wax-seal">VIII</span>
+              <span class="wax-seal" aria-hidden="true">VIII</span>
               <div><small>QUIET KNIVES, OPEN PASSAGE</small><strong>${profile.quietKnivesPaid ? "Silent tithe settled" : `Mark ${QUIET_KNIVES_TARGET} unaware threats`}</strong><p>${profile.quietKnivesPaid ? `The guild paid ${QUIET_KNIVES_REWARD}g for a return written before the crypt could answer.` : `Strike ${QUIET_KNIVES_TARGET} unique non-boss threats before they detect you, then extract. Reward: ${QUIET_KNIVES_REWARD}g.`}</p></div>
               <b>${profile.quietKnivesPaid ? "PAID" : `0 / ${QUIET_KNIVES_TARGET}`}</b>
             </section>
             <section class="contract-card daily">
-              <span class="wax-seal">IX</span>
+              <span class="wax-seal" aria-hidden="true">IX</span>
               <div><small>DAILY IRONMONGER COMMISSION · ${todaysCommission.day}</small><strong>${commissionClaimed ? "Commission settled" : todaysCommission.title}</strong><p>${commissionClaimed ? `${todaysCommission.reward}g paid for today's live return.` : `Defeat ${todaysCommission.target} ${todaysCommission.kind}${todaysCommission.target === 1 ? "" : "s"} in one raid and extract. Reward: ${todaysCommission.reward}g. Resets at 00:00 UTC.`}</p></div>
               <b>${commissionClaimed ? "PAID TODAY" : `0 / ${todaysCommission.target}`}</b>
             </section>
@@ -1025,7 +1025,7 @@ async function startRaid(): Promise<void> {
     const refunded = leaseLost || securedGoldBeforeEntry === undefined ? true : refundFailedRaidStart(securedGoldBeforeEntry);
     if (!refunded) persistenceWarning = "The failed raid entry could not be refunded yet. Its escrow remains for recovery.";
     if (mount?.isConnected) {
-      mount.innerHTML = `<section class="runtime-error"><span>†</span><h1>THE PASSAGE FAILED</h1><p>The 3D renderer could not start. Update the browser, enable WebGL, or try the raid again.</p><button type="button">RETURN TO THE LAST LANTERN</button></section>`;
+      mount.innerHTML = `<section class="runtime-error"><span aria-hidden="true">†</span><h1>THE PASSAGE FAILED</h1><p>The 3D renderer could not start. Update the browser, enable WebGL, or try the raid again.</p><button type="button">RETURN TO THE LAST LANTERN</button></section>`;
       mount.querySelector<HTMLButtonElement>("button")?.addEventListener("click", refunded ? renderLobby : () => location.reload());
     }
   } finally {
@@ -1108,7 +1108,7 @@ function finishRaid(result: RaidResult): void {
     <main class="result-screen ${extracted ? "success" : "failure"}" aria-labelledby="raid-verdict-heading">
       <div class="result-backdrop"></div>
       <section class="result-card">
-        <span class="result-rune">${extracted ? "◇" : "†"}</span>
+        <span class="result-rune" aria-hidden="true">${extracted ? "◇" : "†"}</span>
         <p class="eyebrow">RAID VERDICT</p>
         <h1 id="raid-verdict-heading" tabindex="-1">${headline}</h1>
         <p class="result-detail">${detail}</p>

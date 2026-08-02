@@ -503,7 +503,7 @@ export class DarkPixGame {
           </div>
         </div>
         <div class="lock-overlay" role="dialog" aria-modal="true" aria-labelledby="raid-lock-title" aria-describedby="raid-lock-detail" aria-busy="false">
-          <span class="sigil-mark">DP</span>
+          <span class="sigil-mark" aria-hidden="true">DP</span>
           <strong id="raid-lock-title" role="heading" aria-level="1" data-lock-title>ENTER THE CRYPT</strong>
           <small id="raid-lock-detail" data-lock-detail>Bind the cursor when you are ready</small>
           <section class="pause-ledger" aria-label="Current raid risk ledger"></section>

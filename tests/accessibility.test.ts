@@ -82,6 +82,13 @@ describe("lobby accessibility contracts", () => {
     expect(damagedRecovery.indexOf("DOWNLOAD RAW JOURNAL")).toBeLessThan(damagedRecovery.indexOf("DISCARD DAMAGED JOURNAL"));
   });
 
+  it("hides decorative recovery, contract, verdict, and pause glyphs from reading order", () => {
+    expect(mainSource).toContain('<span aria-hidden="true">†</span>');
+    expect(mainSource).toContain('class="wax-seal" aria-hidden="true"');
+    expect(mainSource).toContain('class="result-rune" aria-hidden="true"');
+    expect(readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8")).toContain('class="sigil-mark" aria-hidden="true"');
+  });
+
   it("locks a malformed raid journal behind recovery and explicit discard", () => {
     expect(mainSource).toContain("renderDamagedRaidJournalRecovery");
     expect(mainSource).toContain("DOWNLOAD RAW JOURNAL");
