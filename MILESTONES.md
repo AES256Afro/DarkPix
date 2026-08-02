@@ -73,6 +73,7 @@ Status: Complete for the current map
 - Masonry impacts replace stale flight warnings with explicit weapon-specific safe verdicts and place break feedback at the first physical contact instead of behind the wall
 - Intervening living threats screen hostile missiles through first-contact crossfire without player kill credit or source self-hits
 - Overlapping ordinary impacts share one acceptance gate, preventing a rejected wound from silently draining guard stamina
+- Non-finite or negative damage components fail closed before combat math, and zero or malformed impacts cannot poison a threat's vigor state
 - Distance-driven footsteps and AI acquisition distinguish stillness, crouch, steady movement, sprint, and packed armor without changing cadence with frame rate
 - Occluded moving threats emit range-attenuated class-specific footsteps and a separate directional accessibility cue without replacing combat markers
 - Critical vigor, stamina, spell memory, and torch fuel can redirect the wayfinder to an unused campfire

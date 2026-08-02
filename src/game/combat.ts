@@ -73,14 +73,18 @@ export function strikeImpactDelay(swingDuration: number): number {
   return Math.min(0.24, Math.max(0.08, swingDuration * 0.5));
 }
 
+export function safeDamageAmount(amount: number): number {
+  return Number.isFinite(amount) ? Math.min(1_000_000, Math.max(0, amount)) : 0;
+}
+
 export function attackDamage(input: DamageInput): number {
-  let damage = Math.max(0, input.baseDamage + input.weaponPower + input.progressionBonus);
+  let damage = safeDamageAmount(input.baseDamage) + safeDamageAmount(input.weaponPower) + safeDamageAmount(input.progressionBonus);
   if (input.direction === "OVERHEAD") damage *= 1.18;
   if (input.direction === "THRUST") damage *= 1.08;
   if (input.ambush) damage *= 2;
   if (input.headshot) damage *= 1.35;
   else if (input.limb) damage *= 0.82;
-  return Math.round(damage);
+  return Math.round(safeDamageAmount(damage));
 }
 
 export function enemyAttackPattern(kind: ThreatKind, enraged = false, ranged = false): EnemyAttackPattern {
