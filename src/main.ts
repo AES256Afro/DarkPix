@@ -21,8 +21,8 @@ if (!foundApp) throw new Error("DarkPix application root is missing");
 const app = foundApp;
 const release = import.meta.env.VITE_DARKPIX_VERSION || "dev";
 document.documentElement.style.setProperty("--title-art", `url("/assets/darkpix-title.jpg?v=${encodeURIComponent(release)}")`);
-const raidOwnerId = typeof crypto.randomUUID === "function"
-  ? crypto.randomUUID()
+const raidOwnerId = typeof globalThis.crypto?.randomUUID === "function"
+  ? globalThis.crypto.randomUUID()
   : `page-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const CLASS_RUNES: Record<ClassId, string> = { vanguard: "V", cutpurse: "C", hexbound: "H", reaver: "R", ranger: "A", cleric: "L", shapeshifter: "S", minstrel: "M" };
 const storageWritableAtStart = browserStorageWritable();
@@ -740,7 +740,17 @@ async function startRaid(): Promise<void> {
   let mount: HTMLElement | null = null;
   try {
     const existingJournal = loadRaidEscrowState();
-    if (existingJournal.status !== "missing") {
+    if (existingJournal.status === "unavailable") {
+      persistenceWarning = "The browser could not inspect active-raid storage. No new raid will start until storage is readable.";
+      renderLobby();
+      return;
+    }
+    if (existingJournal.status === "corrupt") {
+      damagedRaidJournal = existingJournal.recovery;
+      renderLobby();
+      return;
+    }
+    if (existingJournal.status === "loaded") {
       foreignRaidLease = true;
       merchantNotice = "Another raid journal appeared before descent. Reload to reconcile it before risking gear.";
       renderLobby();
