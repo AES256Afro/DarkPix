@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileImpactConnects, projectileSegmentConnects, projectileSegmentContact, projectileStoneOutcome, projectileTargetContact } from "../src/game/projectile";
+import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, enemyProjectileTargetsThreat, playerProjectileDuration, playerProjectilePosition, projectileImpactConnects, projectileSegmentConnects, projectileSegmentContact, projectileStoneOutcome, projectileTargetContact } from "../src/game/projectile";
 
 describe("player projectile travel", () => {
   it("gives arrows and spells bounded nonzero travel time", () => {
@@ -57,6 +57,14 @@ describe("player projectile travel", () => {
     expect(enemyProjectilePauseSummary(["knife", "knife", "chain"])).toBe("2 KNIVES · 1 CHAIN");
     expect(enemyProjectilePauseSummary(["chain", "chain"])).toBe("2 CHAINS");
     expect(enemyProjectilePauseSummary(["dart", "knife", "dart"])).toBe("1 KNIFE · 2 DART VOLLEYS");
+  });
+
+  it("lets living threats screen hostile missiles without hitting their source", () => {
+    expect(enemyProjectileTargetsThreat(7, 7)).toBe(false);
+    expect(enemyProjectileTargetsThreat(7, 8)).toBe(true);
+    expect(enemyProjectileTargetsThreat(undefined, 8)).toBe(true);
+    expect(enemyProjectileTargetsThreat(Number.NaN, 8)).toBe(true);
+    expect(enemyProjectileTargetsThreat(7, Number.NaN)).toBe(false);
   });
 
   it("detects a threat crossed by a fast projectile without tunneling", () => {

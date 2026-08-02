@@ -20,7 +20,7 @@ import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, poi
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
 import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
-import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, playerProjectileDuration, playerProjectilePosition, projectileSegmentContact, projectileStoneOutcome, projectileTargetContact, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
+import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, enemyProjectileTargetsThreat, playerProjectileDuration, playerProjectilePosition, projectileSegmentContact, projectileStoneOutcome, projectileTargetContact, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
 import { DARKNESS_PULSE_SECONDS, darknessPulseReady, directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "./zone";
 
@@ -1973,19 +1973,30 @@ export class DarkPixGame {
       }
       const playerContact = projectileSegmentContact(previous, position, this.camera.position, PLAYER_RADIUS + 0.18);
       let enemyContact: { enemy: Enemy; progress: number } | undefined;
-      if (projectile.kind === "dart") {
-        for (const enemy of this.enemies) {
-          if (!enemy.alive) continue;
-          const target = enemy.group.position.clone().add(new THREE.Vector3(0, 1, 0));
-          const progress = projectileSegmentContact(previous, position, target, enemy.kind === "boss" ? 0.72 : 0.5);
-          if (progress === undefined || (enemyContact && enemyContact.progress <= progress)) continue;
-          enemyContact = { enemy, progress };
-        }
+      for (const enemy of this.enemies) {
+        if (!enemy.alive || !enemyProjectileTargetsThreat(projectile.sourceId, enemy.id)) continue;
+        const target = enemy.group.position.clone().add(new THREE.Vector3(0, 1, 0));
+        const progress = projectileSegmentContact(previous, position, target, enemy.kind === "boss" ? 0.72 : 0.5);
+        if (progress === undefined || (enemyContact && enemyContact.progress <= progress)) continue;
+        enemyContact = { enemy, progress };
       }
       if (enemyContact && (playerContact === undefined || enemyContact.progress <= playerContact)) {
         this.removeEnemyProjectile(index);
-        this.damageEnemy(enemyContact.enemy, trapDamageAgainstThreat(projectile.damage, enemyContact.enemy.kind), false, false);
-        this.feed(`WALL DART · ${enemyContact.enemy.name} is pinned`, "combat");
+        const crossfireDamage = projectile.kind === "dart"
+          ? trapDamageAgainstThreat(projectile.damage, enemyContact.enemy.kind)
+          : dungeonCrossfireDamage(projectile.damage, enemyContact.enemy.kind);
+        if (crossfireDamage > 0) {
+          this.damageEnemy(enemyContact.enemy, crossfireDamage, false, false, false, false, false, false, false);
+          this.audio.hit();
+          this.feed(
+            projectile.kind === "dart"
+              ? `WALL DART · ${enemyContact.enemy.name} is pinned${enemyContact.enemy.alive ? "" : " and falls"}`
+              : `CROSSFIRE · ${projectile.sourceName}'s ${projectile.kind} strikes ${enemyContact.enemy.name} for ${crossfireDamage}${enemyContact.enemy.alive ? "" : " · falls"}`,
+            "combat",
+          );
+        } else {
+          this.feed(`${enemyContact.enemy.name.toUpperCase()} SCREENS YOU · the ${projectile.kind} deals no harm`, "system");
+        }
         continue;
       }
       if (playerContact !== undefined) {

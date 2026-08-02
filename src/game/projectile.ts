@@ -77,6 +77,10 @@ export function enemyProjectilePauseSummary(kinds: readonly EnemyProjectileKind[
   ].filter(Boolean).join(" · ");
 }
 
+export function enemyProjectileTargetsThreat(sourceId: number | undefined, targetId: number): boolean {
+  return Number.isFinite(targetId) && targetId > 0 && (sourceId === undefined || !Number.isFinite(sourceId) || sourceId !== targetId);
+}
+
 export function playerProjectilePosition(
   start: ProjectilePoint,
   end: ProjectilePoint,
