@@ -452,7 +452,7 @@ function renderLobby(): void {
       <header class="lobby-header">
         <a class="brand" href="#" aria-label="DarkPix home"><span>DP</span><strong>DARKPIX</strong></a>
         <nav class="lobby-nav" aria-label="Game sections">
-          <button class="active" type="button" aria-current="page">Delve</button>
+          <span class="active" aria-current="page">Delve</span>
           <button type="button" data-jump="stash">Stash <b>${profile.stash.length}</b></button>
           <button type="button" data-jump="contracts">Contracts</button>
         </nav>

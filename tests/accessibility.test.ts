@@ -7,6 +7,8 @@ const styles = readFileSync(new URL("../src/style.css", import.meta.url), "utf8"
 describe("lobby accessibility contracts", () => {
   it("exposes selected class, contract, loadout, and current navigation state", () => {
     expect(mainSource).toContain('aria-current="page"');
+    expect(mainSource).toContain('<span class="active" aria-current="page">Delve</span>');
+    expect(mainSource).not.toContain('<button class="active" type="button" aria-current="page">Delve</button>');
     expect(mainSource).toContain('aria-pressed="${entry.id === selectedClass}"');
     expect(mainSource).toContain('aria-pressed="${selectedRaidMode === "standard"}"');
     expect(mainSource).toContain('aria-pressed="${selected}"');

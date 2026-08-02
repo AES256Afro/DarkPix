@@ -51,9 +51,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .brand span::first-letter { transform: rotate(-45deg); }
 .brand strong { font: 700 17px Georgia, serif; }
 .lobby-nav { display: flex; align-self: stretch; gap: 28px; }
-.lobby-nav button { position: relative; border: 0; background: none; color: #888278; font: 700 10px ui-monospace, monospace; letter-spacing: .16em; text-transform: uppercase; cursor: pointer; }
-.lobby-nav button.active { color: #e6ded0; }
-.lobby-nav button.active::after { content: ""; position: absolute; inset: auto 0 -1px; height: 2px; background: var(--ember); box-shadow: 0 0 12px #d86d2c; }
+.lobby-nav button, .lobby-nav > span { position: relative; display: grid; place-items: center; border: 0; background: none; color: #888278; font: 700 10px ui-monospace, monospace; letter-spacing: .16em; text-transform: uppercase; }
+.lobby-nav button { cursor: pointer; }
+.lobby-nav .active { color: #e6ded0; }
+.lobby-nav .active::after { content: ""; position: absolute; inset: auto 0 -1px; height: 2px; background: var(--ember); box-shadow: 0 0 12px #d86d2c; }
 .lobby-nav b { display: inline-grid; min-width: 17px; height: 17px; margin-left: 4px; place-items: center; border-radius: 50%; background: #322c25; color: #bca984; font-size: 9px; }
 .account-strip { justify-self: end; display: flex; align-items: center; gap: 18px; color: #9b958a; font: 700 10px ui-monospace, monospace; letter-spacing: .12em; }
 .account-strip strong { color: #e7c37c; font-size: 14px; }

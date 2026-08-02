@@ -155,6 +155,7 @@ Status: Complete for the current map
 - Level 7 is now the explicit veterancy cap: accumulated XP remains durable, while the lobby reports `MAX` and a complete track instead of inventing unrewarded higher levels
 - Invalid or non-finite time and class-level inputs fail closed to a level-one, zero-time presentation instead of leaking `NaN` into raid statistics or combat bonuses
 - Lobby rebuilds restore the logical keyboard control across class, contract, stash, merchant, crafting, settings, and idle cross-tab refreshes without forcing the viewport to jump
+- The current Delve navigation marker is non-interactive text, so keyboard users no longer encounter a focusable header button with no action
 - Terminal raid verdicts move focus to their labeled outcome heading, and a secured return places keyboard focus on the next-descent control
 - Refreshing or closing an active raid, including an unsecured terminal verdict, requests the browser's native leave confirmation because the journal will settle the departure as an abandonment
 - An active raid now stops and locks its tab when cross-tab storage replaces, removes, or corrupts its risk journal; temporarily unreadable storage remains a visible retryable write failure
