@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DUNGEON, dartTrapTargetDistance, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists, dungeonProjectilePathClear, dungeonProjectileStoneContact, encounterPosition, selectRaidVariation } from "../src/game/dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES } from "../src/game/depth";
-import { channelCommitmentLabel, channelInterruptionReason, continuousHold, targetDistanceInView } from "../src/game/targeting";
+import { channelCommitmentLabel, channelInterruptionReason, continuousHold, heldInteractionTargetMatches, targetDistanceInView } from "../src/game/targeting";
 import { cardinalDirection, circlesOverlap, directionalCue, movementOffset, passiveAwarenessRange, recoveryNeed, relativeDirectionToSource } from "../src/game/navigation";
 import { DARKNESS_PULSE_SECONDS, darknessPulseReady, directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "../src/game/zone";
 import type { Vec2 } from "../src/game/types";
@@ -158,6 +158,14 @@ describe("deliberate interaction targeting", () => {
     expect(continuousHold(partial, 0.4, true)).toBeCloseTo(1.3);
     expect(continuousHold(partial, 0.4, false)).toBe(0);
     expect(continuousHold(Number.NaN, -1, true)).toBe(0);
+  });
+
+  it("binds held progress to the world target that began the ritual", () => {
+    expect(heldInteractionTargetMatches("portal", "portal")).toBe(true);
+    expect(heldInteractionTargetMatches("campfire", "campfire")).toBe(true);
+    expect(heldInteractionTargetMatches("false_wall", "portal")).toBe(false);
+    expect(heldInteractionTargetMatches("portal", undefined)).toBe(false);
+    expect(heldInteractionTargetMatches(undefined, undefined)).toBe(false);
   });
 
   it("names the irreversible destination throughout a held passage channel", () => {

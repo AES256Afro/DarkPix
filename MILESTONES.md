@@ -60,6 +60,7 @@ Status: Complete for the current map
 - The hidden reliquary stone blocks AI routing, perception, footsteps, melee sight, and every projectile until its channel completes
 - Facing-locked threat windups with cover, evasion, and range verdicts, directional pre-hit and impact markers, guard cone, pre-action strike stamina cost, readable crouch and sprint noise, crosshair awareness and unique unseen marks, chain telegraphs, safe annulus, darkness bearing, channel interruption reasons, crosshair scaling, rarity rank marks, and loose-loot silhouettes expose actionable state
 - Held passage channels expose semantic progress and keep their blue return, Ashen return, or red floor-2 destination explicit until completion
+- Held progress stays bound to the portal, campfire, or false stone that began it; looking onto another ritual target breaks the channel instead of transferring progress
 - Released rival knives and Tollkeeper chains use swept travel-time collision, stop at stone, and resolve guard or parry only at physical impact
 - Hostile missile warnings persist with directional shape, text, and release tone through the full dodge window
 - Pausing freezes and itemizes every hostile knife, chain, or dart volley still in flight before cursor rebind

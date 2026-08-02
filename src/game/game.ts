@@ -19,7 +19,7 @@ import { MAX_TORCH_FUEL_SECONDS, addTorchFuel, spendTorchFuel } from "./light";
 import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, pointerLockTimeoutOutcome, raidDeadlineReached, raidFrameLoopActive } from "./lifecycle";
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
-import { channelCommitmentLabel, channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
+import { channelCommitmentLabel, channelInterruptionReason, continuousHold, heldInteractionTargetMatches, targetDistanceInView, type ChannelInterruptionReason, type HeldInteractionTarget } from "./targeting";
 import { enemyProjectileDefense, enemyProjectileDuration, enemyProjectileFlightCue, enemyProjectilePauseSummary, enemyProjectilePosition, enemyProjectileTargetsThreat, playerProjectileDuration, playerProjectilePosition, projectileContactPoint, projectileContactPrecedes, projectileSegmentContact, projectileStoneOutcome, projectileTargetContact, type EnemyProjectileKind, type PlayerProjectileKind } from "./projectile";
 import { advanceJournalRetry } from "./persistence";
 import type { ClassId, DungeonDepth, GamePreferences, Item, RaidEndReason, RaidMode, RaidResult, ThreatKind, Vec2 } from "./types";
@@ -334,6 +334,7 @@ export class DarkPixGame {
   private descendHeld = false;
   private interactionHold = 0;
   private interactionInput?: "interact" | "descend";
+  private interactionTarget: HeldInteractionTarget;
   private attackDirection: AttackDirection = "THRUST";
   private swingDirection: AttackDirection = "THRUST";
   private pendingStrike?: PendingStrike;
@@ -3112,8 +3113,13 @@ export class DarkPixGame {
 
     let descending = redDepthAvailable && this.descendHeld;
     const interactTargeted = interactive === "portal" || interactive === "campfire" || interactive === "false_wall";
+    const heldTarget: HeldInteractionTarget = interactive === "portal" || interactive === "campfire" || interactive === "false_wall"
+      ? interactive
+      : undefined;
     const moving = this.keys.has("KeyW") || this.keys.has("KeyA") || this.keys.has("KeyS") || this.keys.has("KeyD");
-    const activeTargeted = this.interactionInput === "descend" ? redDepthAvailable : interactTargeted;
+    const activeTargeted = this.interactionInput === "descend"
+      ? redDepthAvailable && heldInteractionTargetMatches(this.interactionTarget, heldTarget)
+      : heldInteractionTargetMatches(this.interactionTarget, heldTarget);
     const activeInterruption = this.interactionInput ? channelInterruptionReason({
       targeted: activeTargeted,
       moving,
@@ -3137,7 +3143,10 @@ export class DarkPixGame {
       damaged: this.damageCooldown > 0,
     }) : undefined;
     const channeling = Boolean(candidateInput && !candidateInterruption);
-    if (channeling && !this.interactionInput) this.interactionInput = candidateInput;
+    if (channeling && !this.interactionInput) {
+      this.interactionInput = candidateInput;
+      this.interactionTarget = heldTarget;
+    }
     descending = candidateInput === "descend";
     if (candidateInput && candidateInterruption) {
       const instruction = candidateInterruption === "moving" ? "STAND STILL" : candidateInterruption === "guarding" ? "LOWER GUARD" : "WAIT FOR RECOVERY";
@@ -3146,7 +3155,7 @@ export class DarkPixGame {
     const channelDuration = (descending ? 2.4 : interactive === "campfire" ? 2.2 : interactive === "false_wall" ? 1.45 : 1.8) * this.loadoutBonuses.interactionDurationMultiplier;
     this.interactionHold = continuousHold(this.interactionHold, delta, channeling);
     const channelPercent = Math.min(100, (this.interactionHold / channelDuration) * 100);
-    const channelLabel = channelCommitmentLabel(interactive === "portal" || interactive === "campfire" || interactive === "false_wall" ? interactive : undefined, descending, this.depth);
+    const channelLabel = channelCommitmentLabel(channeling ? this.interactionTarget : heldTarget, descending, this.depth);
     this.extractProgress.style.width = `${channelPercent}%`;
     this.extractMeter.classList.toggle("visible", channeling);
     this.extractMeter.setAttribute("aria-valuenow", String(Math.round(channelPercent)));
@@ -3187,6 +3196,7 @@ export class DarkPixGame {
   private resetInteractionChannel(): void {
     this.interactionHold = 0;
     this.interactionInput = undefined;
+    this.interactionTarget = undefined;
   }
 
   private breakInteractionChannel(reason: ChannelInterruptionReason | "released"): boolean {
