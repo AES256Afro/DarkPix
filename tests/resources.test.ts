@@ -31,4 +31,10 @@ describe("raid resource cleanup", () => {
     expect(updateInteraction).not.toContain("new THREE.Vector3");
     expect(updateInteraction).not.toContain("const target = {");
   });
+
+  it("caches immutable raid loadout power outside combat and awareness loops", () => {
+    expect(gameSource).toContain('this.armorPower = equippedPower(options.equipped, "armor")');
+    expect(gameSource).toContain('this.weaponPower = equippedPower(options.equipped, "weapon")');
+    expect(gameSource).not.toContain("equippedPower(this.options.equipped");
+  });
 });

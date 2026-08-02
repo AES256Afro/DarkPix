@@ -255,6 +255,8 @@ export class DarkPixGame {
   private readonly damageBonus: number;
   private readonly perkBonuses: ClassPerkBonuses;
   private readonly loadoutBonuses: LoadoutStats;
+  private readonly armorPower: number;
+  private readonly weaponPower: number;
   private readonly raidRules: RaidRules;
   private readonly variationSeed: number;
   private readonly variation: ReturnType<typeof selectRaidVariation>;
@@ -393,8 +395,9 @@ export class DarkPixGame {
     const progression = progressionBonuses(options.classLevel);
     this.perkBonuses = classPerkBonuses(options.classId, options.classLevel);
     this.loadoutBonuses = loadoutStats(options.equipped);
-    const armorBonus = equippedPower(options.equipped, "armor");
-    this.maxHealth = this.definition.maxHealth + armorBonus + progression.health + this.perkBonuses.health + this.loadoutBonuses.health;
+    this.armorPower = equippedPower(options.equipped, "armor");
+    this.weaponPower = equippedPower(options.equipped, "weapon");
+    this.maxHealth = this.definition.maxHealth + this.armorPower + progression.health + this.perkBonuses.health + this.loadoutBonuses.health;
     this.damageBonus = progression.damage + this.perkBonuses.damage + this.loadoutBonuses.damage;
     this.maxSpellCharges = 6 + this.perkBonuses.spellCharges;
     this.spellCharges = this.maxSpellCharges;
@@ -1515,7 +1518,7 @@ export class DarkPixGame {
       const previousFootstepDistance = this.footstepClock;
       this.footstepClock += delta * speed;
       if (footstepCadenceCrossed(previousFootstepDistance, this.footstepClock, 1.6)) {
-        this.audio.footstep(crouching, sprinting, equippedPower(this.options.equipped, "armor"));
+        this.audio.footstep(crouching, sprinting, this.armorPower);
       }
     }
     if (moving && !this.options.preferences.reducedMotion) {
@@ -1820,10 +1823,9 @@ export class DarkPixGame {
       return;
     }
     const limbHit = !headshot && strike.direction === "SWEEP" && this.options.classId !== "hexbound" && this.options.classId !== "ranger";
-    const weaponPower = equippedPower(this.options.equipped, "weapon");
     const baseDamage = attackDamage({
       baseDamage: this.definition.damage,
-      weaponPower,
+      weaponPower: this.weaponPower,
       progressionBonus: this.damageBonus,
       direction: strike.direction,
       ambush: this.options.classId === "cutpurse" && !best.alerted,
@@ -1930,10 +1932,9 @@ export class DarkPixGame {
     }
     const strike = projectile.strike;
     if (!strike) return;
-    const weaponPower = equippedPower(this.options.equipped, "weapon");
     const baseDamage = attackDamage({
       baseDamage: this.definition.damage,
-      weaponPower,
+      weaponPower: this.weaponPower,
       progressionBonus: this.damageBonus,
       direction: strike.direction,
       ambush: false,
@@ -2273,7 +2274,7 @@ export class DarkPixGame {
         this.crouching,
         this.sprinting,
         this.moving,
-        equippedPower(this.options.equipped, "armor"),
+        this.armorPower,
       );
       if (this.phaseElapsed() >= depthRules(this.depth).spawnGrace && this.concealmentTimer <= 0 && distance < awareness && this.hasDungeonSight(
         { x: player.x, z: player.z },
