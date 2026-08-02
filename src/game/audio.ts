@@ -46,14 +46,22 @@ export class AudioDirector {
       }
       this.releaseGraph();
     }
-    const context = this.contextFactory();
-    if (!context) return;
+    let context: AudioContext | undefined;
     try {
-      const master = context.createGain();
+      context = this.contextFactory();
+    } catch {
+      return;
+    }
+    if (!context) return;
+    let master: GainNode | undefined;
+    let drone: OscillatorNode | undefined;
+    let droneGain: GainNode | undefined;
+    try {
+      master = context.createGain();
       master.gain.value = 0.18 * this.volume;
       master.connect(context.destination);
-      const drone = context.createOscillator();
-      const droneGain = context.createGain();
+      drone = context.createOscillator();
+      droneGain = context.createGain();
       drone.type = "sawtooth";
       drone.frequency.value = 43;
       droneGain.gain.value = 0.018;
@@ -67,6 +75,14 @@ export class AudioDirector {
       this.resumeContext(context, epoch);
     } catch {
       this.playbackAllowed = false;
+      try {
+        drone?.stop();
+      } catch {
+        // A partially started drone may reject an explicit stop.
+      }
+      drone?.disconnect();
+      droneGain?.disconnect();
+      master?.disconnect();
       void context.close().catch(() => undefined);
     }
   }

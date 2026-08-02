@@ -62,6 +62,23 @@ describe("raid audio lifecycle", () => {
     }).not.toThrow();
   });
 
+  it("contains an audio-context factory that disappears during startup", () => {
+    const audio = new AudioDirector(true, 1, () => { throw new Error("audio API unavailable"); });
+    expect(() => audio.start()).not.toThrow();
+  });
+
+  it("disconnects a partially created persistent graph when startup fails", () => {
+    const harness = audioHarness();
+    harness.oscillator.start.mockImplementationOnce(() => { throw new Error("audio device lost"); });
+    const audio = new AudioDirector(true, 1, () => harness.context as unknown as AudioContext);
+    expect(() => audio.start()).not.toThrow();
+    expect(harness.oscillator.stop).toHaveBeenCalledOnce();
+    expect(harness.oscillators[0]?.disconnect).toHaveBeenCalledOnce();
+    expect(harness.droneGain.disconnect).toHaveBeenCalledOnce();
+    expect(harness.master.disconnect).toHaveBeenCalledOnce();
+    expect(harness.context.close).toHaveBeenCalledOnce();
+  });
+
   it("starts, pauses, resumes, and disconnects the persistent drone", () => {
     const harness = audioHarness();
     const factory = vi.fn(() => harness.context as unknown as AudioContext);
