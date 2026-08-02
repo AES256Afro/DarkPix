@@ -158,6 +158,7 @@ Status: Complete
 - The public manifest is served as JSON, while the unversioned app icon and title image revalidate instead of inheriting a stale edge or one-year immutable response
 - CI-enforced compressed JavaScript, CSS, and entry-HTML performance budgets
 - Compressed-asset budgets use an explicit gzip level instead of platform defaults, keeping local and Linux CI measurements comparable without raising their ceilings
+- Two-pass production minification preserves the lazy renderer boundary while restoring JavaScript headroom under the unchanged compressed ceiling
 - CI rejects high or critical dependency advisories before building the release image
 - CI executes official checkout and Node setup actions by immutable commit identity while retaining their audited major-version annotations
 - CI and production image dependency installation suppress third-party package lifecycle scripts before tests and compilation
