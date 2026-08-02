@@ -135,6 +135,14 @@ describe("lobby accessibility contracts", () => {
     expect(mainSource).toContain("if (reloadForUpdate) location.reload()");
   });
 
+  it("contains speculative renderer warm-up failures until a real descent retries", () => {
+    expect(mainSource).toContain("function warmGameModule(): void");
+    expect(mainSource).toContain("void loadGameModule().catch(() => undefined)");
+    expect(mainSource).toContain('addEventListener("pointerenter", warmGameModule)');
+    expect(mainSource).toContain('addEventListener("focus", warmGameModule)');
+    expect(mainSource).toContain("const { DarkPixGame: GameRuntime } = await loadGameModule()");
+  });
+
   it("offers a paused live-journal retry without resuming the raid", () => {
     const gameSource = readFileSync(new URL("../src/game/game.ts", import.meta.url), "utf8");
     expect(gameSource).toContain('class="retry-journal hidden"');

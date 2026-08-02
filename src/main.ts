@@ -133,6 +133,10 @@ function loadGameModule(): Promise<typeof import("./game/game")> {
   return gameModulePromise;
 }
 
+function warmGameModule(): void {
+  void loadGameModule().catch(() => undefined);
+}
+
 function persistProfile(): boolean {
   if (lockForForeignRaidJournal()) return false;
   const persisted = saveProfile(profile);
@@ -848,8 +852,8 @@ function renderLobby(): void {
     }
   })());
   const descendButton = app.querySelector<HTMLButtonElement>(".descend-button");
-  descendButton?.addEventListener("pointerenter", () => void loadGameModule());
-  descendButton?.addEventListener("focus", () => void loadGameModule());
+  descendButton?.addEventListener("pointerenter", warmGameModule);
+  descendButton?.addEventListener("focus", warmGameModule);
   descendButton?.addEventListener("click", () => void startRaid());
   app.querySelector<HTMLAnchorElement>(".brand")?.addEventListener("click", (event) => event.preventDefault());
   if (focusSelector) app.querySelector<HTMLElement>(focusSelector)?.focus({ preventScroll: true });

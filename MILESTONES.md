@@ -49,6 +49,7 @@ Status: Complete for local-first play
 - Failed live checkpoints retry every three active seconds, expose a storage-only pause action, and announce durable recovery
 - The live HUD exposes checkpoint storage failure instead of silently leaving refresh recovery stale
 - Paid-contract entry is single-flight, snapshots its launch state, retries a rejected renderer download, and reconciles the authoritative before/after gold balance when interrupted between storage writes
+- Hover and keyboard intent warm the lazy renderer without surfacing speculative download failures, while an actual descent still retries and reports a rejected module load
 - A rejected raid-entry profile write stops the loading lease before saving its refund marker and clearing escrow, so a heartbeat cannot recreate a canceled journal
 - Consumed packed items remain consumed after extraction or failure
 - Treasure coin credit is derived from current haul contents instead of a separate mutable raid counter
