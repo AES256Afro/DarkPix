@@ -2308,9 +2308,9 @@ export class DarkPixGame {
 
   private showThreatVitals(enemy: Enemy): void {
     this.threatTimer = enemy.alive ? 3.2 : 2;
-    this.threatNameHud.textContent = enemy.name.toUpperCase();
-    this.threatHealthFill.style.width = `${healthPercent(enemy.hp, enemy.maxHp)}%`;
-    this.threatStateHud.textContent = !enemy.alive
+    setTextIfChanged(this.threatNameHud, enemy.name.toUpperCase());
+    setStylePropertyIfChanged(this.threatHealthFill, "width", `${healthPercent(enemy.hp, enemy.maxHp)}%`);
+    setTextIfChanged(this.threatStateHud, !enemy.alive
       ? "FELLED"
       : enemy.kind === "boss"
         ? enemy.tollWindup > 0
@@ -2322,8 +2322,8 @@ export class DarkPixGame {
           ? enemy.extractProgress > 0
             ? `EXTRACTING · ${Math.round((enemy.extractProgress / RIVAL_EXTRACTION_SECONDS) * 100)}%`
             : `${enemy.rivalArchetype === "marauder" ? "HOSTILE MARAUDER" : "HOSTILE SKIRMISHER"}${enemy.crippled ? " · CRIPPLED" : ""}`
-          : enemy.crippled ? "CRYPT THREAT · CRIPPLED" : "CRYPT THREAT";
-    this.threatHud.dataset.kind = enemy.kind;
+          : enemy.crippled ? "CRYPT THREAT · CRIPPLED" : "CRYPT THREAT");
+    setAttributeIfChanged(this.threatHud, "data-kind", enemy.kind);
     this.threatHud.classList.add("visible");
   }
 

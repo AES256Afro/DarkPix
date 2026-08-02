@@ -219,6 +219,9 @@ describe("lobby accessibility contracts", () => {
     expect(gameSource).toContain('setStylePropertyIfChanged(this.extractProgress, "width"');
     expect(gameSource).toContain('setStylePropertyIfChanged(this.healthFill, "width"');
     expect(gameSource).toContain('setStylePropertyIfChanged(this.spellFill, "--spell-fill"');
+    expect(gameSource).toContain('setTextIfChanged(this.threatNameHud, enemy.name.toUpperCase())');
+    expect(gameSource).toContain('setStylePropertyIfChanged(this.threatHealthFill, "width"');
+    expect(gameSource).toContain('setAttributeIfChanged(this.threatHud, "data-kind", enemy.kind)');
     expect(styles).toContain("var(--spell-fill, linear-gradient");
   });
 
