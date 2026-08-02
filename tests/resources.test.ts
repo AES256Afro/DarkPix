@@ -161,4 +161,11 @@ describe("raid resource cleanup", () => {
     expect(abilities).not.toContain("this.enemies.filter");
     expect(abilities).not.toContain("for (const enemy of [...nearby])");
   });
+
+  it("hands terminal verdicts off before a background timer can be frozen", () => {
+    const finish = gameSource.slice(gameSource.indexOf("private finish(reason"), gameSource.indexOf("private resize"));
+    expect(finish).toContain("queueMicrotask(() => this.options.onFinish(result))");
+    expect(finish).not.toContain("lifecycleTimers.schedule");
+    expect(finish).not.toContain("setTimeout");
+  });
 });

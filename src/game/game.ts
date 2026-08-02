@@ -3783,7 +3783,7 @@ export class DarkPixGame {
       finishedAt: Date.now(),
       variationSeed: this.variationSeed,
     };
-    this.lifecycleTimers.schedule(() => this.options.onFinish(result), 260);
+    queueMicrotask(() => this.options.onFinish(result));
   }
 
   private resize(): void {

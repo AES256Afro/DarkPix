@@ -158,7 +158,7 @@ The public service accepts only `GET` and `HEAD`; write methods are rejected bef
 - Multi-tab update recovery with an idle-only reload and bounded activation fallback
 - Local storage for class progression, gold, and stash persistence
 - Safe WebGL context-loss pause and click-to-resume recovery during a raid
-- Raid-owned delayed feedback, visual cleanup, and verdict callbacks that are canceled on teardown
+- Raid-owned delayed feedback and visual cleanup that are canceled on teardown, with terminal verdict settlement handed off through a non-timer microtask
 - Event-driven paused rendering that sleeps the continuous animation loop until pointer lock resumes
 - Focus-loss input clearing and allocation-light enemy steering for steadier repeated play
 
