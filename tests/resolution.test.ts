@@ -27,8 +27,17 @@ describe("adaptive raid resolution", () => {
 
   it("keeps frame-hot darkness updates on cached HUD nodes", () => {
     const updateZone = gameSource.slice(gameSource.indexOf("private updateZone"), gameSource.indexOf("private updateInteraction"));
-    expect(updateZone).toContain("this.zoneHud.textContent");
+    expect(updateZone).toContain("setTextIfChanged(this.zoneHud");
     expect(updateZone).toContain('this.raidShell.style.setProperty("--darkness"');
     expect(updateZone).not.toContain("querySelector");
+  });
+
+  it("deduplicates frame-hot HUD text writes", () => {
+    const updateHudStart = gameSource.indexOf("private updateHud");
+    const updateHud = gameSource.slice(updateHudStart, gameSource.indexOf("private feed(", updateHudStart));
+    expect(gameSource).toContain("function setTextIfChanged");
+    expect(updateHud).toContain("setTextIfChanged(this.raidClock");
+    expect(updateHud).toContain("setTextIfChanged(this.wayfinderHud");
+    expect(updateHud).not.toContain(".textContent =");
   });
 });

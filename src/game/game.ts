@@ -32,6 +32,10 @@ interface WallCollider {
   halfD: number;
 }
 
+function setTextIfChanged(element: HTMLElement, value: string): void {
+  if (element.textContent !== value) element.textContent = value;
+}
+
 interface Enemy {
   id: number;
   group: THREE.Group;
@@ -3027,13 +3031,13 @@ export class DarkPixGame {
     const zone = zoneState(floorElapsed, floorRules.duration, this.portalSite);
     const distance = distanceFromZoneCenter({ x: this.camera.position.x, z: this.camera.position.z }, zone);
     const outsideDistance = distanceOutsideZone({ x: this.camera.position.x, z: this.camera.position.z }, zone);
-    this.zoneHud.textContent = outsideDistance > 0
+    setTextIfChanged(this.zoneHud, outsideDistance > 0
       ? `DARK · ${Math.ceil(outsideDistance)}m out · ${cardinalDirection(directionToZoneCenter(this.camera.position, zone))} to safety`
       : floorElapsed < floorRules.spawnGrace
       ? `warding veil ${Math.ceil(floorRules.spawnGrace - floorElapsed)}s`
       : zone.progress === 0
         ? "darkness dormant"
-        : `safe reach ${Math.round(zone.radius)}m`;
+        : `safe reach ${Math.round(zone.radius)}m`);
     this.zoneHud.classList.toggle("outside", outsideDistance > 0);
     if (!this.spawnGraceAnnounced && floorElapsed >= floorRules.spawnGrace) {
       this.spawnGraceAnnounced = true;
@@ -3123,7 +3127,6 @@ export class DarkPixGame {
     if (interactive === "portal") prompt = redDepthAvailable
       ? "[ HOLD E ] EXTRACT BLUE · [ HOLD R ] DESCEND RED"
       : "[ HOLD E ] OPEN THE BLUE PASSAGE";
-    this.promptHud.textContent = prompt;
     this.promptHud.classList.toggle("visible", Boolean(prompt));
 
     let descending = redDepthAvailable && this.descendHeld;
@@ -3165,7 +3168,9 @@ export class DarkPixGame {
     descending = candidateInput === "descend";
     if (candidateInput && candidateInterruption) {
       const instruction = candidateInterruption === "moving" ? "STAND STILL" : candidateInterruption === "guarding" ? "LOWER GUARD" : "WAIT FOR RECOVERY";
-      this.promptHud.textContent = `${prompt} · ${instruction}`;
+      setTextIfChanged(this.promptHud, `${prompt} · ${instruction}`);
+    } else {
+      setTextIfChanged(this.promptHud, prompt);
     }
     const channelDuration = (descending ? 2.4 : interactive === "campfire" ? 2.2 : interactive === "false_wall" ? 1.45 : 1.8) * this.loadoutBonuses.interactionDurationMultiplier;
     this.interactionHold = continuousHold(this.interactionHold, delta, channeling);
@@ -3175,7 +3180,7 @@ export class DarkPixGame {
     this.extractMeter.classList.toggle("visible", channeling);
     this.extractMeter.setAttribute("aria-valuenow", String(Math.round(channelPercent)));
     this.extractMeter.setAttribute("aria-label", channeling ? channelLabel : "Ritual channel");
-    this.extractProgressLabel.textContent = channeling ? `${channelLabel} · ${Math.round(channelPercent)}%` : "";
+    setTextIfChanged(this.extractProgressLabel, channeling ? `${channelLabel} · ${Math.round(channelPercent)}%` : "");
 
     if (!this.interactHeld && !this.descendHeld) return;
     if (interactive === "pickup" && targetPickup) {
@@ -3507,48 +3512,48 @@ export class DarkPixGame {
     this.spellFill.parentElement?.classList.toggle("inactive", this.options.classId !== "hexbound");
     if (this.options.classId === "hexbound") {
       const spell = HEX_SPELLS[this.selectedSpell];
-      this.spellLabelHud.textContent = `MEMORY · ${spell.name.toUpperCase()}`;
+      setTextIfChanged(this.spellLabelHud, `MEMORY · ${spell.name.toUpperCase()}`);
       this.spellFill.style.background = `#${spell.color.toString(16).padStart(6, "0")}`;
     }
     const floorRules = depthRules(this.depth);
     const remaining = floorRules.duration - this.phaseElapsed();
-    this.raidClock.textContent = formatTime(remaining);
+    setTextIfChanged(this.raidClock, formatTime(remaining));
     this.raidClock.classList.toggle("urgent", remaining < 45);
     const carried = haulCount(this.raidLoot);
-    this.lootHud.textContent = `${carried} / ${HAUL_CAPACITY} slots · ${treasureGoldTotal(this.raidLoot)}g`;
-    this.objectiveHud.textContent = this.portalUnlocked
+    setTextIfChanged(this.lootHud, `${carried} / ${HAUL_CAPACITY} slots · ${treasureGoldTotal(this.raidLoot)}g`);
+    setTextIfChanged(this.objectiveHud, this.portalUnlocked
       ? this.depth === 2 ? "ASHEN PASSAGE OPEN" : "BLUE PASSAGE OPEN"
-      : `${this.depth === 2 ? "ASHEN" : "WARDEN"} SIGILS ${this.sigils} / 2`;
+      : `${this.depth === 2 ? "ASHEN" : "WARDEN"} SIGILS ${this.sigils} / 2`);
     const ability = CLASS_ABILITIES[this.options.classId];
-    this.abilityHud.textContent = this.rageTimer > 0
+    setTextIfChanged(this.abilityHud, this.rageTimer > 0
       ? `${ability.name} · ${Math.ceil(this.rageTimer)}s RAGING`
       : this.quickdrawTimer > 0
         ? `${ability.name} · ${Math.ceil(this.quickdrawTimer)}s RAPID`
         : this.wildshapeTimer > 0
           ? `${ability.name} · ${Math.ceil(this.wildshapeTimer)}s CHANGED`
-      : this.abilityCooldown > 0 ? `${ability.name} · ${Math.ceil(this.abilityCooldown)}s` : ability.name;
+      : this.abilityCooldown > 0 ? `${ability.name} · ${Math.ceil(this.abilityCooldown)}s` : ability.name);
     const consumables = this.availableConsumables();
     this.selectedConsumableId = resolveConsumableId(consumables, this.selectedConsumableId);
     const selectedConsumable = consumables.find((item) => item.id === this.selectedConsumableId);
-    this.consumableHud.textContent = this.remedyItemId
+    setTextIfChanged(this.consumableHud, this.remedyItemId
       ? `Treating ${this.remedyName} · ${this.remedyTimer.toFixed(1)}s`
       : selectedConsumable
       ? `${selectedConsumable.name} · ${consumables.length} left · C cycle`
-      : "No remedy · C cycle";
+      : "No remedy · C cycle");
     const throwables = this.availableThrowables();
     this.selectedThrowableId = resolveThrowableId(throwables, this.selectedThrowableId);
     const selectedThrowable = throwables.find((item) => item.id === this.selectedThrowableId);
-    this.throwableHud.textContent = selectedThrowable
+    setTextIfChanged(this.throwableHud, selectedThrowable
       ? `${selectedThrowable.name} · ${throwableDamage(selectedThrowable)} dmg · ${throwables.length} left · B cycle`
-      : "No throwing weapon · B cycle";
-    this.torchHud.textContent = `${this.torchLit ? "Hood" : "Unhood"} torch · ${Math.ceil(this.torchFuel)}s`;
+      : "No throwing weapon · B cycle");
+    setTextIfChanged(this.torchHud, `${this.torchLit ? "Hood" : "Unhood"} torch · ${Math.ceil(this.torchFuel)}s`);
     this.updateStealthProgress();
     this.updateStealthCue(Math.max(this.definition.reach, selectedThrowable ? 10 : 0));
     this.updateWayfinder();
     const strikeStamina = attackStaminaCost(this.options.classId, this.attackDirection);
     const combatOverride = this.guardBreakTimer > 0 || Boolean(this.remedyItemId) || this.attackCooldown > 0 || this.dodgeCooldown > 0 || this.riposteTimer > 0;
     const strikeExhausted = !combatOverride && this.stamina < strikeStamina;
-    this.directionHud.textContent = this.guardBreakTimer > 0
+    setTextIfChanged(this.directionHud, this.guardBreakTimer > 0
       ? `GUARD BROKEN · ${this.guardBreakTimer.toFixed(1)}s`
       : this.remedyItemId
         ? `TREATING · ${this.remedyTimer.toFixed(1)}s`
@@ -3560,7 +3565,7 @@ export class DarkPixGame {
         ? `SIDESTEP RECOVERY · ${this.dodgeCooldown.toFixed(1)}s · HANDS LOCKED`
       : this.riposteTimer > 0
         ? `RIPOSTE · ${this.riposteTimer.toFixed(1)}s`
-        : `${this.attackDirection} · ${strikeExhausted ? "NEED" : "COST"} ${strikeStamina} STA`;
+        : `${this.attackDirection} · ${strikeExhausted ? "NEED" : "COST"} ${strikeStamina} STA`);
     this.directionHud.classList.toggle("active", combatOverride || strikeExhausted || this.mouseAccumulator.x !== 0 || this.mouseAccumulator.y !== 0);
     this.directionHud.classList.toggle("danger", this.guardBreakTimer > 0 || strikeExhausted);
     this.damageDirectionHud.classList.toggle("visible", this.damageDirectionTimer > 0);
@@ -3574,7 +3579,7 @@ export class DarkPixGame {
 
   private updateStealthProgress(): void {
     const noise = this.sprinting ? "sprint loud" : this.crouching && this.moving ? "crouch quiet" : this.moving ? "walk steady" : "still";
-    this.stealthHud.textContent = `unseen marks ${Math.min(QUIET_KNIVES_TARGET, this.unseenStrikes)} / ${QUIET_KNIVES_TARGET} · ${noise}`;
+    setTextIfChanged(this.stealthHud, `unseen marks ${Math.min(QUIET_KNIVES_TARGET, this.unseenStrikes)} / ${QUIET_KNIVES_TARGET} · ${noise}`);
   }
 
   private updateStealthCue(maxReach: number): void {
@@ -3598,18 +3603,18 @@ export class DarkPixGame {
     if (!target) {
       this.stealthCueHud.classList.remove("visible");
       delete this.stealthCueHud.dataset.state;
-      this.stealthCueHud.textContent = "";
+      setTextIfChanged(this.stealthCueHud, "");
       return;
     }
     const cue = unseenStrikeCue(this.markedUnseenThreats, target);
-    this.stealthCueHud.textContent = cue.label;
+    setTextIfChanged(this.stealthCueHud, cue.label);
     this.stealthCueHud.dataset.state = cue.state;
     this.stealthCueHud.classList.add("visible");
   }
 
   private updateWayfinder(): void {
     const facing = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
-    this.compassHeadingHud.textContent = cardinalDirection({ x: facing.x, z: facing.z });
+    setTextIfChanged(this.compassHeadingHud, cardinalDirection({ x: facing.x, z: facing.z }));
 
     let target: THREE.Vector3 | undefined;
     let label = "WARDEN";
@@ -3639,11 +3644,11 @@ export class DarkPixGame {
     }
 
     if (!target) {
-      this.wayfinderHud.textContent = "SEARCH THE CRYPT";
+      setTextIfChanged(this.wayfinderHud, "SEARCH THE CRYPT");
       return;
     }
     const delta = { x: target.x - this.camera.position.x, z: target.z - this.camera.position.z };
-    this.wayfinderHud.textContent = `${label} · ${cardinalDirection(delta)} ${Math.round(Math.hypot(delta.x, delta.z))}m`;
+    setTextIfChanged(this.wayfinderHud, `${label} · ${cardinalDirection(delta)} ${Math.round(Math.hypot(delta.x, delta.z))}m`);
   }
 
   private feed(message: string, tone: "system" | "danger" | "combat" | "loot" | "rival"): void {
