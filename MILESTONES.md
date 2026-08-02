@@ -126,6 +126,7 @@ Status: Complete for the current map
 - Passive enemy awareness and spawn-grace state are derived once per simulation frame, not once per living enemy
 - Loose-loot animation uses a direct loop without constructing a per-frame array callback
 - Delver footstep cadence, camera bob, and passive movement noise follow collision-resolved travel rather than requested speed against blocked stone
+- Sprint stamina and its heavy footfall also require collision-resolved travel, so holding Shift against solid stone no longer spends movement effort or reports a sprint cadence
 - Threat awareness reuses targeting vectors, and Warden guidance finds the nearest living target in one allocation-free scan instead of filtering and sorting every frame
 - Stealth acquisition and rival scavenging reject out-of-range candidates with squared distances before taking a square root, without changing nearest-target or sightline rules
 - Smoke Step, Sanctuary, and Rousing Discord use squared range checks and direct threat scans without temporary target arrays

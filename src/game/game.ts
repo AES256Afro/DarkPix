@@ -7,7 +7,7 @@ import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, dunge
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
 import { HAUL_CAPACITY, RIVAL_EXTRACTION_SECONDS, advanceRivalExtraction, canAddToHaul, canRivalScavenge, dropLeastValuable, haulCount, rivalShouldExtract, treasureGoldTotal } from "./haul";
 import { equippedPower, loadoutStats, physicalDamageAfterArmor, pickupDecision, type LoadoutStats } from "./loadout";
-import { cardinalDirection, directionalCue, movementOffset, movementSubstepCount, passiveAwarenessRange, recoveryNeed } from "./navigation";
+import { cardinalDirection, directionalCue, movementOffset, movementSubstepCount, passiveAwarenessRange, recoveryNeed, sprintEffortActive } from "./navigation";
 import { raidRules, type RaidRules } from "./raid";
 import { consumablesInUseOrder, nextConsumableId, nextThrowableId, resolveConsumableId, resolveThrowableId, summarizeQuickslot, throwablesInUseOrder, type QuickslotSummary } from "./quickslots";
 import { adaptiveRenderScale, initialRenderScale, maximumRenderScale } from "./resolution";
@@ -1578,8 +1578,10 @@ export class DarkPixGame {
     this.moveWithCollision(offset.x, offset.z);
     const traveled = Math.hypot(this.camera.position.x - startX, this.camera.position.z - startZ);
     const moving = traveled > 0.001;
+    const sprintingAfterCollision = sprintEffortActive(sprinting, traveled);
     this.moving = moving;
-    if (sprinting) {
+    this.sprinting = sprintingAfterCollision;
+    if (sprintingAfterCollision) {
       this.stamina = Math.max(0, this.stamina - delta * (this.options.classId === "cutpurse" ? 17 : 24) * this.perkBonuses.sprintCostMultiplier);
     } else if (this.blocking) {
       this.drainGuard(delta * guardDrainPerSecond(this.options.classId) * this.perkBonuses.guardUpkeepMultiplier);
@@ -1593,7 +1595,7 @@ export class DarkPixGame {
       const previousFootstepDistance = this.footstepClock;
       this.footstepClock += traveled;
       if (footstepCadenceCrossed(previousFootstepDistance, this.footstepClock, 1.6)) {
-        this.audio.footstep(crouching, sprinting, this.armorPower);
+        this.audio.footstep(crouching, sprintingAfterCollision, this.armorPower);
       }
     }
     if (moving && !this.options.preferences.reducedMotion) {

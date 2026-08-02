@@ -63,6 +63,10 @@ export function movementSubstepCount(distance: number, maximumStep = 0.2): numbe
   return Math.min(64, Math.max(1, Math.ceil(distance / maximumStep)));
 }
 
+export function sprintEffortActive(sprintIntent: boolean, traveledDistance: number): boolean {
+  return sprintIntent && Number.isFinite(traveledDistance) && traveledDistance > 0.001;
+}
+
 export function passiveAwarenessRange(torchLit: boolean, crouching: boolean, sprinting = false, moving = true, armorWeight = 0): number {
   const base = torchLit ? 10.5 : 6.5;
   const movementNoise = crouching ? (moving ? 0.66 : 0.56) : !moving ? 0.78 : sprinting ? 1.35 : 1;

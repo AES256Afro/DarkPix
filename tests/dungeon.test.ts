@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DUNGEON, dartTrapTargetDistance, dungeonCollides, dungeonLineOfSight, dungeonPath, dungeonPathExists, dungeonProjectilePathClear, dungeonProjectileStoneContact, encounterPosition, safeDroppedLootPosition, selectRaidVariation } from "../src/game/dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES } from "../src/game/depth";
 import { channelCommitmentLabel, channelInterruptionReason, continuousHold, heldInteractionTargetMatches, retainedHeldInteractionTarget, targetDistanceInView } from "../src/game/targeting";
-import { cardinalDirection, circlesOverlap, directionalCue, movementOffset, movementSubstepCount, passiveAwarenessRange, recoveryNeed, relativeDirectionToSource } from "../src/game/navigation";
+import { cardinalDirection, circlesOverlap, directionalCue, movementOffset, movementSubstepCount, passiveAwarenessRange, recoveryNeed, relativeDirectionToSource, sprintEffortActive } from "../src/game/navigation";
 import { DARKNESS_PULSE_SECONDS, darknessPulseReady, directionToZoneCenter, distanceFromZoneCenter, distanceOutsideZone, zoneState } from "../src/game/zone";
 import type { Vec2 } from "../src/game/types";
 import { RAID_VARIATION_COUNT, normalizeRaidVariationSeed, raidVariationSeal, validRaidVariationSeed } from "../src/game/contract";
@@ -287,6 +287,14 @@ describe("contract wayfinding", () => {
     expect(movementSubstepCount(Number.NaN)).toBe(1);
     expect(movementSubstepCount(1, 0)).toBe(1);
     expect(movementSubstepCount(1_000)).toBe(64);
+  });
+
+  it("spends sprint effort only after collision-resolved travel", () => {
+    expect(sprintEffortActive(true, 0.1)).toBe(true);
+    expect(sprintEffortActive(true, 0.001)).toBe(false);
+    expect(sprintEffortActive(true, 0)).toBe(false);
+    expect(sprintEffortActive(false, 1)).toBe(false);
+    expect(sprintEffortActive(true, Number.NaN)).toBe(false);
   });
 
   it("requests campfire guidance only for critical recoverable resources", () => {
