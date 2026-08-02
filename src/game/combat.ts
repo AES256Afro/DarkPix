@@ -225,6 +225,12 @@ export function trapDamageAgainstThreat(baseDamage: number, kind: ThreatKind): n
   return Math.round(safeDamage * multiplier);
 }
 
+export function trapTargetPrecedes(candidateDistanceSquared: number, currentDistanceSquared: number): boolean {
+  if (!Number.isFinite(candidateDistanceSquared) || candidateDistanceSquared < 0) return false;
+  if (!Number.isFinite(currentDistanceSquared)) return true;
+  return candidateDistanceSquared < Math.max(0, currentDistanceSquared);
+}
+
 export function sanctuaryDamage(kind: ThreatKind): number {
   if (kind === "rival") return 0;
   return kind === "boss" ? 14 : 28;

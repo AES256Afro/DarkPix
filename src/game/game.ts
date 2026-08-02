@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { escapeHtml } from "../html";
 import { AudioDirector, footstepCadenceCrossed } from "./audio";
-import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, damageImpactAccepted, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, safeDamageAmount, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat, type AttackDirection, type RivalArchetype } from "./combat";
+import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, damageImpactAccepted, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, safeDamageAmount, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat, trapTargetPrecedes, type AttackDirection, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, dungeonProjectileStoneContact, encounterPosition, safeDroppedLootPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
@@ -1679,26 +1679,30 @@ export class DarkPixGame {
       if (trap.cooldown > 0) continue;
       const playerOffsetX = this.camera.position.x - trap.group.position.x;
       const playerOffsetZ = this.camera.position.z - trap.group.position.z;
-      if (playerOffsetX * playerOffsetX + playerOffsetZ * playerOffsetZ < 0.82 * 0.82) {
-        trap.cooldown = 3.2;
-        trap.active = 0.72;
-        this.hurt(trap.damage, "a floor trap", true, { x: trap.group.position.x, z: trap.group.position.z });
-        if (this.ended) return;
-        continue;
-      }
+      const playerDistanceSquared = playerOffsetX * playerOffsetX + playerOffsetZ * playerOffsetZ;
+      let playerVictim = playerDistanceSquared < 0.82 * 0.82;
+      let nearestDistanceSquared = playerVictim ? playerDistanceSquared : Number.POSITIVE_INFINITY;
       let victim: Enemy | undefined;
       for (const enemy of this.enemies) {
         if (!enemy.alive) continue;
         const enemyOffsetX = enemy.group.position.x - trap.group.position.x;
         const enemyOffsetZ = enemy.group.position.z - trap.group.position.z;
+        const enemyDistanceSquared = enemyOffsetX * enemyOffsetX + enemyOffsetZ * enemyOffsetZ;
         const triggerRadius = enemy.kind === "boss" ? 1.05 : 0.78;
-        if (enemyOffsetX * enemyOffsetX + enemyOffsetZ * enemyOffsetZ >= triggerRadius * triggerRadius) continue;
+        if (enemyDistanceSquared >= triggerRadius * triggerRadius || !trapTargetPrecedes(enemyDistanceSquared, nearestDistanceSquared)) continue;
+        nearestDistanceSquared = enemyDistanceSquared;
+        playerVictim = false;
         victim = enemy;
-        break;
       }
-      if (!victim) continue;
+      if (!playerVictim && !victim) continue;
       trap.cooldown = 3.2;
       trap.active = 0.72;
+      if (playerVictim) {
+        this.hurt(trap.damage, "a floor trap", true, { x: trap.group.position.x, z: trap.group.position.z });
+        if (this.ended) return;
+        continue;
+      }
+      if (!victim) continue;
       this.damageEnemy(victim, trapDamageAgainstThreat(trap.damage, victim.kind), false, false);
       this.feed(`FLOOR TRAP · ${victim.name} is impaled`, "combat");
     }
