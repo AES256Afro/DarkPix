@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import nginx from "../deploy/nginx.conf?raw";
 import deployScript from "../scripts/deploy-bigbox.sh?raw";
+import dockerfile from "../Dockerfile?raw";
 
 describe("production asset routing", () => {
   it("returns a real 404 for missing hashed assets instead of the HTML shell", () => {
@@ -30,5 +31,11 @@ describe("production asset routing", () => {
     expect(deployScript).toContain('git status --porcelain --untracked-files=normal');
     expect(deployScript).toContain("Refusing to deploy a dirty DarkPix worktree because its release identity would be false.");
     expect(deployScript.indexOf("git status --porcelain")).toBeLessThan(deployScript.indexOf('darkpix_release="${DARKPIX_RELEASE'));
+  });
+
+  it("pins both production image stages to immutable registry digests", () => {
+    const stages = dockerfile.match(/^FROM .+$/gm) ?? [];
+    expect(stages).toHaveLength(2);
+    expect(stages.every((stage) => /@sha256:[a-f0-9]{64}(?: AS build)?$/.test(stage))).toBe(true);
   });
 });

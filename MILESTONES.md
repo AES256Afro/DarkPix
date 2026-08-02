@@ -79,7 +79,7 @@ Exit evidence: topology, collision, sightline, pathfinding, variation, combat-ru
 
 Status: Complete
 
-- Unprivileged, read-only Nginx container on the private tunnel network
+- Unprivileged, read-only Nginx container on the private tunnel network with digest-pinned build and runtime images
 - Loopback-only host health endpoint
 - No inbound router ports or public origin address
 - Content security, framing, MIME, referrer, permissions, opener, resource, and transport headers

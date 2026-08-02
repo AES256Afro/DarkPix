@@ -23,6 +23,7 @@ The service also binds to `127.0.0.1:8092` for host-only health checks. BigBox p
 - All Linux capabilities dropped
 - `no-new-privileges` enabled
 - Unprivileged Nginx worker on port 8080
+- Build and runtime base images pinned to immutable registry digests
 - Strict content, framing, referrer, and browser-permission headers
 - All content-hashed production assets cached immutably; missing asset paths return 404 for worker fallback, entry HTML is always revalidated, and release identity is never stored
 - Existing Gridless tunnel token stays in the Gridless project and is never copied
