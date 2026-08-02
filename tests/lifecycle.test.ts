@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LifecycleTimers, SingleFlightGate, pointerLockRequestAllowed, pointerLockResumesRaid, raidDeadlineReached, raidFrameLoopActive } from "../src/game/lifecycle";
+import { LifecycleTimers, SingleFlightGate, pointerLockRequestAllowed, pointerLockResumesRaid, pointerLockTimeoutOutcome, raidDeadlineReached, raidFrameLoopActive } from "../src/game/lifecycle";
 
 afterEach(() => vi.useRealTimers());
 
@@ -75,5 +75,12 @@ describe("raid lifecycle", () => {
     expect(raidFrameLoopActive(true, false, false)).toBe(false);
     expect(raidFrameLoopActive(false, true, false)).toBe(false);
     expect(raidFrameLoopActive(false, false, true)).toBe(false);
+  });
+
+  it("recovers a pointer-lock request that never settles", () => {
+    expect(pointerLockTimeoutOutcome(true, true, false)).toBe("reject");
+    expect(pointerLockTimeoutOutcome(true, true, true)).toBe("confirm");
+    expect(pointerLockTimeoutOutcome(false, true, false)).toBe("ignore");
+    expect(pointerLockTimeoutOutcome(true, false, false)).toBe("ignore");
   });
 });

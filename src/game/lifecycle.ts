@@ -74,3 +74,10 @@ export function raidDeadlineReached(elapsed: number, duration: number): boolean 
 export function raidFrameLoopActive(paused: boolean, ended: boolean, contextLost: boolean): boolean {
   return !paused && !ended && !contextLost;
 }
+
+export type PointerLockTimeoutOutcome = "ignore" | "confirm" | "reject";
+
+export function pointerLockTimeoutOutcome(requestPending: boolean, requestIsCurrent: boolean, lockMatchesCanvas: boolean): PointerLockTimeoutOutcome {
+  if (!requestPending || !requestIsCurrent) return "ignore";
+  return lockMatchesCanvas ? "confirm" : "reject";
+}

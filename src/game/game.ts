@@ -16,7 +16,7 @@ import { RAID_VARIATION_COUNT, raidVariationSeal, validRaidVariationSeed } from 
 import { rarityShape } from "./rarity";
 import { raidReadinessSummary } from "./readiness";
 import { MAX_TORCH_FUEL_SECONDS, addTorchFuel, spendTorchFuel } from "./light";
-import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, raidDeadlineReached, raidFrameLoopActive } from "./lifecycle";
+import { LifecycleTimers, pointerLockRequestAllowed, pointerLockResumesRaid, pointerLockTimeoutOutcome, raidDeadlineReached, raidFrameLoopActive } from "./lifecycle";
 import { shrineOfferingRules, type ShrineOffering } from "./shrine";
 import { QUIET_KNIVES_TARGET, recordUnseenStrike as markUnseenStrike, unseenStrikeCue } from "./stealth";
 import { channelInterruptionReason, continuousHold, targetDistanceInView, type ChannelInterruptionReason } from "./targeting";
@@ -1272,6 +1272,7 @@ export class DarkPixGame {
     try {
       const pointerLockRequest = this.renderer.domElement.requestPointerLock();
       void Promise.resolve(pointerLockRequest).catch(() => this.handlePointerLockFailure(epoch));
+      this.lifecycleTimers.schedule(() => this.settleTimedOutPointerLock(epoch), 1_800);
     } catch {
       this.handlePointerLockFailure(epoch);
     }
@@ -1295,6 +1296,16 @@ export class DarkPixGame {
     this.pointerLockPending = false;
     this.pointerLockEpoch += 1;
     this.resumeButton.disabled = false;
+  }
+
+  private settleTimedOutPointerLock(epoch: number): void {
+    const outcome = pointerLockTimeoutOutcome(
+      this.pointerLockPending,
+      epoch === this.pointerLockEpoch,
+      document.pointerLockElement === this.renderer.domElement,
+    );
+    if (outcome === "confirm") this.onPointerLockChange();
+    if (outcome === "reject") this.handlePointerLockFailure(epoch, "The browser did not confirm first-person control. Click to try again.");
   }
 
   private frame = (): void => {
