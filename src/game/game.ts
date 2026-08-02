@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { escapeHtml } from "../html";
 import { AudioDirector, footstepCadenceCrossed } from "./audio";
-import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat, type AttackDirection, type RivalArchetype } from "./combat";
+import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, damageImpactAccepted, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat, type AttackDirection, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, encounterPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
@@ -1708,9 +1708,9 @@ export class DarkPixGame {
         { x: origin.x - this.camera.position.x, z: origin.z - this.camera.position.z },
       );
       const guarded = this.blocking && facingPort;
-      this.hurt(trap.damage * (guarded ? 0.28 : 1), "a wall dart", true, origin);
+      const impactAccepted = this.hurt(trap.damage * (guarded ? 0.28 : 1), "a wall dart", true, origin);
       if (this.ended) return;
-      if (guarded) this.drainGuard(trap.damage * 0.5);
+      if (guarded && impactAccepted) this.drainGuard(trap.damage * 0.5);
       return;
     }
     if (!victim || !Number.isFinite(victimDistance)) return;
@@ -2029,9 +2029,9 @@ export class DarkPixGame {
     }
     const guardingAttack = defense === "guard";
     const reduction = guardingAttack ? (this.options.classId === "hexbound" ? 0.45 : 0.72) : 0;
-    this.hurt(projectile.damage * (1 - reduction), projectile.sourceName, true, { x: projectile.start.x, z: projectile.start.z });
+    const impactAccepted = this.hurt(projectile.damage * (1 - reduction), projectile.sourceName, true, { x: projectile.start.x, z: projectile.start.z });
     if (this.ended) return;
-    if (guardingAttack) this.drainGuard(projectile.damage * 0.75);
+    if (guardingAttack && impactAccepted) this.drainGuard(projectile.damage * 0.75);
   }
 
   private removeEnemyProjectile(index: number): void {
@@ -2284,9 +2284,9 @@ export class DarkPixGame {
           const attackDamage = enemy.kind === "boss" && rangedAttack
             ? Math.round(enemy.damage * 0.68)
             : enemy.kind === "rival" && enemy.attackStyle === "melee" ? Math.round(enemy.damage * 0.75) : enemy.damage;
-          this.hurt(attackDamage * (1 - reduction), enemy.name, true, { x: enemy.group.position.x, z: enemy.group.position.z });
+          const impactAccepted = this.hurt(attackDamage * (1 - reduction), enemy.name, true, { x: enemy.group.position.x, z: enemy.group.position.z });
           if (this.ended) return;
-          if (guardingAttack) this.drainGuard(attackDamage * 0.75);
+          if (guardingAttack && impactAccepted) this.drainGuard(attackDamage * 0.75);
         }
         continue;
       }
@@ -2388,9 +2388,9 @@ export class DarkPixGame {
     );
     const guarded = this.blocking && facingThreat;
     const damage = bossTollDamage(enemy.damage, guarded);
-    this.hurt(damage, `${enemy.name}'s chain ring`, true, { x: enemy.group.position.x, z: enemy.group.position.z });
+    const impactAccepted = this.hurt(damage, `${enemy.name}'s chain ring`, true, { x: enemy.group.position.x, z: enemy.group.position.z });
     if (this.ended) return;
-    if (guarded) {
+    if (guarded && impactAccepted) {
       this.drainGuard(14);
       if (this.guardBreakTimer <= 0) this.feed("CHAIN RING GUARDED · the impact drains your footing", "system");
     }
@@ -2609,8 +2609,8 @@ export class DarkPixGame {
     this.soundDirectionTimer = 0.8;
   }
 
-  private hurt(amount: number, source: string, physical = true, sourcePosition?: Vec2, independentPulse = false): void {
-    if ((!independentPulse && this.damageCooldown > 0) || this.ended) return;
+  private hurt(amount: number, source: string, physical = true, sourcePosition?: Vec2, independentPulse = false): boolean {
+    if (!damageImpactAccepted(this.damageCooldown, this.ended, independentPulse)) return false;
     const channelBroken = this.interactionHold > 0;
     const remedyInterrupted = Boolean(this.remedyItemId);
     if (!independentPulse) this.damageCooldown = 0.18;
@@ -2630,6 +2630,7 @@ export class DarkPixGame {
     this.audio.danger();
     this.feed(`${source} wounds you for ${Math.round(appliedDamage)}.${channelBroken ? " CHANNEL BROKEN." : ""}${remedyInterrupted ? " REMEDY INTERRUPTED." : ""}`, "danger");
     if (this.health <= 0) this.finish(source === "the dark" ? "darkness" : "slain");
+    return true;
   }
 
   private drainGuard(amount: number): void {

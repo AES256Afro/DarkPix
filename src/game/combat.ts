@@ -202,6 +202,11 @@ export function healthPercent(current: number, maximum: number): number {
   return Math.min(100, Math.max(0, (current / maximum) * 100));
 }
 
+export function damageImpactAccepted(damageCooldown: number, ended: boolean, independentPulse = false): boolean {
+  if (ended) return false;
+  return independentPulse || !Number.isFinite(damageCooldown) || damageCooldown <= 0;
+}
+
 export function guardFacesThreat(facing: Vec2, toThreat: Vec2, minimumAlignment = 0.2): boolean {
   const facingLength = Math.hypot(facing.x, facing.z);
   const threatLength = Math.hypot(toThreat.x, toThreat.z);
