@@ -231,6 +231,15 @@ export function trapTargetPrecedes(candidateDistanceSquared: number, currentDist
   return candidateDistanceSquared < Math.max(0, currentDistanceSquared);
 }
 
+export const FLOOR_TRAP_WINDUP_SECONDS = 0.32;
+
+export function advanceFloorTrapWindup(current: number, delta: number): { remaining: number; fires: boolean } {
+  const safeCurrent = Number.isFinite(current) ? Math.max(0, current) : 0;
+  const safeDelta = Number.isFinite(delta) ? Math.max(0, delta) : 0;
+  const remaining = Math.max(0, safeCurrent - safeDelta);
+  return { remaining, fires: safeCurrent > 0 && remaining === 0 };
+}
+
 export function sanctuaryDamage(kind: ThreatKind): number {
   if (kind === "rival") return 0;
   return kind === "boss" ? 14 : 28;

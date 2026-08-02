@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { escapeHtml } from "../html";
 import { AudioDirector, footstepCadenceCrossed } from "./audio";
-import { RIPOSTE_DURATION_SECONDS, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, damageImpactAccepted, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, safeDamageAmount, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat, trapTargetPrecedes, type AttackDirection, type RivalArchetype } from "./combat";
+import { FLOOR_TRAP_WINDUP_SECONDS, RIPOSTE_DURATION_SECONDS, advanceFloorTrapWindup, attackDamage, attackStaminaCost, bossTactic, bossTollDamage, bossTollHits, classAbilityDamageMultiplier, classAttackDelay, classMovementMultiplier, damageImpactAccepted, delverActionLock, delverRecoveryActive, dodgeStats, dungeonCrossfireDamage, enemyAttackPattern, enemyStrikeFacesTarget, enemyStrikeMissReason, guardBreakDuration, guardDenialReason, guardDrainPerSecond, guardFacesThreat, healthPercent, minstrelStagger, riposteDamageMultiplier, rivalDungeonTactic, rivalTactic, safeDamageAmount, sanctuaryDamage, staminaRecoveryPerSecond, strikeImpactDelay, trapDamageAgainstThreat, trapTargetPrecedes, type AttackDirection, type RivalArchetype } from "./combat";
 import { CLASSES, CLASS_ABILITIES, HEX_SPELLS, RARITY_COLOR, classPerkBonuses, consumableEffect, consumableUseDuration, createBossLoot, createLoot, createSigil, formatTime, progressionBonuses, throwableDamage, type ClassPerkBonuses, type HexSpellId } from "./data";
 import { DUNGEON, dartTrapTargetDistance, dungeonLineOfSight, dungeonPath, dungeonProjectileStoneContact, encounterPosition, safeDroppedLootPosition, selectRaidVariation } from "./dungeon";
 import { ASHEN_CHESTS, ASHEN_ENEMIES, ASH_VENTS, ASH_VENT_ACTIVE_SECONDS, ASH_VENT_COOLDOWN_SECONDS, ASH_VENT_DAMAGE, ASH_VENT_RADIUS, ASH_VENT_WINDUP_SECONDS, ashVentHits, bossRingActive, bossRingCooldown, depthRules } from "./depth";
@@ -130,8 +130,11 @@ interface Chest {
 interface FloorTrap {
   group: THREE.Group;
   spikes: THREE.Group;
+  inset: THREE.Mesh;
+  insetMaterial: THREE.MeshStandardMaterial;
   damage: number;
   cooldown: number;
+  windup: number;
   active: number;
 }
 
@@ -753,7 +756,8 @@ export class DarkPixGame {
     const group = new THREE.Group();
     group.position.set(x, 0.025, z);
     const plate = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.07, 1.45), material(0x312e29));
-    const inset = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.075, 1.15), material(0x4a4033));
+    const insetMaterial = material(0x4a4033, 0x1f0905);
+    const inset = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.075, 1.15), insetMaterial);
     inset.position.y = 0.02;
     const spikes = new THREE.Group();
     for (const [spikeX, spikeZ] of [[-0.36, -0.36], [0.36, -0.36], [0, 0], [-0.36, 0.36], [0.36, 0.36]] as const) {
@@ -765,7 +769,7 @@ export class DarkPixGame {
     spikes.scale.y = 0.04;
     group.add(plate, inset, spikes);
     this.scene.add(group);
-    this.traps.push({ group, spikes, damage, cooldown: 0, active: 0 });
+    this.traps.push({ group, spikes, inset, insetMaterial, damage, cooldown: 0, windup: 0, active: 0 });
   }
 
   private createDartTrap(x: number, z: number, direction: Vec2, range: number, damage: number, delay: number): void {
@@ -1708,36 +1712,59 @@ export class DarkPixGame {
       trap.active = Math.max(0, trap.active - delta);
       const targetScale = trap.active > 0 ? 1 : 0.04;
       trap.spikes.scale.y = THREE.MathUtils.lerp(trap.spikes.scale.y, targetScale, delta * 22);
-      if (trap.cooldown > 0) continue;
-      const playerOffsetX = this.camera.position.x - trap.group.position.x;
-      const playerOffsetZ = this.camera.position.z - trap.group.position.z;
-      const playerDistanceSquared = playerOffsetX * playerOffsetX + playerOffsetZ * playerOffsetZ;
-      let playerVictim = playerDistanceSquared < 0.82 * 0.82;
-      let nearestDistanceSquared = playerVictim ? playerDistanceSquared : Number.POSITIVE_INFINITY;
-      let victim: Enemy | undefined;
-      for (const enemy of this.enemies) {
-        if (!enemy.alive) continue;
-        const enemyOffsetX = enemy.group.position.x - trap.group.position.x;
-        const enemyOffsetZ = enemy.group.position.z - trap.group.position.z;
-        const enemyDistanceSquared = enemyOffsetX * enemyOffsetX + enemyOffsetZ * enemyOffsetZ;
-        const triggerRadius = enemy.kind === "boss" ? 1.05 : 0.78;
-        if (enemyDistanceSquared >= triggerRadius * triggerRadius || !trapTargetPrecedes(enemyDistanceSquared, nearestDistanceSquared)) continue;
-        nearestDistanceSquared = enemyDistanceSquared;
-        playerVictim = false;
-        victim = enemy;
-      }
-      if (!playerVictim && !victim) continue;
-      trap.cooldown = 3.2;
-      trap.active = 0.72;
-      if (playerVictim) {
-        this.hurt(trap.damage, "a floor trap", true, { x: trap.group.position.x, z: trap.group.position.z });
-        if (this.ended) return;
+      if (trap.windup > 0) {
+        const windup = advanceFloorTrapWindup(trap.windup, delta);
+        trap.windup = windup.remaining;
+        const progress = 1 - trap.windup / FLOOR_TRAP_WINDUP_SECONDS;
+        trap.inset.position.y = 0.02 - progress * 0.025;
+        trap.insetMaterial.emissiveIntensity = 0.35 + progress * 1.4;
+        if (!windup.fires) continue;
+        trap.active = 0.72;
+        trap.cooldown = 3.2;
+        trap.insetMaterial.emissiveIntensity = 0.08;
+        const victim = this.floorTrapVictim(trap);
+        if (victim === "player") {
+          this.hurt(trap.damage, "a floor trap", true, { x: trap.group.position.x, z: trap.group.position.z });
+          if (this.ended) return;
+        } else if (victim) {
+          this.damageEnemy(victim, trapDamageAgainstThreat(trap.damage, victim.kind), false, false);
+          this.feed(`FLOOR TRAP · ${victim.name} is impaled`, "combat");
+        }
         continue;
       }
+      trap.inset.position.y = THREE.MathUtils.lerp(trap.inset.position.y, 0.02, delta * 8);
+      trap.insetMaterial.emissiveIntensity = 0.08;
+      if (trap.cooldown > 0) continue;
+      const victim = this.floorTrapVictim(trap);
       if (!victim) continue;
-      this.damageEnemy(victim, trapDamageAgainstThreat(trap.damage, victim.kind), false, false);
-      this.feed(`FLOOR TRAP · ${victim.name} is impaled`, "combat");
+      trap.windup = FLOOR_TRAP_WINDUP_SECONDS;
+      if (victim === "player") {
+        this.feed("FLOOR PLATE SINKS · clear the spikes", "danger");
+        this.showDirectionalCue(trap.group.position, "FLOOR SPIKES", FLOOR_TRAP_WINDUP_SECONDS + 0.12, "warning");
+        this.audio.tone(118, 0.12, "square", 0.07);
+      }
     }
+  }
+
+  private floorTrapVictim(trap: FloorTrap): "player" | Enemy | undefined {
+    const playerOffsetX = this.camera.position.x - trap.group.position.x;
+    const playerOffsetZ = this.camera.position.z - trap.group.position.z;
+    const playerDistanceSquared = playerOffsetX * playerOffsetX + playerOffsetZ * playerOffsetZ;
+    let playerVictim = playerDistanceSquared < 0.82 * 0.82;
+    let nearestDistanceSquared = playerVictim ? playerDistanceSquared : Number.POSITIVE_INFINITY;
+    let victim: Enemy | undefined;
+    for (const enemy of this.enemies) {
+      if (!enemy.alive) continue;
+      const enemyOffsetX = enemy.group.position.x - trap.group.position.x;
+      const enemyOffsetZ = enemy.group.position.z - trap.group.position.z;
+      const enemyDistanceSquared = enemyOffsetX * enemyOffsetX + enemyOffsetZ * enemyOffsetZ;
+      const triggerRadius = enemy.kind === "boss" ? 1.05 : 0.78;
+      if (enemyDistanceSquared >= triggerRadius * triggerRadius || !trapTargetPrecedes(enemyDistanceSquared, nearestDistanceSquared)) continue;
+      nearestDistanceSquared = enemyDistanceSquared;
+      playerVictim = false;
+      victim = enemy;
+    }
+    return playerVictim ? "player" : victim;
   }
 
   private updateDartTraps(delta: number): void {

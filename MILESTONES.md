@@ -120,6 +120,7 @@ Status: Complete for the current map
 - Stable darkness skips unchanged shell-style writes, and loose-sigil wayfinding uses a direct early-exit scan without allocating a repeated callback
 - Player and threat collision plus floor and dart-trap scans use early-exit loops and squared scalar overlap math instead of frame-hot square roots, callbacks, and coordinate pairs
 - Floor spikes resolve the nearest overlapping delver or threat instead of favoring the player or enemy array order, making baited trap outcomes spatially deterministic
+- Pressure plates now sink and glow through a 0.32-second directional warning, then re-evaluate the nearest overlapping body so the delver can sidestep or bait a threat into the release
 - Combat and hazard simulation remain frame-rate driven while inventory summaries, wayfinding, bars, countdown text, and transient visibility refresh at a bounded 20 Hz
 - Projectile flight keeps first-contact progress in scalars and reuses target and impact records instead of constructing collision-result objects while missiles cross a frame
 - Projectile sweeps, masonry samples, ash-vent range checks, and movement cadence use direct finite-number guards instead of temporary validation arrays
