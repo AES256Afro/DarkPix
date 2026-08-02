@@ -17,6 +17,9 @@ describe("installable offline shell", () => {
     expect(worker).toContain('event.data?.type === "SKIP_WAITING"');
     expect(worker).toContain("cacheBuildAssets");
     expect(worker).toContain("visited.size < 24");
+    expect(worker).toContain('throw new Error("Release asset graph exceeds the offline cache limit")');
+    expect(worker).toContain("await caches.delete(CACHE_NAME)");
+    expect(worker).toContain("event.waitUntil(installCurrentRelease())");
     expect(worker).toContain("return cached ?? response");
     expect(worker).toContain("await updateCurrentCache(request, response.clone())");
     expect(worker).toContain("A full or unavailable cache must never replace a valid network response.");
@@ -31,5 +34,12 @@ describe("installable offline shell", () => {
     expect(worker).toContain('const CACHE_NAME = `${CACHE_PREFIX}${RELEASE_ID}`');
     expect(worker).toContain("key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME");
     expect(worker).not.toContain('const CACHE_NAME = "darkpix-runtime-v1"');
+  });
+
+  it("rejects and cleans an incomplete release cache before activation", () => {
+    const installFunction = worker.slice(worker.indexOf("async function installCurrentRelease"), worker.indexOf('self.addEventListener("install"'));
+    expect(installFunction).toContain("await cacheBuildAssets()");
+    expect(installFunction).toContain("await caches.delete(CACHE_NAME)");
+    expect(installFunction).toContain("throw error");
   });
 });

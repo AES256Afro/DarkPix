@@ -51,10 +51,26 @@ async function cacheBuildAssets() {
       }
     }
   }
+  if (queue.some((assetUrl) => assetUrl && !visited.has(assetUrl))) {
+    throw new Error("Release asset graph exceeds the offline cache limit");
+  }
+}
+
+async function installCurrentRelease() {
+  try {
+    await cacheBuildAssets();
+  } catch (error) {
+    try {
+      await caches.delete(CACHE_NAME);
+    } catch {
+      // The failed install still rejects even if storage cleanup is unavailable.
+    }
+    throw error;
+  }
 }
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(cacheBuildAssets());
+  event.waitUntil(installCurrentRelease());
 });
 
 self.addEventListener("activate", (event) => {
