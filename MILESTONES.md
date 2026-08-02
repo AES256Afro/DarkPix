@@ -33,6 +33,7 @@ Status: Complete for local-first play
 - A 12-second page-owner lease heartbeats every three seconds, preventing another tab from treating a live raid as an interruption or overwriting its escrow
 - Initial page-owner claims are read-back verified, renewals refuse to overwrite another owner, and a losing concurrent descent destroys only its local simulation before entering the non-destructive foreign-raid lock
 - Profile and preference writes also require an exact synchronous read-back, so silent storage refusals cannot masquerade as secured progress, settings, imports, or verdicts
+- The startup storage probe also verifies that its temporary marker is removed or its prior value is restored before declaring the browser safe for raid risk
 - Live cancellation and terminal settlement recheck their owner immediately before profile persistence, while owned removal refuses to clear a replacement journal from another tab
 - Already-open idle tabs observe the shared journal, invalidate pending lobby imports, and enter the same non-destructive lock as soon as another tab begins a leased raid
 - A quarantined idle tab reloads into the durable profile as soon as the owning tab safely removes its settled journal

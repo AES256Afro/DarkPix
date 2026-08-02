@@ -15,7 +15,8 @@ export function browserStorageWritable(storage?: StorageProbeTarget): boolean {
     const written = target.getItem(STORAGE_PROBE_KEY) === marker;
     if (previous === null) target.removeItem(STORAGE_PROBE_KEY);
     else target.setItem(STORAGE_PROBE_KEY, previous);
-    return written;
+    const restored = target.getItem(STORAGE_PROBE_KEY) === previous;
+    return written && restored;
   } catch {
     return false;
   }

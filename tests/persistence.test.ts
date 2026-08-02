@@ -26,6 +26,26 @@ describe("browser persistence readiness", () => {
   it("fails closed when the browser rejects new writes", () => {
     expect(browserStorageWritable(memoryStorage({ rejectWrites: true }).storage)).toBe(false);
   });
+
+  it("fails closed when a probe marker cannot be removed or a prior value cannot be restored", () => {
+    const markerLeftBehind = new Map<string, string>();
+    expect(browserStorageWritable({
+      getItem: (key) => markerLeftBehind.get(key) ?? null,
+      setItem: (key, value) => { markerLeftBehind.set(key, value); },
+      removeItem: () => undefined,
+    })).toBe(false);
+
+    let stored = "prior";
+    let writes = 0;
+    expect(browserStorageWritable({
+      getItem: () => stored,
+      setItem: (_key, value) => {
+        writes += 1;
+        if (writes === 1) stored = value;
+      },
+      removeItem: () => undefined,
+    })).toBe(false);
+  });
 });
 
 describe("raid verdict persistence ordering", () => {
