@@ -222,6 +222,7 @@ check_public_release() {
   local title_headers
   local worker_headers
   local missing_asset_status
+  local write_method_status
   if command -v curl >/dev/null 2>&1; then
     observed_release="$(curl -fsS --max-time 8 "$public_url/version.txt" 2>/dev/null)" || return 1
     release_headers="$(curl -fsSI --max-time 8 "$public_url/version.txt" 2>/dev/null)" || return 1
@@ -233,6 +234,7 @@ check_public_release() {
     title_headers="$(curl -fsSI --max-time 8 "$public_url/assets/darkpix-title.jpg?v=$darkpix_release" 2>/dev/null)" || return 1
     worker_headers="$(curl -fsSI --max-time 8 "$public_url/sw.js?v=$darkpix_release" 2>/dev/null)" || return 1
     missing_asset_status="$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' "$public_url/assets/missing-$darkpix_release.js" 2>/dev/null)" || return 1
+    write_method_status="$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' -X POST "$public_url/healthz" 2>/dev/null)" || return 1
   elif command -v wget >/dev/null 2>&1; then
     observed_release="$(wget -q -T 8 -O - "$public_url/version.txt" 2>/dev/null)" || return 1
     release_headers="$(wget -q -T 8 --server-response --spider "$public_url/version.txt" 2>&1)" || return 1
@@ -261,6 +263,7 @@ check_public_release() {
   if grep -qi 'cf-cache-status: *HIT' <<<"$release_headers"; then return 1; fi
   [[ "$health_body" == "ok" ]] || return 1
   if command -v curl >/dev/null 2>&1; then [[ "$missing_asset_status" == "404" ]] || return 1; fi
+  if command -v curl >/dev/null 2>&1; then [[ "$write_method_status" == "405" ]] || return 1; fi
   grep -qi 'cache-control:.*no-store' <<<"$health_headers" || return 1
   if grep -qi 'cf-cache-status: *HIT' <<<"$health_headers"; then return 1; fi
   grep -qi 'content-type:.*json' <<<"$manifest_headers" || return 1

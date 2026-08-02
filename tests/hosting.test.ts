@@ -11,6 +11,13 @@ describe("production asset routing", () => {
     expect(nginx).toMatch(/healthz\|version\\\.txt\|sw\\\.js\|manifest\\\.webmanifest/);
   });
 
+  it("rejects non-read methods before every static and synthetic route", () => {
+    expect(nginx).toMatch(/if \(\$request_method !~ \^\(GET\|HEAD\)\$\)\s*\{\s*return 405;/);
+    expect(deployScript).toContain('-X POST "$public_url/healthz"');
+    expect(deployScript).toContain('[[ "$write_method_status" == "405" ]] || return 1');
+    expect(workflow).toContain("-X POST http://127.0.0.1:18092/healthz");
+  });
+
   it("serves the install manifest as JSON and keeps unversioned shell art revalidatable", () => {
     expect(nginx).toMatch(/location = \/manifest\.webmanifest\s*\{\s*default_type application\/manifest\+json;/);
     expect(nginx).toMatch(/sw\\\.js\|manifest\\\.webmanifest\|darkpix-icon\\\.svg/);

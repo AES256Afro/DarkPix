@@ -112,6 +112,8 @@ The repository includes a hardened Docker and Nginx deployment for BigBox. It bi
 
 The CI runner uses immutable commit identities for its official checkout and Node setup actions, alongside digest-pinned production images and the dependency advisory gate. CI and image builds also suppress third-party dependency lifecycle scripts before testing and compilation.
 
+The public service accepts only `GET` and `HEAD`; write methods are rejected before static files, health responses, or SPA fallback routing.
+
 ## Technology
 
 - Three.js for the low-resolution 3D dungeon and first-person runtime

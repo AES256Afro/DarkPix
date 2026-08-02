@@ -42,6 +42,7 @@ jobs:
             sleep 1
           done
           test "$(curl -fsS http://127.0.0.1:18092/healthz)" = "ok"
+          test "$(curl -sS -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18092/healthz)" = "405"
           curl -fsSI http://127.0.0.1:18092/healthz | grep -qi '^cache-control: no-store'
           curl -fsSI http://127.0.0.1:18092/healthz | grep -qi '^cloudflare-cdn-cache-control: no-store'
           test "$(curl -fsS http://127.0.0.1:18092/version.txt)" = "dev"

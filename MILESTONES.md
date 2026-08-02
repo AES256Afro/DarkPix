@@ -116,6 +116,7 @@ Status: Complete
 
 - Unprivileged, read-only Nginx container on the private tunnel network with digest-pinned build and runtime images
 - Process creation capped at 64 PIDs alongside explicit memory and CPU ceilings
+- A server-wide read-only method gate rejects writes even on synthetic health and release routes
 - Loopback-only host health endpoint
 - Bounded service-local access logs that cannot grow without rotation under public traffic
 - No inbound router ports or public origin address
